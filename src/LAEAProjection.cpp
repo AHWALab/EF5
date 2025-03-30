@@ -4,7 +4,8 @@
 #include <cmath>
 #include <cstdio>
 
-LAEAProjection::LAEAProjection() {
+LAEAProjection::LAEAProjection()
+{
   stan_par = TORADIANS(45.0);
   cent_lon = TORADIANS(-100.0);
   a = 6370997.0;
@@ -12,9 +13,11 @@ LAEAProjection::LAEAProjection() {
 
 LAEAProjection::~LAEAProjection() {}
 
-float LAEAProjection::GetLen(float x, float y, FLOW_DIR dir) {
+float LAEAProjection::GetLen(float x, float y, FLOW_DIR dir)
+{
 
-  switch (dir) {
+  switch (dir)
+  {
   case FLOW_NORTH:
   case FLOW_SOUTH:
   case FLOW_EAST:
@@ -35,7 +38,8 @@ float LAEAProjection::GetLen(float x, float y, FLOW_DIR dir) {
 
 float LAEAProjection::GetArea(float x, float y) { return area; }
 
-void LAEAProjection::ReprojectPoint(float lon, float lat, float *x, float *y) {
+void LAEAProjection::ReprojectPoint(float lon, float lat, float *x, float *y)
+{
   // Reproject a geographic point into a LAEA point...
 
   lon = TORADIANS(lon);
@@ -52,7 +56,8 @@ void LAEAProjection::ReprojectPoint(float lon, float lat, float *x, float *y) {
   *y = a * projY;
 }
 
-void LAEAProjection::UnprojectPoint(float x, float y, float *lon, float *lat) {
+void LAEAProjection::UnprojectPoint(float x, float y, float *lon, float *lat)
+{
   // Project a LAEA point into geographic!
   // Equations from mathworld.wolfram.com
 
@@ -71,7 +76,8 @@ void LAEAProjection::UnprojectPoint(float x, float y, float *lon, float *lat) {
   *lat = TODEGREES(geoLat);
 }
 
-void LAEAProjection::SetCellSize(float newCellSize) {
+void LAEAProjection::SetCellSize(float newCellSize)
+{
   cellSize = newCellSize;
   metersSNPerCell = cellSize;
   metersDiagPerCell = sqrt(pow(cellSize, 2) + pow(cellSize, 2));
