@@ -460,58 +460,38 @@ void KWRoute::RouteInt(float stepSeconds, GridNode *node, KWGridNode *cNode,
 }
 
 void KWRoute::InitializeParameters(
-    std::map<GaugeConfigSection *, float *> *paramSettings,
-    std::vector<FloatGrid *> *paramGrids)
+  std::map<GaugeConfigSection *, float *> *paramSettings,
+  std::vector<FloatGrid *> *paramGrids)
 {
-
   // This pass distributes parameters
   size_t numNodes = nodes->size();
   size_t unused = 0;
 
   if (paramGrids->at(PARAM_KINEMATIC_ALPHA) && g_DEM->IsSpatialMatch(paramGrids->at(PARAM_KINEMATIC_ALPHA)))
   {
-    printf("Alpha grid is match!\n");
+      printf("Alpha grid is match!\n");
   }
 
   if (paramGrids->at(PARAM_KINEMATIC_BETA) && g_DEM->IsSpatialMatch(paramGrids->at(PARAM_KINEMATIC_BETA)))
   {
-    printf("Beta grid is match!\n");
+      printf("Beta grid is match!\n");
   }
 
   for (size_t i = 0; i < numNodes; i++)
   {
-    GridNode *node = &nodes->at(i);
-    KWGridNode *cNode = &(kwNodes[i]);
-    if (!node->gauge)
-    {
-      unused++;
-      continue;
-    }
-    // Copy all of the parameters over
-    memcpy(cNode->params, (*paramSettings)[node->gauge], sizeof(float) * PARAM_KINEMATIC_QTY);
-
-    if (!paramGrids->at(PARAM_KINEMATIC_ISU))
-    {
-      cNode->states[STATE_KW_IR] = cNode->params[PARAM_KINEMATIC_ISU];
-    }
-    cNode->incomingWater[KW_LAYER_INTERFLOW] = 0.0;
-    size_t unused = 0;
-    for (size_t i = 0; i < numNodes; i++)
-    {
       GridNode *node = &nodes->at(i);
       KWGridNode *cNode = &(kwNodes[i]);
       if (!node->gauge)
       {
-        unused++;
-        continue;
+          unused++;
+          continue;
       }
       // Copy all of the parameters over
-      memcpy(cNode->params, (*paramSettings)[node->gauge],
-             sizeof(float) * PARAM_KINEMATIC_QTY);
+      memcpy(cNode->params, (*paramSettings)[node->gauge], sizeof(float) * PARAM_KINEMATIC_QTY);
 
       if (!paramGrids->at(PARAM_KINEMATIC_ISU))
       {
-        cNode->states[STATE_KW_IR] = cNode->params[PARAM_KINEMATIC_ISU];
+          cNode->states[STATE_KW_IR] = cNode->params[PARAM_KINEMATIC_ISU];
       }
       cNode->incomingWater[KW_LAYER_INTERFLOW] = 0.0;
       cNode->incomingWater[KW_LAYER_FASTFLOW] = 0.0;
@@ -520,156 +500,133 @@ void KWRoute::InitializeParameters(
       GridLoc pt;
       for (size_t paramI = 0; paramI < PARAM_KINEMATIC_QTY; paramI++)
       {
-        FloatGrid *grid = paramGrids->at(paramI);
-        if (grid && g_DEM->IsSpatialMatch(grid))
-        {
-          if (grid->data[node->y][node->x] == 0)
+          FloatGrid *grid = paramGrids->at(paramI);
+          if (grid && g_DEM->IsSpatialMatch(grid))
           {
-            grid->data[node->y][node->x] = 0.01;
+              if (grid->data[node->y][node->x] == 0)
+              {
+                  grid->data[node->y][node->x] = 0.01;
+              }
+              cNode->params[paramI] *= grid->data[node->y][node->x];
           }
-          cNode->params[paramI] *= grid->data[node->y][node->x];
-        }
-        else if (grid &&
-                 grid->GetGridLoc(node->refLoc.x, node->refLoc.y, &pt))
-        {
-          if (grid->data[pt.y][pt.x] == 0)
+          else if (grid && grid->GetGridLoc(node->refLoc.x, node->refLoc.y, &pt))
           {
-            grid->data[pt.y][pt.x] = 0.01;
-            // printf("Using nodata value in param %s\n",
-            // modelParamStrings[MODEL_CREST][paramI]);
+              if (grid->data[pt.y][pt.x] == 0)
+              {
+                  grid->data[pt.y][pt.x] = 0.01;
+                  // printf("Using nodata value in param %s\n", modelParamStrings[MODEL_CREST][paramI]);
+              }
+              cNode->params[paramI] *= grid->data[pt.y][pt.x];
           }
-          cNode->params[paramI] *= grid->data[pt.y][pt.x];
-        }
       }
 
       if (cNode->params[PARAM_KINEMATIC_LEAKI] < 0.0)
       {
-        // printf("Node Leak Interflow(%f) is less than 0, setting to 0.\n",
-        // cNode->params[PARAM_KINEMATIC_LEAKI]);
-        cNode->params[PARAM_KINEMATIC_LEAKI] = 0.0;
+          cNode->params[PARAM_KINEMATIC_LEAKI] = 0.0;
       }
       else if (cNode->params[PARAM_KINEMATIC_LEAKI] > 1.0)
       {
-        // printf("Node Leak Interflow(%f) is greater than 1, setting to 1.\n",
-        // cNode->params[PARAM_KINEMATIC_LEAKI]);
-        cNode->params[PARAM_KINEMATIC_LEAKI] = 1.0;
+          cNode->params[PARAM_KINEMATIC_LEAKI] = 1.0;
       }
 
       if (cNode->params[PARAM_KINEMATIC_ALPHA] < 0.0)
       {
-        // printf("Node Alpha(%f) is less than 0, setting to 1.\n",
-        // cNode->params[PARAM_KINEMATIC_ALPHA]);
-        cNode->params[PARAM_KINEMATIC_ALPHA] = 1.0;
+          cNode->params[PARAM_KINEMATIC_ALPHA] = 1.0;
       }
 
       if (cNode->params[PARAM_KINEMATIC_ALPHA0] < 0.0)
       {
-        // printf("Node Alpha0(%f) is less than 0, setting to 1.\n",
-        // cNode->params[PARAM_KINEMATIC_ALPHA0]);
-        cNode->params[PARAM_KINEMATIC_ALPHA0] = 1.0;
+          cNode->params[PARAM_KINEMATIC_ALPHA0] = 1.0;
       }
 
       if (cNode->params[PARAM_KINEMATIC_BETA] < 0.0)
       {
-        // printf("Node Beta(%f) is less than 0, setting to 0.6.\n",
-        // cNode->params[PARAM_KINEMATIC_BETA]);
-        cNode->params[PARAM_KINEMATIC_BETA] = 0.6;
+          cNode->params[PARAM_KINEMATIC_BETA] = 0.6;
       }
 
       if (node->fac > cNode->params[PARAM_KINEMATIC_TH])
       {
-        node->channelGridCell = true;
-        cNode->channelGridCell = true;
+          node->channelGridCell = true;
+          cNode->channelGridCell = true;
       }
       else
       {
-        node->channelGridCell = false;
-        cNode->channelGridCell = false;
+          node->channelGridCell = false;
+          cNode->channelGridCell = false;
       }
-    }
   }
+}
 
-  void KWRoute::InitializeRouting(float timeSeconds)
-  {
-
-    // This pass distributes parameters & calculates the time it takes for water
-    // to cross the grid cell.
+void KWRoute::InitializeRouting(float timeSeconds)
+{
+    // This pass distributes parameters & calculates the time it takes for water to cross the grid cell.
     size_t numNodes = nodes->size();
     for (size_t i = 0; i < numNodes; i++)
     {
-      GridNode *node = &nodes->at(i);
-      KWGridNode *cNode = &(kwNodes[i]);
+        GridNode *node = &nodes->at(i);
+        KWGridNode *cNode = &(kwNodes[i]);
 
-      // Calculate the water speed for interflow
-      float speedUnder = cNode->params[PARAM_KINEMATIC_UNDER] * cNode->slopeSqrt;
-
-      float nexTimeUnder = node->horLen / speedUnder;
-      cNode->nexTime[KW_LAYER_INTERFLOW] = nexTimeUnder;
+        // Calculate the water speed for interflow
+        float speedUnder = cNode->params[PARAM_KINEMATIC_UNDER] * cNode->slopeSqrt;
+        float nexTimeUnder = node->horLen / speedUnder;
+        cNode->nexTime[KW_LAYER_INTERFLOW] = nexTimeUnder;
     }
 
     // This pass figures out which cell water is routed to
     for (size_t i = 0; i < numNodes; i++)
     {
-      GridNode *currentNode, *previousNode;
-      float currentSeconds, previousSeconds;
-      GridNode *node = &nodes->at(i);
-      KWGridNode *cNode = &(kwNodes[i]);
+        GridNode *currentNode, *previousNode;
+        float currentSeconds, previousSeconds;
+        GridNode *node = &nodes->at(i);
+        KWGridNode *cNode = &(kwNodes[i]);
 
-      // Interflow routing
-      previousSeconds = 0;
-      currentSeconds = 0;
-      currentNode = node;
-      previousNode = NULL;
-      while (currentSeconds < timeSeconds && currentNode &&
-             !kwNodes[currentNode->modelIndex].channelGridCell)
-      {
-        if (currentNode)
+        // Interflow routing
+        previousSeconds = 0;
+        currentSeconds = 0;
+        currentNode = node;
+        previousNode = NULL;
+        while (currentSeconds < timeSeconds && currentNode && !kwNodes[currentNode->modelIndex].channelGridCell)
         {
-          previousSeconds = currentSeconds;
-          previousNode = currentNode;
-          currentSeconds +=
-              kwNodes[currentNode->modelIndex].nexTime[KW_LAYER_INTERFLOW];
-          if (currentNode->downStreamNode != INVALID_DOWNSTREAM_NODE)
-          {
-            currentNode = &(nodes->at(currentNode->downStreamNode));
-          }
-          else
-          {
-            currentNode = NULL;
-          }
+            if (currentNode)
+            {
+                previousSeconds = currentSeconds;
+                previousNode = currentNode;
+                currentSeconds += kwNodes[currentNode->modelIndex].nexTime[KW_LAYER_INTERFLOW];
+                if (currentNode->downStreamNode != INVALID_DOWNSTREAM_NODE)
+                {
+                    currentNode = &(nodes->at(currentNode->downStreamNode));
+                }
+                else
+                {
+                    currentNode = NULL;
+                }
+            }
+            else
+            {
+                if (timeSeconds > currentSeconds)
+                {
+                    previousNode = NULL;
+                }
+                break; // We have effectively run out of nodes to transverse, this is done!
+            }
+        }
+
+        cNode->routeNode[0][KW_LAYER_INTERFLOW] = currentNode;
+        cNode->routeCNode[0][KW_LAYER_INTERFLOW] = (currentNode) ? &(kwNodes[currentNode->modelIndex]) : NULL;
+        cNode->routeNode[1][KW_LAYER_INTERFLOW] = previousNode;
+        cNode->routeCNode[1][KW_LAYER_INTERFLOW] = (previousNode) ? &(kwNodes[previousNode->modelIndex]) : NULL;
+        if (currentNode && !kwNodes[currentNode->modelIndex].channelGridCell)
+        {
+            if ((currentSeconds - previousSeconds) > 0)
+            {
+                cNode->routeAmount[0][KW_LAYER_INTERFLOW] = (timeSeconds - previousSeconds) / (currentSeconds - previousSeconds);
+                cNode->routeAmount[1][KW_LAYER_INTERFLOW] = 1.0 - cNode->routeAmount[0][KW_LAYER_INTERFLOW];
+            }
         }
         else
         {
-          if (timeSeconds > currentSeconds)
-          {
-            previousNode = NULL;
-          }
-          break; // We have effectively run out of nodes to transverse, this is
-                 // done!
+            cNode->routeAmount[0][KW_LAYER_INTERFLOW] = 1.0;
+            cNode->routeAmount[1][KW_LAYER_INTERFLOW] = 0.0;
         }
-      }
-
-      cNode->routeNode[0][KW_LAYER_INTERFLOW] = currentNode;
-      cNode->routeCNode[0][KW_LAYER_INTERFLOW] =
-          (currentNode) ? &(kwNodes[currentNode->modelIndex]) : NULL;
-      cNode->routeNode[1][KW_LAYER_INTERFLOW] = previousNode;
-      cNode->routeCNode[1][KW_LAYER_INTERFLOW] =
-          (previousNode) ? &(kwNodes[previousNode->modelIndex]) : NULL;
-      if (currentNode && !kwNodes[currentNode->modelIndex].channelGridCell)
-      {
-        if ((currentSeconds - previousSeconds) > 0)
-        {
-          cNode->routeAmount[0][KW_LAYER_INTERFLOW] =
-              (timeSeconds - previousSeconds) /
-              (currentSeconds - previousSeconds);
-          cNode->routeAmount[1][KW_LAYER_INTERFLOW] =
-              1.0 - cNode->routeAmount[0][KW_LAYER_INTERFLOW];
-        }
-      }
-      else
-      {
-        cNode->routeAmount[0][KW_LAYER_INTERFLOW] = 1.0;
-        cNode->routeAmount[1][KW_LAYER_INTERFLOW] = 0.0;
-      }
     }
-  }
+}

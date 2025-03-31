@@ -1983,9 +1983,6 @@ void Simulator::SimulateDistributed(bool trackPeaks)
           currentDepth[i] = currentQ[i] / nodes[i].contribArea;
           float val = floorf(currentDepth[i] * 10.0f + 0.5f) / 10.0f;
           currentDepth[i] = val;
-          computeVec[i] = currentQ[i] / nodes[i].contribArea;
-          float val = floorf(computeVec[i] * 10.0f + 0.5f) / 10.0f;
-          computeVec[i] = val;
         }
         sprintf(buffer, "%s/unitq.%s.%s.tif", outputPath,
                 currentTimeTextOutput.GetName(), wbModel->GetName());
