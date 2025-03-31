@@ -1116,6 +1116,8 @@ void CarveBasin(
     currentN->area =
         g_Projection->GetArea(currentN->refLoc.x, currentN->refLoc.y);
     currentN->contribArea = currentN->area;
+    currentN->relief = g_DEM->data[currentN->y][currentN->x]; // relief Fix
+    currentN->riverLen = currentN->horLen;
     currentN->fac = g_FAM->data[currentN->y][currentN->x];
     walkNodes.push(currentN);
 
@@ -1222,7 +1224,7 @@ void CarveBasin(
       {
         for (int i = 1; i < FLOW_QTY; i++)
         {
-          if (TestUpstream(currentN, (FLOW_DIR)i, &nextNode))
+          if (TestUpstream(currentN, (FLOW_DIR)i, &nextNode) && currentNode < totalAccum)
           {
             GridNode *nextN = &(*nodes)[currentNode];
             nextN->index = currentNode;
@@ -1246,6 +1248,8 @@ void CarveBasin(
             nextN->area =
                 g_Projection->GetArea(nextN->refLoc.x, nextN->refLoc.y);
             nextN->contribArea = nextN->area;
+            nextN->relief = g_DEM->data[nextN->y][nextN->x];
+            nextN->riverLen = nextN->horLen;
             // printf("Pushing node %i %i (%i, %i) from %i %i (%i, %i) %i %i\n",
             // nextN->x, nextN->y, g_DDM->data[nextN->y][nextN->x],
             // g_FAM->data[nextN->y][nextN->x], currentN->x, currentN->y,
@@ -1271,6 +1275,11 @@ void CarveBasin(
     if (node->downStreamNode != INVALID_DOWNSTREAM_NODE)
     {
       nodes->at(node->downStreamNode).contribArea += node->contribArea;
+      nodes->at(node->downStreamNode).riverLen += node->riverLen;
+      if (nodes->at(node->downStreamNode).relief < node->relief)
+      { // relief fix
+        nodes->at(node->downStreamNode).relief = node->relief;
+      }
     }
   }
 
