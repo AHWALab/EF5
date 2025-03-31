@@ -4,26 +4,40 @@
 #include <cstring>
 
 const char *datedNameStrings[] = {
-    "YYYY", "MM", "DD", "HH", "UU", "SS",
+    "YYYY",
+    "MM",
+    "DD",
+    "HH",
+    "UU",
+    "SS",
 };
 
 const int datePartLen[] = {
-    4, 2, 2, 2, 2, 2,
+    4,
+    2,
+    2,
+    2,
+    2,
+    2,
 };
 
-void DatedName::SetNameStr(const char *nameStr) {
+void DatedName::SetNameStr(const char *nameStr)
+{
   strcpy(inUseName, nameStr);
   memset(inUseTimeParts, 0, sizeof(bool) * TIME_UNIT_QTY);
 }
 
-bool DatedName::ProcessName(TimeUnit *freq) {
+bool DatedName::ProcessName(TimeUnit *freq)
+{
   resolution = freq->GetTimeUnit();
 
   // Verify that our name string has all of the necessary variables
   // for the resolution specified by frequency
-  for (int i = 0; i <= resolution; i++) {
+  for (int i = 0; i <= resolution; i++)
+  {
     timeParts[i] = strstr(inUseName, datedNameStrings[i]);
-    if (timeParts[i] == NULL) {
+    if (timeParts[i] == NULL)
+    {
       ERROR_LOGF("Expected to find \"%s\" in \"%s\" but it was not found!",
                  datedNameStrings[i], inUseName);
       return false;
@@ -34,15 +48,18 @@ bool DatedName::ProcessName(TimeUnit *freq) {
   return true;
 }
 
-bool DatedName::ProcessNameLoose(TimeUnit *freq) {
+bool DatedName::ProcessNameLoose(TimeUnit *freq)
+{
   // resolution = freq->GetTimeUnit();
   resolution = SECONDS;
 
   // Verify that our name string has all of the necessary variables
   // for the resolution specified by frequency
-  for (int i = 0; i <= resolution; i++) {
+  for (int i = 0; i <= resolution; i++)
+  {
     timeParts[i] = strstr(inUseName, datedNameStrings[i]);
-    if (timeParts[i] != NULL) {
+    if (timeParts[i] != NULL)
+    {
       inUseTimeParts[i] = true;
     }
   }
@@ -50,19 +67,60 @@ bool DatedName::ProcessNameLoose(TimeUnit *freq) {
   return true;
 }
 
-void DatedName::UpdateName(tm *ptm) {
-  char dateParts[6][5];
+void DatedName::UpdateName(tm *ptm)
+{
+  char dateParts[6][12];
 
-  memset(dateParts, 0, 6 * 5); // Zero out the buffer memory
-  sprintf(dateParts[0], "%04d", ptm->tm_year + 1900);
-  sprintf(dateParts[1], "%02d", ptm->tm_mon + 1);
-  sprintf(dateParts[2], "%02d", ptm->tm_mday);
-  sprintf(dateParts[3], "%02d", ptm->tm_hour);
-  sprintf(dateParts[4], "%02d", ptm->tm_min);
-  sprintf(dateParts[5], "%02d", ptm->tm_sec);
+  // Range checks for all date components
+  int year = ptm->tm_year + 1900;
+  if (year < 0 || year > 9999)
+  {
+    ERROR_LOGF("Year %d out of range (0-9999)", year);
+    return;
+  }
+  int month = ptm->tm_mon + 1;
+  if (month < 1 || month > 12)
+  {
+    ERROR_LOGF("Month %d out of range (1-12)", month);
+    return;
+  }
+  int day = ptm->tm_mday;
+  if (day < 1 || day > 31)
+  {
+    ERROR_LOGF("Day %d out of range (1-31)", day);
+    return;
+  }
+  int hour = ptm->tm_hour;
+  if (hour < 0 || hour > 23)
+  {
+    ERROR_LOGF("Hour %d out of range (0-23)", hour);
+    return;
+  }
+  int min = ptm->tm_min;
+  if (min < 0 || min > 59)
+  {
+    ERROR_LOGF("Minute %d out of range (0-59)", min);
+    return;
+  }
+  int sec = ptm->tm_sec;
+  if (sec < 0 || sec > 60)
+  {
+    ERROR_LOGF("Second %d out of range (0-60)", sec);
+    return;
+  }
 
-  for (int i = 0; i <= resolution; i++) {
-    if (inUseTimeParts[i]) {
+  memset(dateParts, 0, 6 * 12);              // Zero out the buffer memory
+  snprintf(dateParts[0], 12, "%04d", year);  // "0000" to "9999"
+  snprintf(dateParts[1], 12, "%02d", month); // "01" to "12"
+  snprintf(dateParts[2], 12, "%02d", day);   // "01" to "31"
+  snprintf(dateParts[3], 12, "%02d", hour);  // "00" to "23"
+  snprintf(dateParts[4], 12, "%02d", min);   // "00" to "59"
+  snprintf(dateParts[5], 12, "%02d", sec);   // "00" to "60"
+
+  for (int i = 0; i <= resolution; i++)
+  {
+    if (inUseTimeParts[i])
+    {
       memcpy(timeParts[i], dateParts[i], datePartLen[i]);
     }
   }
