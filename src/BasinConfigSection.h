@@ -8,7 +8,8 @@
 #include <string>
 #include <vector>
 
-class BasinConfigSection : public ConfigSection {
+class BasinConfigSection : public ConfigSection
+{
 
 public:
   BasinConfigSection(char *newName);

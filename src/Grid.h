@@ -5,17 +5,20 @@
 #include <cstdio>
 #include <math.h>
 
-struct GridLoc {
+struct GridLoc
+{
   long x;
   long y;
 };
 
-struct RefLoc {
+struct RefLoc
+{
   float x;
   float y;
 };
 
-class Grid {
+class Grid
+{
 
 public:
   long numCols;
@@ -25,7 +28,13 @@ public:
   unsigned short modelType, geographicType, geodeticDatum;
   bool geoSet;
 
-  bool IsSpatialMatch(const Grid *testGrid) {
+  // Default constructor to initialize members
+  Grid()
+      : numCols(0), numRows(0), extent{}, cellSize(0.0),
+        modelType(0), geographicType(0), geodeticDatum(0), geoSet(false) {}
+
+  bool IsSpatialMatch(const Grid *testGrid)
+  {
     bool nxnyMatch =
         ((numCols == testGrid->numCols) && (numRows == testGrid->numRows));
     return nxnyMatch;
@@ -41,7 +50,8 @@ public:
     //           && (cellSize == testGrid->cellSize));
   }
 
-  bool GetGridLoc(float lon, float lat, GridLoc *pt) {
+  bool GetGridLoc(float lon, float lat, GridLoc *pt)
+  {
     float xDiff = lon - extent.left;
     float yDiff = extent.top - lat;
     float xLoc = xDiff / cellSize;
@@ -49,50 +59,68 @@ public:
     pt->x = (long)xLoc;
     pt->y = (long)yLoc;
 
-    if (pt->x < 0) {
+    if (pt->x < 0)
+    {
       pt->x = 0;
-    } else if (pt->x >= numCols) {
+    }
+    else if (pt->x >= numCols)
+    {
       pt->x = numCols - 1;
     }
 
-    if (pt->y < 0) {
+    if (pt->y < 0)
+    {
       pt->y = 0;
-    } else if (pt->y >= numRows) {
+    }
+    else if (pt->y >= numRows)
+    {
       pt->y = numRows - 1;
     }
 
     if (extent.left > lon || extent.right < lon || extent.bottom > lat ||
-        extent.top < lat) {
+        extent.top < lat)
+    {
       return false; // This point isn't in the grid!
-    } else {
+    }
+    else
+    {
       return true;
     }
   }
 
-  bool GetRefLoc(long x, long y, RefLoc *pt) {
+  bool GetRefLoc(long x, long y, RefLoc *pt)
+  {
     pt->x = (float)x * cellSize + extent.left;
     pt->y = extent.top - (float)y * cellSize;
     return true;
   }
 };
 
-class FloatGrid : public Grid {
+class FloatGrid : public Grid
+{
 
 public:
-  FloatGrid() {
-    data = NULL;
-    backingStore = NULL;
-    geoSet = false;
+  FloatGrid()
+      : Grid(), noData(0.0f), data(nullptr), backingStore(nullptr)
+  {
+    geoSet = false; // Already initialized in Grid, but explicitly set here for clarity
   }
-  ~FloatGrid() {
-    if (data) {
-      if (!backingStore) {
-        for (long i = 0; i < numRows; i++) {
-          if (data[i]) {
+  ~FloatGrid()
+  {
+    if (data)
+    {
+      if (!backingStore)
+      {
+        for (long i = 0; i < numRows; i++)
+        {
+          if (data[i])
+          {
             delete[] data[i];
           }
         }
-      } else {
+      }
+      else
+      {
         delete[] backingStore;
       }
       delete[] data;
@@ -103,17 +131,23 @@ public:
   float *backingStore;
 };
 
-class LongGrid : public Grid {
+class LongGrid : public Grid
+{
 
 public:
-  LongGrid() {
-    data = NULL;
-    geoSet = false;
+  LongGrid()
+      : Grid(), noData(0), data(nullptr)
+  {
+    geoSet = false; // Already initialized in Grid, but explicitly set here for clarity
   }
-  ~LongGrid() {
-    if (data) {
-      for (long i = 0; i < numRows; i++) {
-        if (data[i]) {
+  ~LongGrid()
+  {
+    if (data)
+    {
+      for (long i = 0; i < numRows; i++)
+      {
+        if (data[i])
+        {
           delete[] data[i];
         }
       }

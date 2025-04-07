@@ -5,13 +5,14 @@
 
 BasicConfigSection *g_basicConfig;
 
-BasicConfigSection::BasicConfigSection() {
-  DEMSet = false;
-  DDMSet = false;
-  FAMSet = false;
-  projectionSet = false;
-  esriDDMSet = false;
-  selfFAMSet = false;
+BasicConfigSection::BasicConfigSection()
+    : DEMSet(false), DDMSet(false), FAMSet(false),
+      projectionSet(false), esriDDMSet(false), selfFAMSet(false),
+      esriDDM(false), selfFAM(false), projection(PROJECTION_GEOGRAPHIC)
+{
+  DEM[0] = 0; // Initialize as empty string
+  DDM[0] = 0;
+  FAM[0] = 0;
   artist[0] = 0;
   copyright[0] = 0;
 }
@@ -30,91 +31,140 @@ char *BasicConfigSection::GetCopyright() { return copyright; }
 
 PROJECTIONS BasicConfigSection::GetProjection() { return projection; }
 
-CONFIG_SEC_RET BasicConfigSection::ProcessKeyValue(char *name, char *value) {
+CONFIG_SEC_RET BasicConfigSection::ProcessKeyValue(char *name, char *value)
+{
 
-  if (!strcasecmp(name, "dem")) {
+  if (!strcasecmp(name, "dem"))
+  {
     strcpy(DEM, value);
     DEMSet = true;
-  } else if (!strcasecmp(name, "ddm")) {
+  }
+  else if (!strcasecmp(name, "ddm"))
+  {
     strcpy(DDM, value);
     DDMSet = true;
-  } else if (!strcasecmp(name, "fam")) {
+  }
+  else if (!strcasecmp(name, "fam"))
+  {
     strcpy(FAM, value);
     FAMSet = true;
-  } else if (!strcasecmp(name, "author")) {
+  }
+  else if (!strcasecmp(name, "author"))
+  {
     strcpy(artist, value);
-    for (unsigned int i = 0; i < strlen(artist); i++) {
-      if (artist[i] == '_') {
+    for (unsigned int i = 0; i < strlen(artist); i++)
+    {
+      if (artist[i] == '_')
+      {
         artist[i] = ' ';
       }
     }
-  } else if (!strcasecmp(name, "copyright")) {
+  }
+  else if (!strcasecmp(name, "copyright"))
+  {
     strcpy(copyright, value);
-    for (unsigned int i = 0; i < strlen(copyright); i++) {
-      if (copyright[i] == '_') {
+    for (unsigned int i = 0; i < strlen(copyright); i++)
+    {
+      if (copyright[i] == '_')
+      {
         copyright[i] = ' ';
       }
     }
-  } else if (!strcasecmp(name, "proj")) {
-    if (!strcasecmp(value, "geographic")) {
+  }
+  else if (!strcasecmp(name, "proj"))
+  {
+    if (!strcasecmp(value, "geographic"))
+    {
       projection = PROJECTION_GEOGRAPHIC;
       projectionSet = true;
-    } else if (!strcasecmp(value, "laea")) {
+    }
+    else if (!strcasecmp(value, "laea"))
+    {
       projection = PROJECTION_LAEA;
       projectionSet = true;
-    } else {
+    }
+    else
+    {
       ERROR_LOGF("Unknown projection option \"%s\"", value);
       INFO_LOGF("Valid projection options are \"%s\"", "GEOGRAPHIC, LAEA");
       return INVALID_RESULT;
     }
-  } else if (!strcasecmp(name, "esriddm")) {
-    if (!strcasecmp(value, "true")) {
+  }
+  else if (!strcasecmp(name, "esriddm"))
+  {
+    if (!strcasecmp(value, "true"))
+    {
       esriDDM = true;
       esriDDMSet = true;
-    } else if (!strcasecmp(value, "false")) {
+    }
+    else if (!strcasecmp(value, "false"))
+    {
       esriDDM = false;
       esriDDMSet = true;
-    } else {
+    }
+    else
+    {
       ERROR_LOGF("Unknown ESRI DDM option \"%s\"", value);
       INFO_LOGF("Valid ESRI DDM options are \"%s\"", "TRUE, FALSE");
       return INVALID_RESULT;
     }
-  } else if (!strcasecmp(name, "selffam")) {
-    if (!strcasecmp(value, "true")) {
+  }
+  else if (!strcasecmp(name, "selffam"))
+  {
+    if (!strcasecmp(value, "true"))
+    {
       selfFAM = true;
       selfFAMSet = true;
-    } else if (!strcasecmp(value, "false")) {
+    }
+    else if (!strcasecmp(value, "false"))
+    {
       selfFAM = false;
       selfFAMSet = true;
-    } else {
+    }
+    else
+    {
       ERROR_LOGF("Unknown Self FAM option \"%s\"", value);
       INFO_LOGF("Valid Self FAM options are \"%s\"", "TRUE, FALSE");
       return INVALID_RESULT;
     }
-  } else {
+  }
+  else
+  {
     ERROR_LOGF("Unknown name-key pair \"%s\"", name);
     return INVALID_RESULT;
   }
   return VALID_RESULT;
 }
 
-CONFIG_SEC_RET BasicConfigSection::ValidateSection() {
-  if (!DEMSet) {
+CONFIG_SEC_RET BasicConfigSection::ValidateSection()
+{
+  if (!DEMSet)
+  {
     ERROR_LOG("The DEM was not specified");
     return INVALID_RESULT;
-  } else if (!DDMSet) {
+  }
+  else if (!DDMSet)
+  {
     ERROR_LOG("The DDM was not specified");
     return INVALID_RESULT;
-  } else if (!FAMSet) {
+  }
+  else if (!FAMSet)
+  {
     ERROR_LOG("The FAM was not specified");
     return INVALID_RESULT;
-  } else if (!projectionSet) {
+  }
+  else if (!projectionSet)
+  {
     ERROR_LOG("The projection was not specified");
     return INVALID_RESULT;
-  } else if (!esriDDMSet) {
+  }
+  else if (!esriDDMSet)
+  {
     ERROR_LOG("The type of DDM (ESRIDDM) was not specified");
     return INVALID_RESULT;
-  } else if (!selfFAMSet) {
+  }
+  else if (!selfFAMSet)
+  {
     ERROR_LOG("If the FAM includes the current grid cell in the accumulation "
               "(SELFFAM) was not specified");
     return INVALID_RESULT;
