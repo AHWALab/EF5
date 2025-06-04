@@ -1,7 +1,7 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
-#define EF5_VERSION "1.2.4"
+#define EF5_VERSION "1.2.5"
 
 #define CONFIG_MAX_LEN 256
 

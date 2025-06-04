@@ -93,6 +93,7 @@ void ExecuteTasks() {
       break;
     case STYLE_BASIN_AVG:
       ExecuteMakeBasinAvg(task);
+      break;
     default:
       ERROR_LOGF("Unimplemented simulation run style \"%u\"",
                  task->GetRunStyle());
