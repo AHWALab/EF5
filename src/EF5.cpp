@@ -53,9 +53,11 @@ int main(int argc, char *argv[]) {
 }
 
 void PrintStartupMessage() {
-  printf("%s", "********************************************************\n");
-  printf("%s", "**   Ensemble Framework For Flash Flood Forecasting   **\n");
+  printf("\033[38;2;0;107;255m");
+  printf("********************************************************\n");
+  printf("**   Ensemble Framework For Flash Flood Forecasting   **\n");
   printf("**                   Version %s                    **\n",
          EF5_VERSION);
-  printf("%s", "********************************************************\n");
+  printf("********************************************************\n");
+  printf("\033[0m");
 }
