@@ -16,6 +16,8 @@
 #include "TimeVar.h"
 #include <cstdio>
 #include <cstring>
+#include <sys/stat.h>
+#include <unistd.h>
 
 static void LoadProjection();
 static void ExecuteSimulation(TaskConfigSection *task);
@@ -27,6 +29,16 @@ static void ExecuteClipBasin(TaskConfigSection *task);
 static void ExecuteClipGauge(TaskConfigSection *task);
 static void ExecuteMakeBasic(TaskConfigSection *task);
 static void ExecuteMakeBasinAvg(TaskConfigSection *task);
+
+// Helper function to check if a directory exists and is writable
+static bool IsDirWritable(const char* path) {
+    struct stat sb;
+    if (stat(path, &sb) != 0 || !S_ISDIR(sb.st_mode)) {
+        // if the path or the directory does not exist, return false
+        return false;
+    }
+    return (access(path, W_OK) == 0);
+}
 
 void ExecuteTasks() {
 
@@ -67,6 +79,11 @@ void ExecuteTasks() {
   // Loop through all of the tasks and execute them
   for (taskItr = tasks->begin(); taskItr != tasks->end(); taskItr++) {
     TaskConfigSection *task = (*taskItr);
+    const char* outDir = task->GetOutput();
+    if (!IsDirWritable(outDir)) {
+      ERROR_LOGF("Output directory '%s' does not exist or is not writable. Aborting task %s.", outDir, task->GetName());
+      continue;
+    }
     INFO_LOGF("Executing task %s", task->GetName());
 
     switch (task->GetRunStyle()) {
