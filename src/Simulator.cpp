@@ -2081,7 +2081,7 @@ void Simulator::SimulateDistributed(bool trackPeaks)
     for (size_t i = 0; i < currentQ.size(); i++)
     {
       float val = floorf(maxGrid[i] * 10.0f + 0.5f) / 10.0f;
-      currentDepth[i] = val;
+      computeVec[i] = val;
     }
     gridWriter.WriteGrid(&nodes, &computeVec, buffer, false);
   }
@@ -2106,10 +2106,19 @@ void Simulator::SimulateDistributed(bool trackPeaks)
     gridWriter.WriteGrid(&nodes, &computeVec, buffer, false);
   }
 
-  if ((griddedOutputs & OG_MAXDEPTH) == OG_MAXDEPTH)
-  {
-    sprintf(buffer, "%s/maxdepth.%04i%02i%02i.%02i%02i%02i.tif", outputPath, ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday, ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
-    gridWriter.WriteGrid(&nodes, &maxDepthGrid, buffer, false);
+  // Maximum inundation depth: added 01/18/2023 by HV
+  if ((griddedOutputs & OG_MAXDEPTH) == OG_MAXDEPTH) {
+    // Compute inundation based on max Q
+    iModel->Inundation(&maxGrid, &currentDepth);
+    for (size_t i = 0; i < currentQ.size(); i++) {
+      // Rounding off: how many decimals?
+      float val = floorf(currentDepth[i] * 10.0f + 0.5f) / 10.0f;
+      currentDepth[i] = val;
+    }
+    sprintf(buffer, "%s/maxdepth.%04i%02i%02i.%02i%02i%02i.tif", outputPath,
+            ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
+            ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
+    gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
   }
 
   if (outputThres && (griddedOutputs & OG_MAXTHRES) == OG_MAXTHRES)
