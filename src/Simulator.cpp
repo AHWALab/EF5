@@ -1988,7 +1988,7 @@ void Simulator::SimulateDistributed(bool trackPeaks)
                 currentTimeTextOutput.GetName(), wbModel->GetName());
         gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
         sprintf(buffer, "%s/unitq.%s.%s.tif", outputPath, currentTimeTextOutput.GetName(), wbModel->GetName());
-        gridWriter.WriteGrid(&nodes, &computeVec, buffer, false);
+        gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
       }
       if (outputThres && (griddedOutputs & OG_THRES) == OG_THRES)
       {
@@ -1997,10 +1997,10 @@ void Simulator::SimulateDistributed(bool trackPeaks)
           currentDepth[i] =
               ComputeThresValue(currentQ[i], actionVals[i], minorVals[i],
                                 moderateVals[i], majorVals[i]);
-          computeVec[i] = ComputeThresValue(currentQ[i], actionVals[i], minorVals[i], moderateVals[i], majorVals[i]);
+          // computeVec[i] = ComputeThresValue(currentQ[i], actionVals[i], minorVals[i], moderateVals[i], majorVals[i]);
         }
         sprintf(buffer, "%s/thres.%s.%s.tif", outputPath, currentTimeTextOutput.GetName(), wbModel->GetName());
-        gridWriter.WriteGrid(&nodes, &computeVec, buffer, false);
+        gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
       }
     }
 
@@ -2081,9 +2081,9 @@ void Simulator::SimulateDistributed(bool trackPeaks)
     for (size_t i = 0; i < currentQ.size(); i++)
     {
       float val = floorf(maxGrid[i] * 10.0f + 0.5f) / 10.0f;
-      computeVec[i] = val;
+      currentDepth[i] = val;
     }
-    gridWriter.WriteGrid(&nodes, &computeVec, buffer, false);
+    gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
   }
 
   if (sModel && (griddedOutputs & OG_MAXSWE) == OG_MAXSWE)
@@ -2098,37 +2098,42 @@ void Simulator::SimulateDistributed(bool trackPeaks)
   {
     for (size_t i = 0; i < currentQ.size(); i++)
     {
-      computeVec[i] = maxGrid[i] / nodes[i].contribArea;
-      float val = floorf(computeVec[i] * 10.0f + 0.5f) / 10.0f;
-      computeVec[i] = val;
-    }
-    sprintf(buffer, "%s/maxunitq.%04i%02i%02i.%02i%02i%02i.tif", outputPath, ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday, ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
-    gridWriter.WriteGrid(&nodes, &computeVec, buffer, false);
-  }
-
-  // Maximum inundation depth: added 01/18/2023 by HV
-  if ((griddedOutputs & OG_MAXDEPTH) == OG_MAXDEPTH) {
-    // Compute inundation based on max Q
-    iModel->Inundation(&maxGrid, &currentDepth);
-    for (size_t i = 0; i < currentQ.size(); i++) {
-      // Rounding off: how many decimals?
+      currentDepth[i] = maxGrid[i] / nodes[i].contribArea;
       float val = floorf(currentDepth[i] * 10.0f + 0.5f) / 10.0f;
       currentDepth[i] = val;
     }
-    sprintf(buffer, "%s/maxdepth.%04i%02i%02i.%02i%02i%02i.tif", outputPath,
-            ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
-            ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
+    sprintf(buffer, "%s/maxunitq.%04i%02i%02i.%02i%02i%02i.tif", outputPath, ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday, ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
     gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
+  }
+
+  // // Maximum inundation depth: added 01/18/2023 by HV
+  // if ((griddedOutputs & OG_MAXDEPTH) == OG_MAXDEPTH) {
+  //   // Compute inundation based on max Q
+  //   iModel->Inundation(&maxGrid, &currentDepth);
+  //   for (size_t i = 0; i < currentQ.size(); i++) {
+  //     // Rounding off: how many decimals?
+  //     float val = floorf(currentDepth[i] * 10.0f + 0.5f) / 10.0f;
+  //     currentDepth[i] = val;
+  //   }
+  //   sprintf(buffer, "%s/maxdepth.%04i%02i%02i.%02i%02i%02i.tif", outputPath,
+  //           ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
+  //           ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
+  //   gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
+  // }
+
+  if ((griddedOutputs & OG_MAXDEPTH) == OG_MAXDEPTH) {
+    sprintf(buffer, "%s/maxdepth.%04i%02i%02i.%02i%02i%02i.tif", outputPath, ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday, ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
+    gridWriter.WriteGrid(&nodes, &maxDepthGrid, buffer, false);
   }
 
   if (outputThres && (griddedOutputs & OG_MAXTHRES) == OG_MAXTHRES)
   {
     for (size_t i = 0; i < currentQ.size(); i++)
     {
-      computeVec[i] = floorf(ComputeThresValue(maxGrid[i], actionVals[i], minorVals[i], moderateVals[i], majorVals[i]) * 10.0f + 0.5f) / 10.0f;
-      if (computeVec[i] < 1.0)
+      currentDepth[i] = floorf(ComputeThresValue(maxGrid[i], actionVals[i], minorVals[i], moderateVals[i], majorVals[i]) * 10.0f + 0.5f) / 10.0f;
+      if (currentDepth[i] < 1.0)
       {
-        computeVec[i] = 0.0;
+        currentDepth[i] = 0.0;
       }
     }
     sprintf(buffer, "%s/maxthres.%04i%02i%02i.%02i%02i%02i.tif", outputPath,
