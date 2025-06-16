@@ -1987,8 +1987,6 @@ void Simulator::SimulateDistributed(bool trackPeaks)
         sprintf(buffer, "%s/unitq.%s.%s.tif", outputPath,
                 currentTimeTextOutput.GetName(), wbModel->GetName());
         gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
-        sprintf(buffer, "%s/unitq.%s.%s.tif", outputPath, currentTimeTextOutput.GetName(), wbModel->GetName());
-        gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
       }
       if (outputThres && (griddedOutputs & OG_THRES) == OG_THRES)
       {
@@ -2056,8 +2054,6 @@ void Simulator::SimulateDistributed(bool trackPeaks)
     }
     gridWriter.WriteGrid(&nodes, &rpMaxGrid, buffer, false);
 
-    // sprintf(buffer, "%s/qmax.%s.asc", outputPath, model->GetName());
-    // gridWriter.WriteGrid(&nodes, &maxGrid, buffer);
   }
 
   if ((griddedOutputs & OG_MAXSM) == OG_MAXSM)

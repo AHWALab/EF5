@@ -32,6 +32,7 @@ void MakeBasic();
 void ReclassifyDDM();
 bool CheckESRIDDM();
 bool CheckSimpleDDM();
+void FindIndBasins(float left, float right, float top, float bottom, const char *output);
 
 extern FloatGrid *g_DEM;
 extern FloatGrid *g_DDM;

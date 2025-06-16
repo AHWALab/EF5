@@ -183,7 +183,7 @@ void FreeBasicGridsData()
   }
 }
 
-void FindIndBasins(float left, float right, float top, float bottom)
+void FindIndBasins(float left, float right, float top, float bottom, const char *output)
 {
 
   long maxX = 0;
@@ -270,7 +270,9 @@ void FindIndBasins(float left, float right, float top, float bottom)
   }
 
   gridCells.sort(SortByFlowAccumFS);
-  FILE *test = fopen("basin_new.txt", "w");
+  char basinFile[512];
+  snprintf(basinFile, sizeof(basinFile), "%s/basin_new.txt", output);
+  FILE *test = fopen(basinFile, "w");
   std::vector<long> gridIndices;
 
   for (FAMSearch *currentFS = gridCells.front(); currentFS != NULL;
@@ -355,7 +357,9 @@ void FindIndBasins(float left, float right, float top, float bottom)
   fprintf(test, "\n");
   fclose(test);
 
-  WriteFloatTifGrid("maskgrid.tif", &maskGrid);
+  char maskFile[512];
+  snprintf(maskFile, sizeof(maskFile), "%s/maskgrid.tif", output);
+  WriteFloatTifGrid(maskFile, &maskGrid);
 }
 
 void ClipBasicGrids(long x, long y, long search, const char *output)
@@ -375,7 +379,7 @@ void ClipBasicGrids(long x, long y, long search, const char *output)
   maxY = loc.y + search;
   minY = loc.y - search;
 
-  FindIndBasins(-124.73, -66.95, 50.00, 24.5);
+  FindIndBasins(-124.73, -66.95, 50.00, 24.5, output);
   // FindIndBasins(-84.84, -67.26, 44.17, 35.76);
 
   printf("Search box is %ld, %ld, %ld, %ld, %ld, %ld\n", minX, maxX, minY, maxY,
