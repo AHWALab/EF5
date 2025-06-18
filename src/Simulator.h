@@ -24,7 +24,7 @@ public:
     void SaveForcings(char *file);
 
     void CleanUp();
-    void BasinAvg();
+    void BasinAvg(const char* inputDir);
     void BasinAvgPrecip();
     void Simulate(bool trackPeaks = false);
     float SimulateForCali(float *testParams);

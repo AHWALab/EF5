@@ -26,6 +26,9 @@
 #include <string.h>
 #include <zlib.h>
 
+// Function to handle NaN values in observed discharge data
+void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath);
+
 bool Simulator::Initialize(TaskConfigSection *taskN)
 {
 
@@ -767,7 +770,7 @@ void Simulator::CleanUp()
   }
 }
 
-void Simulator::BasinAvg()
+void Simulator::BasinAvg(const char* inputDir)
 {
   char buffer[CONFIG_MAX_LEN * 2];
   std::vector<float> avgVals, areaVals, fileVals;
@@ -780,7 +783,7 @@ void Simulator::BasinAvg()
   DIR *dir;
   struct dirent *ent;
 
-  INFO_LOGF("Running basin averaging over files in output folder %s", outputPath);
+  INFO_LOGF("Running basin averaging over files in input folder %s", inputDir);
 
   // Compute & Output these first so they get included in the averaging process
   for (long i = numNodes - 1; i >= 0; i--)
@@ -797,9 +800,9 @@ void Simulator::BasinAvg()
   sprintf(buffer, "%s/relief.ratio.tif", outputPath);
   gridWriter.WriteGrid(&nodes, &avgVals, buffer, false);
 
-  if ((dir = opendir(outputPath)) == NULL)
+  if ((dir = opendir(inputDir)) == NULL)
   {
-    ERROR_LOGF("%s", "Failed to open output directory for reading files to average!");
+    ERROR_LOGF("%s", "Failed to open input directory for reading files to average!");
     return;
   }
 
@@ -809,7 +812,16 @@ void Simulator::BasinAvg()
     {
       continue;
     }
-    sprintf(buffer, "%s/%s", outputPath, ent->d_name);
+    // Skip files that are already averaged outputs or are outputs of this function
+    if (strstr(ent->d_name, ".avg.tif") != NULL ||
+        strcmp(ent->d_name, "relief.tif") == 0 ||
+        strcmp(ent->d_name, "relief.ratio.tif") == 0 ||
+        strcmp(ent->d_name, "basin.area.tif") == 0 ||
+        strcmp(ent->d_name, "river.length.tif") == 0)
+    {
+      continue;
+    }
+    sprintf(buffer, "%s/%s", inputDir, ent->d_name);
     INFO_LOGF("Averaging file %s", buffer);
     FloatGrid *fileGrid = ReadFloatTifGrid(buffer);
     if (!fileGrid)
@@ -2478,6 +2490,11 @@ void Simulator::PreloadForcings(char *file, bool cali)
     tsIndex++;
   }
 
+  // Fix NaN values in observed discharge data for calibration
+  if (cali && !obsQ.empty()) {
+    FixNaNsInObservedData(obsQ, outputPath);
+  }
+
   SaveForcings(file);
 }
 
@@ -2565,6 +2582,12 @@ bool Simulator::LoadSavedForcings(char *file, bool cali)
       tsIndexWarm++;
     }
   }
+  
+  // Fix NaN values in observed discharge data for calibration
+  if (!obsQ.empty()) {
+    FixNaNsInObservedData(obsQ, outputPath);
+  }
+  
   return true;
 }
 
@@ -2914,4 +2937,145 @@ bool Simulator::InitializeGridParams(TaskConfigSection *task)
   }
 
   return true;
+}
+
+// Simple function to fix NaN values in observed discharge data
+void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
+{
+  if (obsQ.empty()) return;
+  
+  size_t n = obsQ.size();
+  
+  // Store original data for comparison
+  std::vector<float> originalData = obsQ;
+  
+  // Count NaN values to see if we need to do anything
+  size_t nanCount = 0;
+  for (size_t i = 0; i < n; i++) {
+    if (std::isnan(obsQ[i]) || !std::isfinite(obsQ[i])) {
+      nanCount++;
+    }
+  }
+  
+  // If no NaN values, still save comparison file but no interpolation needed
+  if (nanCount == 0) {
+    INFO_LOGF("%s", "Observed discharge data is complete - no interpolation needed");
+    
+    // Save comparison file showing original data (no changes)
+    char filename[CONFIG_MAX_LEN * 2];
+    sprintf(filename, "%s/observed_discharge_comparison.csv", outputPath);
+    FILE* csvFile = fopen(filename, "w");
+    if (csvFile) {
+      fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge,Status\n");
+      for (size_t i = 0; i < n; i++) {
+        fprintf(csvFile, "%zu,%.6f,%.6f,Valid\n", i, originalData[i], obsQ[i]);
+      }
+      fclose(csvFile);
+      INFO_LOGF("Saved comparison data to: %s", filename);
+    } else {
+      WARNING_LOGF("Failed to create comparison file: %s", filename);
+    }
+    return;
+  }
+  
+  INFO_LOGF("Found %zu NaN values in observed discharge - applying interpolation", nanCount);
+  
+  // Find first and last valid values
+  size_t firstValid = 0;
+  while (firstValid < n && (std::isnan(obsQ[firstValid]) || !std::isfinite(obsQ[firstValid]))) {
+    firstValid++;
+  }
+  
+  size_t lastValid = n - 1;
+  while (lastValid > firstValid && (std::isnan(obsQ[lastValid]) || !std::isfinite(obsQ[lastValid]))) {
+    lastValid--;
+  }
+  
+  // If all values are NaN, we can't fix it
+  if (firstValid >= n) {
+    ERROR_LOGF("%s", "All observed discharge values are NaN - cannot calibrate");
+    
+    // Save comparison file showing the problem
+    char filename[CONFIG_MAX_LEN * 2];
+    sprintf(filename, "%s/observed_discharge_comparison.csv", outputPath);
+    FILE* csvFile = fopen(filename, "w");
+    if (csvFile) {
+      fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge,Status\n");
+      for (size_t i = 0; i < n; i++) {
+        fprintf(csvFile, "%zu,NaN,NaN,All_NaN_Error\n", i);
+      }
+      fclose(csvFile);
+      INFO_LOGF("Saved error comparison data to: %s", filename);
+    }
+    return;
+  }
+  
+  // Fill leading NaN values with first valid value
+  if (firstValid > 0) {
+    float firstValidValue = obsQ[firstValid];
+    for (size_t i = 0; i < firstValid; i++) {
+      obsQ[i] = firstValidValue;
+    }
+  }
+  
+  // Fill trailing NaN values with last valid value  
+  if (lastValid < n - 1) {
+    float lastValidValue = obsQ[lastValid];
+    for (size_t i = lastValid + 1; i < n; i++) {
+      obsQ[i] = lastValidValue;
+    }
+  }
+  
+  // Linear interpolation for gaps between valid values
+  size_t lastValidIdx = firstValid;
+  for (size_t i = firstValid + 1; i <= lastValid; i++) {
+    if (!std::isnan(obsQ[i]) && std::isfinite(obsQ[i])) {
+      // Found next valid value - interpolate the gap
+      if (i - lastValidIdx > 1) {
+        float startValue = obsQ[lastValidIdx];
+        float endValue = obsQ[i];
+        size_t gap = i - lastValidIdx;
+        
+        for (size_t j = 1; j < gap; j++) {
+          float fraction = (float)j / (float)gap;
+          obsQ[lastValidIdx + j] = startValue + (endValue - startValue) * fraction;
+        }
+      }
+      lastValidIdx = i;
+    }
+  }
+  
+  // Save comparison CSV file
+  char filename[CONFIG_MAX_LEN * 2];
+  sprintf(filename, "%s/observed_discharge_comparison.csv", outputPath);
+  FILE* csvFile = fopen(filename, "w");
+  if (csvFile) {
+    fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge,Status\n");
+    
+    for (size_t i = 0; i < n; i++) {
+      const char* status;
+      if (std::isnan(originalData[i]) || !std::isfinite(originalData[i])) {
+        if (i < firstValid) {
+          status = "Leading_Fill";
+        } else if (i > lastValid) {
+          status = "Trailing_Fill";
+        } else {
+          status = "Interpolated";
+        }
+        fprintf(csvFile, "%zu,NaN,%.6f,%s\n", i, obsQ[i], status);
+      } else {
+        status = "Original_Valid";
+        fprintf(csvFile, "%zu,%.6f,%.6f,%s\n", i, originalData[i], obsQ[i], status);
+      }
+    }
+    
+    fclose(csvFile);
+    INFO_LOGF("Saved interpolation comparison data to: %s", filename);
+    INFO_LOGF("Original NaN count: %zu, Valid data points: %zu, Total points: %zu", 
+              nanCount, n - nanCount, n);
+  } else {
+    WARNING_LOGF("Failed to create comparison file: %s", filename);
+  }
+  
+  INFO_LOGF("%s", "Successfully applied smooth interpolation to observed discharge data");
 }

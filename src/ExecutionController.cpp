@@ -336,7 +336,11 @@ void ExecuteMakeBasinAvg(TaskConfigSection *task) {
   Simulator sim;
 
   if (sim.Initialize(task)) {
-    sim.BasinAvg();
+    const char* inputDir = task->GetBasinAvgInput();
+    if (!inputDir || inputDir[0] == '\0') {
+      inputDir = task->GetOutput();
+    }
+    sim.BasinAvg(inputDir);
     sim.CleanUp();
   }
 }

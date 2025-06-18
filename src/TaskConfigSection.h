@@ -77,6 +77,8 @@ public:
   CONFIG_SEC_RET ValidateSection();
   int GetGriddedOutputs() { return griddedOutputs; }
 
+  char *GetBasinAvgInput();
+
   static bool IsDuplicate(char *name);
 
 private:
@@ -123,6 +125,7 @@ private:
   TimeVar timeState;
   TimeVar timeBeginLR;
   int griddedOutputs;
+  char basinAvgInput[CONFIG_MAX_LEN];
 
   bool LoadGriddedOutputs(char *value);
 };

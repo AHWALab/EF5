@@ -41,6 +41,7 @@ TaskConfigSection::TaskConfigSection(const char *nameVal)
   std::fill(preloadFile, preloadFile + CONFIG_MAX_LEN, 0);
   std::fill(daFile, daFile + CONFIG_MAX_LEN, 0);
   std::fill(coFile, coFile + CONFIG_MAX_LEN, 0);
+  std::fill(basinAvgInput, basinAvgInput + CONFIG_MAX_LEN, 0);
 }
 
 TaskConfigSection::~TaskConfigSection() {}
@@ -78,6 +79,8 @@ char *TaskConfigSection::GetPreloadForcings() { return preloadFile; }
 char *TaskConfigSection::GetDAFile() { return daFile; }
 
 char *TaskConfigSection::GetCOFile() { return coFile; }
+
+char *TaskConfigSection::GetBasinAvgInput() { return basinAvgInput; }
 
 TimeVar *TaskConfigSection::GetTimeBegin() { return &timeBegin; }
 
@@ -633,6 +636,11 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char *name, char *value)
     }
     caliParamInundation = itr->second;
     inundationCaliParamSet = true;
+  }
+  else if (!strcasecmp(name, "basin_avg_input"))
+  {
+    strncpy(basinAvgInput, value, CONFIG_MAX_LEN - 1);
+    basinAvgInput[CONFIG_MAX_LEN - 1] = '\0';
   }
   else
   {
