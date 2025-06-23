@@ -27,7 +27,7 @@
 #include <zlib.h>
 
 // Function to handle NaN values in observed discharge data
-void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath);
+void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath, const char* csvPath);
 
 bool Simulator::Initialize(TaskConfigSection *taskN)
 {
@@ -2492,7 +2492,7 @@ void Simulator::PreloadForcings(char *file, bool cali)
 
   // Fix NaN values in observed discharge data for calibration
   if (cali && !obsQ.empty()) {
-    FixNaNsInObservedData(obsQ, outputPath);
+    FixNaNsInObservedData(obsQ, outputPath, NULL);
   }
 
   SaveForcings(file);
@@ -2585,7 +2585,7 @@ bool Simulator::LoadSavedForcings(char *file, bool cali)
   
   // Fix NaN values in observed discharge data for calibration
   if (!obsQ.empty()) {
-    FixNaNsInObservedData(obsQ, outputPath);
+    FixNaNsInObservedData(obsQ, outputPath, NULL);
   }
   
   return true;
@@ -2940,7 +2940,7 @@ bool Simulator::InitializeGridParams(TaskConfigSection *task)
 }
 
 // Simple function to fix NaN values in observed discharge data
-void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
+void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath, const char* csvPath)
 {
   if (obsQ.empty()) return;
   
@@ -3055,60 +3055,23 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
   }
   INFO_LOGF("%s", "Finished interpolation loop");
   
-  // Skipping CSV output for validation (temporary fix to avoid segfault)
-  INFO_LOGF("%s", "CSV output skipped for validation. If you need the data, export obsQ from another script.");
-  
-  // The following code is commented out to avoid segfault:
-  /*
-  // Check outputPath validity before using it
-  if (!outputPath) {
-    ERROR_LOGF("%s", "outputPath is NULL! Cannot write CSV.");
-    return;
-  }
-  if (strlen(outputPath) == 0) {
-    ERROR_LOGF("%s", "outputPath is empty! Cannot write CSV.");
-    return;
-  }
-
-  // Check if outputPath is a valid directory (optional, for robustness)
-  struct stat st = {0};
-  INFO_LOGF("Checking output directory: %s", outputPath);
-  if (stat(outputPath, &st) != 0 || !S_ISDIR(st.st_mode)) {
-    WARNING_LOGF("Output path %s is not a valid directory. Skipping CSV write.", outputPath);
-    return;
-  }
-  
-  // Save comparison CSV file
-  char filename[CONFIG_MAX_LEN * 2];
-  sprintf(filename, "%s/observed_discharge_comparison.csv", outputPath);
-  INFO_LOGF("About to open file for writing: %s", filename);
-  FILE* csvFile = fopen(filename, "w");
-  if (csvFile) {
-    fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge,Status\n");
-    for (size_t i = 0; i < n; i++) {
-      const char* status;
-      if (std::isnan(originalData[i]) || !std::isfinite(originalData[i])) {
-        if (i < firstValid) {
-          status = "Leading_Fill";
-        } else if (i > lastValid) {
-          status = "Trailing_Fill";
+  // Write original and interpolated data to CSV if csvPath is provided
+  if (csvPath && strlen(csvPath) > 0) {
+    FILE* csvFile = fopen(csvPath, "w");
+    if (csvFile) {
+      fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge\n");
+      for (size_t i = 0; i < n; i++) {
+        if (std::isnan(originalData[i]) || !std::isfinite(originalData[i])) {
+          fprintf(csvFile, "%zu,NaN,%.6f\n", i, obsQ[i]);
         } else {
-          status = "Interpolated";
+          fprintf(csvFile, "%zu,%.6f,%.6f\n", i, originalData[i], obsQ[i]);
         }
-        fprintf(csvFile, "%zu,NaN,%.6f,%s\n", i, obsQ[i], status);
-      } else {
-        status = "Original_Valid";
-        fprintf(csvFile, "%zu,%.6f,%.6f,%s\n", i, originalData[i], obsQ[i], status);
       }
+      fclose(csvFile);
+      INFO_LOGF("Saved original and interpolated data to: %s", csvPath);
+    } else {
+      WARNING_LOGF("Failed to create CSV file: %s", csvPath);
     }
-    fclose(csvFile);
-    INFO_LOGF("Saved interpolation comparison data to: %s", filename);
-    INFO_LOGF("Original NaN count: %zu, Valid data points: %zu, Total points: %zu", 
-              nanCount, n - nanCount, n);
-  } else {
-    WARNING_LOGF("Failed to create comparison file: %s", filename);
   }
-  */
-  
   INFO_LOGF("%s", "Successfully applied smooth interpolation to observed discharge data");
 }
