@@ -3055,6 +3055,11 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
   }
   INFO_LOGF("%s", "Finished interpolation loop");
   
+  // Skipping CSV output for validation (temporary fix to avoid segfault)
+  INFO_LOGF("%s", "CSV output skipped for validation. If you need the data, export obsQ from another script.");
+  
+  // The following code is commented out to avoid segfault:
+  /*
   // Check outputPath validity before using it
   if (!outputPath) {
     ERROR_LOGF("%s", "outputPath is NULL! Cannot write CSV.");
@@ -3064,7 +3069,7 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
     ERROR_LOGF("%s", "outputPath is empty! Cannot write CSV.");
     return;
   }
-  
+
   // Check if outputPath is a valid directory (optional, for robustness)
   struct stat st = {0};
   INFO_LOGF("Checking output directory: %s", outputPath);
@@ -3103,6 +3108,7 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
   } else {
     WARNING_LOGF("Failed to create comparison file: %s", filename);
   }
+  */
   
   INFO_LOGF("%s", "Successfully applied smooth interpolation to observed discharge data");
 }
