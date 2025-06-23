@@ -3053,7 +3053,7 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
       lastValidIdx = i;
     }
   }
-  INFO_LOGF("Finished interpolation loop");
+  INFO_LOGF("%s", "Finished interpolation loop");
   
   // Check if outputPath is a valid directory (optional, for robustness)
   struct stat st = {0};
