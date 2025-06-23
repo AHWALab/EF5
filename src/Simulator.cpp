@@ -3055,6 +3055,16 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
   }
   INFO_LOGF("%s", "Finished interpolation loop");
   
+  // Check outputPath validity before using it
+  if (!outputPath) {
+    ERROR_LOGF("%s", "outputPath is NULL! Cannot write CSV.");
+    return;
+  }
+  if (strlen(outputPath) == 0) {
+    ERROR_LOGF("%s", "outputPath is empty! Cannot write CSV.");
+    return;
+  }
+  
   // Check if outputPath is a valid directory (optional, for robustness)
   struct stat st = {0};
   INFO_LOGF("Checking output directory: %s", outputPath);
