@@ -2986,15 +2986,8 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
     firstValid++;
   }
   
-  size_t lastValid = n - 1;
-  while (lastValid > firstValid && (std::isnan(obsQ[lastValid]) || !std::isfinite(obsQ[lastValid]))) {
-    lastValid--;
-  }
-  
-  // If all values are NaN, we can't fix it
   if (firstValid >= n) {
     ERROR_LOGF("%s", "All observed discharge values are NaN - cannot calibrate");
-    
     // Save comparison file showing the problem
     char filename[CONFIG_MAX_LEN * 2];
     sprintf(filename, "%s/observed_discharge_comparison.csv", outputPath);
@@ -3007,6 +3000,16 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
       fclose(csvFile);
       INFO_LOGF("Saved error comparison data to: %s", filename);
     }
+    return;
+  }
+  
+  size_t lastValid = n > 0 ? n - 1 : 0;
+  while (lastValid > firstValid && (std::isnan(obsQ[lastValid]) || !std::isfinite(obsQ[lastValid]))) {
+    lastValid--;
+  }
+  // Safety: lastValid should never be < firstValid
+  if (lastValid < firstValid || lastValid >= n) {
+    ERROR_LOGF("Invalid lastValid index: %zu (firstValid: %zu, n: %zu)", lastValid, firstValid, n);
     return;
   }
   
@@ -3035,7 +3038,6 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
         float startValue = obsQ[lastValidIdx];
         float endValue = obsQ[i];
         size_t gap = i - lastValidIdx;
-        
         for (size_t j = 1; j < gap; j++) {
           float fraction = (float)j / (float)gap;
           obsQ[lastValidIdx + j] = startValue + (endValue - startValue) * fraction;
@@ -3045,13 +3047,19 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
     }
   }
   
+  // Check if outputPath is a valid directory (optional, for robustness)
+  struct stat st = {0};
+  if (stat(outputPath, &st) != 0 || !S_ISDIR(st.st_mode)) {
+    WARNING_LOGF("Output path %s is not a valid directory. Skipping CSV write.", outputPath);
+    return;
+  }
+  
   // Save comparison CSV file
   char filename[CONFIG_MAX_LEN * 2];
   sprintf(filename, "%s/observed_discharge_comparison.csv", outputPath);
   FILE* csvFile = fopen(filename, "w");
   if (csvFile) {
     fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge,Status\n");
-    
     for (size_t i = 0; i < n; i++) {
       const char* status;
       if (std::isnan(originalData[i]) || !std::isfinite(originalData[i])) {
@@ -3068,7 +3076,6 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
         fprintf(csvFile, "%zu,%.6f,%.6f,%s\n", i, originalData[i], obsQ[i], status);
       }
     }
-    
     fclose(csvFile);
     INFO_LOGF("Saved interpolation comparison data to: %s", filename);
     INFO_LOGF("Original NaN count: %zu, Valid data points: %zu, Total points: %zu", 
