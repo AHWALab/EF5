@@ -2957,6 +2957,8 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
     }
   }
   
+  INFO_LOGF("After NaN count: %zu NaNs in %zu values", nanCount, n);
+  
   // If no NaN values, still save comparison file but no interpolation needed
   if (nanCount == 0) {
     INFO_LOGF("%s", "Observed discharge data is complete - no interpolation needed");
@@ -2985,6 +2987,7 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
   while (firstValid < n && (std::isnan(obsQ[firstValid]) || !std::isfinite(obsQ[firstValid]))) {
     firstValid++;
   }
+  INFO_LOGF("After finding firstValid: %zu", firstValid);
   
   if (firstValid >= n) {
     ERROR_LOGF("%s", "All observed discharge values are NaN - cannot calibrate");
@@ -3007,6 +3010,7 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
   while (lastValid > firstValid && (std::isnan(obsQ[lastValid]) || !std::isfinite(obsQ[lastValid]))) {
     lastValid--;
   }
+  INFO_LOGF("After finding lastValid: %zu", lastValid);
   // Safety: lastValid should never be < firstValid
   if (lastValid < firstValid || lastValid >= n) {
     ERROR_LOGF("Invalid lastValid index: %zu (firstValid: %zu, n: %zu)", lastValid, firstValid, n);
@@ -3019,6 +3023,7 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
     for (size_t i = 0; i < firstValid; i++) {
       obsQ[i] = firstValidValue;
     }
+    INFO_LOGF("Filled leading NaNs up to index %zu with value %.6f", firstValid-1, firstValidValue);
   }
   
   // Fill trailing NaN values with last valid value  
@@ -3027,6 +3032,7 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
     for (size_t i = lastValid + 1; i < n; i++) {
       obsQ[i] = lastValidValue;
     }
+    INFO_LOGF("Filled trailing NaNs from index %zu to %zu with value %.6f", lastValid+1, n-1, lastValidValue);
   }
   
   // Linear interpolation for gaps between valid values
@@ -3042,13 +3048,16 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
           float fraction = (float)j / (float)gap;
           obsQ[lastValidIdx + j] = startValue + (endValue - startValue) * fraction;
         }
+        INFO_LOGF("Interpolated gap from %zu to %zu (%.6f to %.6f)", lastValidIdx+1, i-1, startValue, endValue);
       }
       lastValidIdx = i;
     }
   }
+  INFO_LOGF("Finished interpolation loop");
   
   // Check if outputPath is a valid directory (optional, for robustness)
   struct stat st = {0};
+  INFO_LOGF("Checking output directory: %s", outputPath);
   if (stat(outputPath, &st) != 0 || !S_ISDIR(st.st_mode)) {
     WARNING_LOGF("Output path %s is not a valid directory. Skipping CSV write.", outputPath);
     return;
@@ -3057,6 +3066,7 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath)
   // Save comparison CSV file
   char filename[CONFIG_MAX_LEN * 2];
   sprintf(filename, "%s/observed_discharge_comparison.csv", outputPath);
+  INFO_LOGF("About to open file for writing: %s", filename);
   FILE* csvFile = fopen(filename, "w");
   if (csvFile) {
     fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge,Status\n");
