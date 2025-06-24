@@ -10,6 +10,9 @@
 #endif
 #include "DREAM.h"
 
+// Externally defined in Simulator.cpp
+extern bool interpolationApplied;
+
 void DREAM::Initialize(CaliParamConfigSection *caliParamConfigNew,
                        RoutingCaliParamConfigSection *routingCaliParamConfigNew,
                        SnowCaliParamConfigSection *snowCaliParamConfigNew,
@@ -555,69 +558,80 @@ void DREAM::CalibrateParams() {
 
 void DREAM::WriteOutput(char *outputFile, MODELS model, ROUTES route,
                         SNOWS snow) {
-  FILE *file = fopen(outputFile, "w");
+  // Write best parameters to best_parameters.csv
+  FILE *bestFile = fopen("best_parameters.csv", "w");
   int i;
   float **ParSet;
   float *bestParams = new float[pointerMCMC->n];
 
+  // If interpolation was applied, write a warning as the first line
+  if (interpolationApplied) {
+    fprintf(bestFile, "*** INTERPOLATION WAS APPLIED TO OBSERVED DATA DUE TO FREQUENCY MISMATCH ***\n");
+  }
+
+  // Write header
   for (i = 0; i < numModelParams[model]; i++) {
-    fprintf(file, "%s%s", (i == 0) ? "" : ",", modelParamStrings[model][i]);
+    fprintf(bestFile, "%s%s", (i == 0) ? "" : ",", modelParamStrings[model][i]);
   }
   int endi = numModelParams[model] + numRouteParams[route];
   for (i = numModelParams[model]; i < endi; i++) {
-    fprintf(file, ",%s", routeParamStrings[route][i - numModelParams[model]]);
+    fprintf(bestFile, ",%s", routeParamStrings[route][i - numModelParams[model]]);
   }
-
   if (snow != SNOW_QTY) {
     int starti = numModelParams[model] + numRouteParams[route];
-    int endi =
-        numModelParams[model] + numRouteParams[route] + numSnowParams[snow];
+    int endi = numModelParams[model] + numRouteParams[route] + numSnowParams[snow];
     for (i = starti; i < endi; i++) {
-      fprintf(file, ",%s\n", snowParamStrings[snow][i - starti]);
+      fprintf(bestFile, ",%s", snowParamStrings[snow][i - starti]);
     }
   }
+  fprintf(bestFile, ",%s,%s/2%s", objectiveString, objectiveString, "\n");
 
-  fprintf(file, ",%s,%s/2%s", objectiveString, objectiveString, "\n");
-
-  // Generate a 2D matrix with samples
+  // Generate a 2D matrix with samples (for all_parameters.csv)
   allocate2D(&ParSet, post_Sequences * pointerMCMC->seq, pointerMCMC->n + 2);
-  GenParSet(ParSet, pointerRUNvar, post_Sequences, pointerMCMC, file,
-            bestParams);
+  GenParSet(ParSet, pointerRUNvar, post_Sequences, pointerMCMC, NULL, bestParams);
 
-  //------Deallocating
-  //Memory------------------------------------------------------//
-  /*for (i = 0; i < floorf(1.25 * pointerRUNvar->Nelem); i++) {
-   for (j=0; j < pointerMCMC->n+2; j++) {
-   free(pointerRUNvar->Sequences[i][j]);
-   }
-   free(pointerRUNvar->Sequences[i]);
-   }
-   free(pointerRUNvar->Sequences);*/
-  deallocate2D(&ParSet, post_Sequences * pointerMCMC->seq);
-  // free(pointerRUNvar);
-  fprintf(file, "[WaterBalance]\n");
-  for (i = 0; i < numModelParams[model]; i++) {
-    fprintf(file, "%s=%f\n", modelParamStrings[model][i], bestParams[i]);
+  // Write best parameter values (first row)
+  for (i = 0; i < pointerMCMC->n; i++) {
+    fprintf(bestFile, "%s%f", (i == 0) ? "" : ",", bestParams[i]);
   }
-  fprintf(file, "[Routing]\n");
+  // Write objective function values (dummy for now)
+  fprintf(bestFile, ",,");
+  fprintf(bestFile, "\n");
+  fclose(bestFile);
+
+  // Write all parameters to all_parameters.csv
+  FILE *allFile = fopen("all_parameters.csv", "w");
+  // Write header
+  for (i = 0; i < numModelParams[model]; i++) {
+    fprintf(allFile, "%s%s", (i == 0) ? "" : ",", modelParamStrings[model][i]);
+  }
   endi = numModelParams[model] + numRouteParams[route];
   for (i = numModelParams[model]; i < endi; i++) {
-    fprintf(file, "%s=%f\n",
-            routeParamStrings[route][i - numModelParams[model]], bestParams[i]);
+    fprintf(allFile, ",%s", routeParamStrings[route][i - numModelParams[model]]);
   }
-
   if (snow != SNOW_QTY) {
-    fprintf(file, "[Snow]\n");
     int starti = numModelParams[model] + numRouteParams[route];
-    int endi =
-        numModelParams[model] + numRouteParams[route] + numSnowParams[snow];
+    int endi = numModelParams[model] + numRouteParams[route] + numSnowParams[snow];
     for (i = starti; i < endi; i++) {
-      fprintf(file, "%s=%f\n", snowParamStrings[snow][i - starti],
-              bestParams[i]);
+      fprintf(allFile, ",%s", snowParamStrings[snow][i - starti]);
     }
   }
+  fprintf(allFile, ",%s,%s/2%s", objectiveString, objectiveString, "\n");
 
-  fclose(file);
+  // Write all parameter sets and scores
+  int totalRows = post_Sequences * pointerMCMC->seq;
+  for (int row = 0; row < totalRows; row++) {
+    for (i = 0; i < pointerMCMC->n; i++) {
+      fprintf(allFile, "%s%f", (i == 0) ? "" : ",", ParSet[row][i]);
+    }
+    // Write objective function values (dummy for now)
+    fprintf(allFile, ",,");
+    fprintf(allFile, "\n");
+  }
+  fclose(allFile);
+
+  deallocate2D(&ParSet, post_Sequences * pointerMCMC->seq);
+  delete[] bestParams;
 }
 
 void DREAM::CompDensity(float **p, float *log_p, float **x,
