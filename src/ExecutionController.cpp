@@ -212,10 +212,7 @@ void ExecuteCalibrationDREAM(TaskConfigSection *task) {
                    numRouteParams[task->GetRouting()], numSnow, &sim);
   dream.CalibrateParams();
 
-  sprintf(buffer, "%s/cali_dream.%s.%s.csv", task->GetOutput(),
-          task->GetCaliParamSec()->GetGauge()->GetName(),
-          modelStrings[task->GetModel()]);
-  dream.WriteOutput(buffer, task->GetModel(), task->GetRouting(),
+  dream.WriteOutput((char*)task->GetOutput(), task->GetModel(), task->GetRouting(),
                     task->GetSnow());
 }
 
@@ -264,9 +261,7 @@ void ExecuteCalibrationDREAMEns(EnsTaskConfigSection *task) {
                    maxParams, &sims, &paramsPerSim);
   dream.CalibrateParams();
 
-  sprintf(buffer, "%s/cali_dream.%s.%s.csv", tasks->at(0)->GetOutput(),
-          tasks->at(0)->GetCaliParamSec()->GetGauge()->GetName(), "ensemble");
-  dream.WriteOutput(buffer, tasks->at(0)->GetModel(),
+  dream.WriteOutput((char*)tasks->at(0)->GetOutput(), tasks->at(0)->GetModel(),
                     tasks->at(0)->GetRouting(), tasks->at(0)->GetSnow());
 }
 

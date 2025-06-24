@@ -557,7 +557,7 @@ void DREAM::CalibrateParams() {
   INFO_LOGF("%s", "Exiting CalibrateParams");
 }
 
-void DREAM::WriteOutput(char *outputFile, MODELS model, ROUTES route,
+void DREAM::WriteOutput(char *outputDir, MODELS model, ROUTES route,
                         SNOWS snow) {
   INFO_LOGF("%s", "Starting WriteOutput");
   INFO_LOGF("pointerMCMC: %p", pointerMCMC);
@@ -566,8 +566,16 @@ void DREAM::WriteOutput(char *outputFile, MODELS model, ROUTES route,
   INFO_LOGF("pointerMCMC->n: %d", pointerMCMC ? pointerMCMC->n : -1);
   INFO_LOGF("pointerMCMC->seq: %d", pointerMCMC ? pointerMCMC->seq : -1);
 
+  // Build full file paths for output
+  char bestFilePath[1024];
+  char allFilePath[1024];
+  snprintf(bestFilePath, sizeof(bestFilePath), "%s/best_parameters.csv", outputDir);
+  snprintf(allFilePath, sizeof(allFilePath), "%s/all_parameters.csv", outputDir);
+  INFO_LOGF("Writing best parameters to: %s", bestFilePath);
+  INFO_LOGF("Writing all parameters to: %s", allFilePath);
+
   // Write best parameters to best_parameters.csv
-  FILE *bestFile = fopen("best_parameters.csv", "w");
+  FILE *bestFile = fopen(bestFilePath, "w");
   if (!bestFile) {
     WARNING_LOGF("%s", "Could not create best_parameters.csv");
     return;
@@ -612,7 +620,7 @@ void DREAM::WriteOutput(char *outputFile, MODELS model, ROUTES route,
   fclose(bestFile);
 
   // Write all parameters to all_parameters.csv
-  FILE *allFile = fopen("all_parameters.csv", "w");
+  FILE *allFile = fopen(allFilePath, "w");
   if (!allFile) {
     WARNING_LOGF("%s", "Could not create all_parameters.csv");
     fclose(bestFile);
