@@ -27,7 +27,7 @@
 #include <zlib.h>
 
 // Function to handle NaN values in observed discharge data
-void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath, const char* csvPath);
+void FixNaNsInObservedData(std::vector<float> &obsQ);
 
 bool Simulator::Initialize(TaskConfigSection *taskN)
 {
@@ -2492,7 +2492,7 @@ void Simulator::PreloadForcings(char *file, bool cali)
 
   // Fix NaN values in observed discharge data for calibration
   if (cali && !obsQ.empty()) {
-    FixNaNsInObservedData(obsQ, outputPath, NULL);
+    FixNaNsInObservedData(obsQ);
   }
 
   SaveForcings(file);
@@ -2585,7 +2585,7 @@ bool Simulator::LoadSavedForcings(char *file, bool cali)
   
   // Fix NaN values in observed discharge data for calibration
   if (!obsQ.empty()) {
-    FixNaNsInObservedData(obsQ, outputPath, NULL);
+    FixNaNsInObservedData(obsQ);
   }
   
   return true;
@@ -2639,11 +2639,11 @@ float Simulator::SimulateForCali(float *testParams)
   runModel = caliWBModels[thread];
   runRoutingModel = caliRModels[thread];
   runSnowModel = caliSModels[thread];
-  currentWBParamSettings = &(caliWBFullParamSettings[thread]);
+  currentWBParamSettings = &caliWBFullParamSettings[thread];
   currentWBParams = caliWBCurrentParams[thread];
-  currentRParamSettings = &(caliRFullParamSettings[thread]);
+  currentRParamSettings = &caliRFullParamSettings[thread];
   currentRParams = caliRCurrentParams[thread];
-  currentSParamSettings = &(caliSFullParamSettings[thread]);
+  currentSParamSettings = &caliSFullParamSettings[thread];
   currentSParams = caliSCurrentParams[thread];
 #else
   runModel = wbModel;
@@ -2940,7 +2940,7 @@ bool Simulator::InitializeGridParams(TaskConfigSection *task)
 }
 
 // Simple function to fix NaN values in observed discharge data
-void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath, const char* csvPath)
+void FixNaNsInObservedData(std::vector<float> &obsQ)
 {
   if (obsQ.empty()) return;
   
@@ -2964,18 +2964,17 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath, con
     INFO_LOGF("%s", "Observed discharge data is complete - no interpolation needed");
     
     // Save comparison file showing original data (no changes)
-    char filename[CONFIG_MAX_LEN * 2];
-    sprintf(filename, "%s/observed_discharge_comparison.csv", outputPath);
-    FILE* csvFile = fopen(filename, "w");
+    const char* hardcodedPath = "/Users/nammehta/EF5Data/1_GhanaEF5_90m/outputs/test/obsQ_validation.csv";
+    FILE* csvFile = fopen(hardcodedPath, "w");
     if (csvFile) {
       fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge,Status\n");
       for (size_t i = 0; i < n; i++) {
         fprintf(csvFile, "%zu,%.6f,%.6f,Valid\n", i, originalData[i], obsQ[i]);
       }
       fclose(csvFile);
-      INFO_LOGF("Saved comparison data to: %s", filename);
+      INFO_LOGF("Saved comparison data to: %s", hardcodedPath);
     } else {
-      WARNING_LOGF("Failed to create comparison file: %s", filename);
+      WARNING_LOGF("Failed to create comparison file: %s", hardcodedPath);
     }
     return;
   }
@@ -2992,16 +2991,15 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath, con
   if (firstValid >= n) {
     ERROR_LOGF("%s", "All observed discharge values are NaN - cannot calibrate");
     // Save comparison file showing the problem
-    char filename[CONFIG_MAX_LEN * 2];
-    sprintf(filename, "%s/observed_discharge_comparison.csv", outputPath);
-    FILE* csvFile = fopen(filename, "w");
+    const char* hardcodedPath = "/Users/nammehta/EF5Data/1_GhanaEF5_90m/outputs/test/obsQ_validation.csv";
+    FILE* csvFile = fopen(hardcodedPath, "w");
     if (csvFile) {
       fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge,Status\n");
       for (size_t i = 0; i < n; i++) {
         fprintf(csvFile, "%zu,NaN,NaN,All_NaN_Error\n", i);
       }
       fclose(csvFile);
-      INFO_LOGF("Saved error comparison data to: %s", filename);
+      INFO_LOGF("Saved error comparison data to: %s", hardcodedPath);
     }
     return;
   }
@@ -3055,23 +3053,22 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, const char* outputPath, con
   }
   INFO_LOGF("%s", "Finished interpolation loop");
   
-  // Write original and interpolated data to CSV if csvPath is provided
-  if (csvPath && strlen(csvPath) > 0) {
-    FILE* csvFile = fopen(csvPath, "w");
-    if (csvFile) {
-      fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge\n");
-      for (size_t i = 0; i < n; i++) {
-        if (std::isnan(originalData[i]) || !std::isfinite(originalData[i])) {
-          fprintf(csvFile, "%zu,NaN,%.6f\n", i, obsQ[i]);
-        } else {
-          fprintf(csvFile, "%zu,%.6f,%.6f\n", i, originalData[i], obsQ[i]);
-        }
+  // Save original and interpolated data to the hardcoded path
+  const char* hardcodedPath = "/Users/nammehta/EF5Data/1_GhanaEF5_90m/outputs/test/obsQ_validation.csv";
+  FILE* csvFile = fopen(hardcodedPath, "w");
+  if (csvFile) {
+    fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge\n");
+    for (size_t i = 0; i < n; i++) {
+      if (std::isnan(originalData[i]) || !std::isfinite(originalData[i])) {
+        fprintf(csvFile, "%zu,NaN,%.6f\n", i, obsQ[i]);
+      } else {
+        fprintf(csvFile, "%zu,%.6f,%.6f\n", i, originalData[i], obsQ[i]);
       }
-      fclose(csvFile);
-      INFO_LOGF("Saved original and interpolated data to: %s", csvPath);
-    } else {
-      WARNING_LOGF("Failed to create CSV file: %s", csvPath);
     }
+    fclose(csvFile);
+    INFO_LOGF("Saved original and interpolated data to: %s", hardcodedPath);
+  } else {
+    WARNING_LOGF("Failed to create CSV file: %s", hardcodedPath);
   }
   INFO_LOGF("%s", "Successfully applied smooth interpolation to observed discharge data");
 }
