@@ -613,7 +613,7 @@ void DREAM::WriteOutput(char *outputDir, MODELS model, ROUTES route,
   // Write best parameter values (first row)
   for (i = 0; i < pointerMCMC->n; i++) {
     fprintf(bestFile, "%s%f", (i == 0) ? "" : ",", bestParams[i]);
-  }
+   }
   // Write objective function values (dummy for now)
   fprintf(bestFile, ",,");
   fprintf(bestFile, "\n");
