@@ -554,25 +554,18 @@ void DREAM::CalibrateParams() {
    free(p_old);
    free(log_p_old);*/
   INFO_LOGF("%s", "End of DREAM Routine");
-  INFO_LOGF("%s", "Exiting CalibrateParams");
 }
 
 void DREAM::WriteOutput(char *outputDir, MODELS model, ROUTES route,
                         SNOWS snow) {
-  INFO_LOGF("%s", "Starting WriteOutput");
-  INFO_LOGF("pointerMCMC: %p", pointerMCMC);
-  INFO_LOGF("pointerRUNvar: %p", pointerRUNvar);
-  INFO_LOGF("post_Sequences: %d", post_Sequences);
-  INFO_LOGF("pointerMCMC->n: %d", pointerMCMC ? pointerMCMC->n : -1);
-  INFO_LOGF("pointerMCMC->seq: %d", pointerMCMC ? pointerMCMC->seq : -1);
 
   // Build full file paths for output
   char bestFilePath[1024];
   char allFilePath[1024];
   snprintf(bestFilePath, sizeof(bestFilePath), "%s/best_parameters.csv", outputDir);
   snprintf(allFilePath, sizeof(allFilePath), "%s/all_parameters.csv", outputDir);
-  INFO_LOGF("Writing best parameters to: %s", bestFilePath);
-  INFO_LOGF("Writing all parameters to: %s", allFilePath);
+  // INFO_LOGF("Writing best parameters to: %s", bestFilePath);
+  // INFO_LOGF("Writing all parameters to: %s", allFilePath);
 
   // Write best parameters to best_parameters.csv
   FILE *bestFile = fopen(bestFilePath, "w");
