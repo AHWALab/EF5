@@ -560,18 +560,8 @@ void DREAM::CalibrateParams() {
 void DREAM::WriteOutput(char *outputFile, MODELS model, ROUTES route,
                         SNOWS snow) {
   INFO_LOGF("%s", "Starting WriteOutput");
-  INFO_LOGF("pointerMCMC: %p", pointerMCMC);
-  INFO_LOGF("pointerRUNvar: %p", pointerRUNvar);
-  INFO_LOGF("post_Sequences: %d", post_Sequences);
-  INFO_LOGF("pointerMCMC->n: %d", pointerMCMC ? pointerMCMC->n : -1);
-  INFO_LOGF("pointerMCMC->seq: %d", pointerMCMC ? pointerMCMC->seq : -1);
-
   // Write best parameters to best_parameters.csv
   FILE *bestFile = fopen("best_parameters.csv", "w");
-  if (!bestFile) {
-    WARNING_LOGF("%s", "Could not create best_parameters.csv");
-    return;
-  }
   int i;
   float **ParSet;
   float *bestParams = new float[pointerMCMC->n];
@@ -613,12 +603,6 @@ void DREAM::WriteOutput(char *outputFile, MODELS model, ROUTES route,
 
   // Write all parameters to all_parameters.csv
   FILE *allFile = fopen("all_parameters.csv", "w");
-  if (!allFile) {
-    WARNING_LOGF("%s", "Could not create all_parameters.csv");
-    fclose(bestFile);
-    delete[] bestParams;
-    return;
-  }
   // Write header
   for (i = 0; i < numModelParams[model]; i++) {
     fprintf(allFile, "%s%s", (i == 0) ? "" : ",", modelParamStrings[model][i]);
