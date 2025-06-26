@@ -568,6 +568,10 @@ void DREAM::WriteOutput(char *outputFile, MODELS model, ROUTES route,
     fprintf(file, "***INTERPOLATION OF OBSERVED DATA WAS USED FOR THIS CALIBRATION AS THE OBSERVED DATA FREQUENCIES DOES NOT MATCH WITH THE TIMESTAMP***\n\n");
   }
 
+  // Generate a 2D matrix with samples and fill bestParams
+  allocate2D(&ParSet, post_Sequences * pointerMCMC->seq, pointerMCMC->n + 2);
+  GenParSet(ParSet, pointerRUNvar, post_Sequences, pointerMCMC, NULL, bestParams);
+
   // Write [WaterBalance] and [Routing] at the top
   fprintf(file, "[WaterBalance]\n");
   for (i = 0; i < numModelParams[model]; i++) {
@@ -606,8 +610,7 @@ void DREAM::WriteOutput(char *outputFile, MODELS model, ROUTES route,
   }
   fprintf(file, ",%s,%s/2%s", objectiveString, objectiveString, "\n");
 
-  // Write all parameter sets (as currently done)
-  allocate2D(&ParSet, post_Sequences * pointerMCMC->seq, pointerMCMC->n + 2);
+  // Now print all parameter sets (table)
   GenParSet(ParSet, pointerRUNvar, post_Sequences, pointerMCMC, file, bestParams);
   deallocate2D(&ParSet, post_Sequences * pointerMCMC->seq);
 
