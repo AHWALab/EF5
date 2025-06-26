@@ -2971,18 +2971,18 @@ void FixNaNsInObservedData(std::vector<float> &obsQ)
     INFO_LOGF("%s", "Observed discharge data is complete - no interpolation needed");
     
     // Save comparison file showing original data (no changes)
-    // const char* hardcodedPath = "/Users/nammehta/EF5Data/1_GhanaEF5_90m/outputs/test/obsQ_validation.csv";
-    // FILE* csvFile = fopen(hardcodedPath, "w");
-    // if (csvFile) {
-    //   fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge,Status\n");
-    //   for (size_t i = 0; i < n; i++) {
-    //     fprintf(csvFile, "%zu,%.6f,%.6f,Valid\n", i, originalData[i], obsQ[i]);
-    //   }
-    //   fclose(csvFile);
-    //   INFO_LOGF("Saved comparison data to: %s", hardcodedPath);
-    // } else {
-    //   WARNING_LOGF("Failed to create comparison file: %s", hardcodedPath);
-    // }
+    const char* hardcodedPath = "/Users/nammehta/EF5Data/1_GhanaEF5_90m/outputs/test/obsQ_validation.csv";
+    FILE* csvFile = fopen(hardcodedPath, "w");
+    if (csvFile) {
+      fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge,Status\n");
+      for (size_t i = 0; i < n; i++) {
+        fprintf(csvFile, "%zu,%.6f,%.6f,Valid\n", i, originalData[i], obsQ[i]);
+      }
+      fclose(csvFile);
+      INFO_LOGF("Saved comparison data to: %s", hardcodedPath);
+    } else {
+      WARNING_LOGF("Failed to create comparison file: %s", hardcodedPath);
+    }
     return;
   }
   
@@ -2994,21 +2994,21 @@ void FixNaNsInObservedData(std::vector<float> &obsQ)
   while (firstValid < n && (std::isnan(obsQ[firstValid]) || !std::isfinite(obsQ[firstValid]))) {
     firstValid++;
   }
-  // INFO_LOGF("After finding firstValid: %zu", firstValid);
+  INFO_LOGF("After finding firstValid: %zu", firstValid);
   
   if (firstValid >= n) {
     ERROR_LOGF("%s", "All observed discharge values are NaN - cannot calibrate");
-    // // Save comparison file showing the problem
-    // const char* hardcodedPath = "/Users/nammehta/EF5Data/1_GhanaEF5_90m/outputs/test/obsQ_validation.csv";
-    // FILE* csvFile = fopen(hardcodedPath, "w");
-    // if (csvFile) {
-    //   fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge,Status\n");
-    //   for (size_t i = 0; i < n; i++) {
-    //     fprintf(csvFile, "%zu,NaN,NaN,All_NaN_Error\n", i);
-    //   }
-    //   fclose(csvFile);
-    //   INFO_LOGF("Saved error comparison data to: %s", hardcodedPath);
-    // }
+    // Save comparison file showing the problem
+    const char* hardcodedPath = "/Users/nammehta/EF5Data/1_GhanaEF5_90m/outputs/test/obsQ_validation.csv";
+    FILE* csvFile = fopen(hardcodedPath, "w");
+    if (csvFile) {
+      fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge,Status\n");
+      for (size_t i = 0; i < n; i++) {
+        fprintf(csvFile, "%zu,NaN,NaN,All_NaN_Error\n", i);
+      }
+      fclose(csvFile);
+      INFO_LOGF("Saved error comparison data to: %s", hardcodedPath);
+    }
     return;
   }
   
@@ -3016,10 +3016,10 @@ void FixNaNsInObservedData(std::vector<float> &obsQ)
   while (lastValid > firstValid && (std::isnan(obsQ[lastValid]) || !std::isfinite(obsQ[lastValid]))) {
     lastValid--;
   }
-  // INFO_LOGF("After finding lastValid: %zu", lastValid);
+  INFO_LOGF("After finding lastValid: %zu", lastValid);
   // Safety: lastValid should never be < firstValid
   if (lastValid < firstValid || lastValid >= n) {
-    // ERROR_LOGF("Invalid lastValid index: %zu (firstValid: %zu, n: %zu)", lastValid, firstValid, n);
+    ERROR_LOGF("Invalid lastValid index: %zu (firstValid: %zu, n: %zu)", lastValid, firstValid, n);
     return;
   }
   
@@ -3029,7 +3029,7 @@ void FixNaNsInObservedData(std::vector<float> &obsQ)
     for (size_t i = 0; i < firstValid; i++) {
       obsQ[i] = firstValidValue;
     }
-    // INFO_LOGF("Filled leading NaNs up to index %zu with value %.6f", firstValid-1, firstValidValue);
+    INFO_LOGF("Filled leading NaNs up to index %zu with value %.6f", firstValid-1, firstValidValue);
   }
   
   // Fill trailing NaN values with last valid value  
@@ -3038,7 +3038,7 @@ void FixNaNsInObservedData(std::vector<float> &obsQ)
     for (size_t i = lastValid + 1; i < n; i++) {
       obsQ[i] = lastValidValue;
     }
-    // INFO_LOGF("Filled trailing NaNs from index %zu to %zu with value %.6f", lastValid+1, n-1, lastValidValue);
+    INFO_LOGF("Filled trailing NaNs from index %zu to %zu with value %.6f", lastValid+1, n-1, lastValidValue);
   }
   
   // Linear interpolation for gaps between valid values
@@ -3054,29 +3054,29 @@ void FixNaNsInObservedData(std::vector<float> &obsQ)
           float fraction = (float)j / (float)gap;
           obsQ[lastValidIdx + j] = startValue + (endValue - startValue) * fraction;
         }
-        // INFO_LOGF("Interpolated gap from %zu to %zu (%.6f to %.6f)", lastValidIdx+1, i-1, startValue, endValue);
+        INFO_LOGF("Interpolated gap from %zu to %zu (%.6f to %.6f)", lastValidIdx+1, i-1, startValue, endValue);
       }
       lastValidIdx = i;
     }
   }
   INFO_LOGF("%s", "Finished interpolation loop");
   
-  // // Save original and interpolated data to the hardcoded path
-  // const char* hardcodedPath = "/Users/nammehta/EF5Data/1_GhanaEF5_90m/outputs/test/obsQ_validation.csv";
-  // FILE* csvFile = fopen(hardcodedPath, "w");
-  // if (csvFile) {
-  //   fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge\n");
-  //   for (size_t i = 0; i < n; i++) {
-  //     if (std::isnan(originalData[i]) || !std::isfinite(originalData[i])) {
-  //       fprintf(csvFile, "%zu,NaN,%.6f\n", i, obsQ[i]);
-  //     } else {
-  //       fprintf(csvFile, "%zu,%.6f,%.6f\n", i, originalData[i], obsQ[i]);
-  //     }
-  //   }
-  //   fclose(csvFile);
-  //   INFO_LOGF("Saved original and interpolated data to: %s", hardcodedPath);
-  // } else {
-  //   WARNING_LOGF("Failed to create CSV file: %s", hardcodedPath);
-  // }
+  // Save original and interpolated data to the hardcoded path
+  const char* hardcodedPath = "/Users/nammehta/EF5Data/1_GhanaEF5_90m/outputs/test/obsQ_validation.csv";
+  FILE* csvFile = fopen(hardcodedPath, "w");
+  if (csvFile) {
+    fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge\n");
+    for (size_t i = 0; i < n; i++) {
+      if (std::isnan(originalData[i]) || !std::isfinite(originalData[i])) {
+        fprintf(csvFile, "%zu,NaN,%.6f\n", i, obsQ[i]);
+      } else {
+        fprintf(csvFile, "%zu,%.6f,%.6f\n", i, originalData[i], obsQ[i]);
+      }
+    }
+    fclose(csvFile);
+    INFO_LOGF("Saved original and interpolated data to: %s", hardcodedPath);
+  } else {
+    WARNING_LOGF("Failed to create CSV file: %s", hardcodedPath);
+  }
   INFO_LOGF("%s", "Successfully applied smooth interpolation to observed discharge data");
 }
