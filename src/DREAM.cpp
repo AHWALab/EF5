@@ -554,12 +554,10 @@ void DREAM::CalibrateParams() {
    free(p_old);
    free(log_p_old);*/
   INFO_LOGF("%s", "End of DREAM Routine");
-  INFO_LOGF("%s", "Exiting CalibrateParams");
 }
 
 void DREAM::WriteOutput(char *outputFile, MODELS model, ROUTES route,
                         SNOWS snow) {
-  INFO_LOGF("%s", "Starting WriteOutput");
   // Write best parameters to best_parameters.csv
   FILE *bestFile = fopen("best_parameters.csv", "w");
   int i;
@@ -634,7 +632,6 @@ void DREAM::WriteOutput(char *outputFile, MODELS model, ROUTES route,
 
   deallocate2D(&ParSet, post_Sequences * pointerMCMC->seq);
   delete[] bestParams;
-  INFO_LOGF("%s", "Finished WriteOutput");
 }
 
 void DREAM::CompDensity(float **p, float *log_p, float **x,
