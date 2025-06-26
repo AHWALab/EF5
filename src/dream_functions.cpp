@@ -857,13 +857,12 @@ void GenParSet(float **ParSet, struct DREAM_Variables *RUNvar,
   // Write to disk
   for (i = 0; i < (MCMC->seq * post_Sequences); i++) {
     for (j = 0; j < MCMC->n + 2; j++) {
+      // ParSet[i][j] = sorted[i][j];
       ParSet[i][j] = parset[i][j];
-      if (fid) {
-        if (j == MCMC->n + 1) {
-          fprintf(fid, "%f\n", ParSet[i][j]);
-        } else {
-          fprintf(fid, "%f,", ParSet[i][j]);
-        }
+      if (j == MCMC->n + 1) {
+        fprintf(fid, "%f\n", ParSet[i][j]);
+      } else {
+        fprintf(fid, "%f,", ParSet[i][j]);
       }
     }
   }
