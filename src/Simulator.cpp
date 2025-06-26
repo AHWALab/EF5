@@ -29,9 +29,6 @@
 // Function to handle NaN values in observed discharge data
 void FixNaNsInObservedData(std::vector<float> &obsQ);
 
-// Global flag to indicate if interpolation was applied
-bool interpolationApplied = false;
-
 bool Simulator::Initialize(TaskConfigSection *taskN)
 {
 
@@ -2945,10 +2942,7 @@ bool Simulator::InitializeGridParams(TaskConfigSection *task)
 // Simple function to fix NaN values in observed discharge data
 void FixNaNsInObservedData(std::vector<float> &obsQ)
 {
-  if (obsQ.empty()) {
-    interpolationApplied = false;
-    return;
-  }
+  if (obsQ.empty()) return;
   
   size_t n = obsQ.size();
   
@@ -2967,7 +2961,6 @@ void FixNaNsInObservedData(std::vector<float> &obsQ)
   
   // If no NaN values, still save comparison file but no interpolation needed
   if (nanCount == 0) {
-    interpolationApplied = false;
     INFO_LOGF("%s", "Observed discharge data is complete - no interpolation needed");
     
     // Save comparison file showing original data (no changes)
@@ -2986,7 +2979,6 @@ void FixNaNsInObservedData(std::vector<float> &obsQ)
     return;
   }
   
-  interpolationApplied = true;
   INFO_LOGF("Found %zu NaN values in observed discharge - applying interpolation", nanCount);
   
   // Find first and last valid values
