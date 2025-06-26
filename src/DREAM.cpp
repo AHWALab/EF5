@@ -10,6 +10,9 @@
 #endif
 #include "DREAM.h"
 
+// Add this at the top of the file (after includes)
+extern bool g_interpolationUsed;
+
 void DREAM::Initialize(CaliParamConfigSection *caliParamConfigNew,
                        RoutingCaliParamConfigSection *routingCaliParamConfigNew,
                        SnowCaliParamConfigSection *snowCaliParamConfigNew,
@@ -560,62 +563,53 @@ void DREAM::WriteOutput(char *outputFile, MODELS model, ROUTES route,
   float **ParSet;
   float *bestParams = new float[pointerMCMC->n];
 
-  for (i = 0; i < numModelParams[model]; i++) {
-    fprintf(file, "%s%s", (i == 0) ? "" : ",", modelParamStrings[model][i]);
-  }
-  int endi = numModelParams[model] + numRouteParams[route];
-  for (i = numModelParams[model]; i < endi; i++) {
-    fprintf(file, ",%s", routeParamStrings[route][i - numModelParams[model]]);
+  // Print warning if interpolation was used
+  if (g_interpolationUsed) {
+    fprintf(file, "***INTERPOLATION OF OBSERVED DATA WAS USED FOR THIS CALIBRATION AS THE OBSERVED DATA FREQUENCIES DOES NOT MATCH WITH THE TIMESTAMP***\n\n");
   }
 
-  if (snow != SNOW_QTY) {
-    int starti = numModelParams[model] + numRouteParams[route];
-    int endi =
-        numModelParams[model] + numRouteParams[route] + numSnowParams[snow];
-    for (i = starti; i < endi; i++) {
-      fprintf(file, ",%s\n", snowParamStrings[snow][i - starti]);
-    }
-  }
-
-  fprintf(file, ",%s,%s/2%s", objectiveString, objectiveString, "\n");
-
-  // Generate a 2D matrix with samples
-  allocate2D(&ParSet, post_Sequences * pointerMCMC->seq, pointerMCMC->n + 2);
-  GenParSet(ParSet, pointerRUNvar, post_Sequences, pointerMCMC, file,
-            bestParams);
-
-  //------Deallocating
-  //Memory------------------------------------------------------//
-  /*for (i = 0; i < floorf(1.25 * pointerRUNvar->Nelem); i++) {
-   for (j=0; j < pointerMCMC->n+2; j++) {
-   free(pointerRUNvar->Sequences[i][j]);
-   }
-   free(pointerRUNvar->Sequences[i]);
-   }
-   free(pointerRUNvar->Sequences);*/
-  deallocate2D(&ParSet, post_Sequences * pointerMCMC->seq);
-  // free(pointerRUNvar);
+  // Write [WaterBalance] and [Routing] at the top
   fprintf(file, "[WaterBalance]\n");
   for (i = 0; i < numModelParams[model]; i++) {
     fprintf(file, "%s=%f\n", modelParamStrings[model][i], bestParams[i]);
   }
   fprintf(file, "[Routing]\n");
-  endi = numModelParams[model] + numRouteParams[route];
+  int endi = numModelParams[model] + numRouteParams[route];
   for (i = numModelParams[model]; i < endi; i++) {
     fprintf(file, "%s=%f\n",
             routeParamStrings[route][i - numModelParams[model]], bestParams[i]);
   }
-
   if (snow != SNOW_QTY) {
     fprintf(file, "[Snow]\n");
     int starti = numModelParams[model] + numRouteParams[route];
-    int endi =
-        numModelParams[model] + numRouteParams[route] + numSnowParams[snow];
+    int endi = numModelParams[model] + numRouteParams[route] + numSnowParams[snow];
     for (i = starti; i < endi; i++) {
-      fprintf(file, "%s=%f\n", snowParamStrings[snow][i - starti],
-              bestParams[i]);
+      fprintf(file, "%s=%f\n", snowParamStrings[snow][i - starti], bestParams[i]);
     }
   }
+  fprintf(file, "\n"); // Add a blank line before the table
+
+  // Write the header for the parameter table
+  for (i = 0; i < numModelParams[model]; i++) {
+    fprintf(file, "%s%s", (i == 0) ? "" : ",", modelParamStrings[model][i]);
+  }
+  endi = numModelParams[model] + numRouteParams[route];
+  for (i = numModelParams[model]; i < endi; i++) {
+    fprintf(file, ",%s", routeParamStrings[route][i - numModelParams[model]]);
+  }
+  if (snow != SNOW_QTY) {
+    int starti = numModelParams[model] + numRouteParams[route];
+    int endi = numModelParams[model] + numRouteParams[route] + numSnowParams[snow];
+    for (i = starti; i < endi; i++) {
+      fprintf(file, ",%s", snowParamStrings[snow][i - starti]);
+    }
+  }
+  fprintf(file, ",%s,%s/2%s", objectiveString, objectiveString, "\n");
+
+  // Write all parameter sets (as currently done)
+  allocate2D(&ParSet, post_Sequences * pointerMCMC->seq, pointerMCMC->n + 2);
+  GenParSet(ParSet, pointerRUNvar, post_Sequences, pointerMCMC, file, bestParams);
+  deallocate2D(&ParSet, post_Sequences * pointerMCMC->seq);
 
   fclose(file);
 }

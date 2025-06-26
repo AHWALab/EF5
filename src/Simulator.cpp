@@ -26,6 +26,9 @@
 #include <string.h>
 #include <zlib.h>
 
+// Global flag to indicate if interpolation was used in observed data
+bool g_interpolationUsed = false;
+
 // Function to handle NaN values in observed discharge data
 void FixNaNsInObservedData(std::vector<float> &obsQ);
 
@@ -2978,6 +2981,10 @@ void FixNaNsInObservedData(std::vector<float> &obsQ)
     }
     return;
   }
+
+  if (nanCount > 0) {
+    g_interpolationUsed = true;
+  }
   
   INFO_LOGF("Found %zu NaN values in observed discharge - applying interpolation", nanCount);
   
@@ -3052,23 +3059,24 @@ void FixNaNsInObservedData(std::vector<float> &obsQ)
     }
   }
   INFO_LOGF("%s", "Finished interpolation loop");
+
   
   // Save original and interpolated data to the hardcoded path
-  const char* hardcodedPath = "/Users/nammehta/EF5Data/1_GhanaEF5_90m/outputs/test/obsQ_validation.csv";
-  FILE* csvFile = fopen(hardcodedPath, "w");
-  if (csvFile) {
-    fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge\n");
-    for (size_t i = 0; i < n; i++) {
-      if (std::isnan(originalData[i]) || !std::isfinite(originalData[i])) {
-        fprintf(csvFile, "%zu,NaN,%.6f\n", i, obsQ[i]);
-      } else {
-        fprintf(csvFile, "%zu,%.6f,%.6f\n", i, originalData[i], obsQ[i]);
-      }
-    }
-    fclose(csvFile);
-    INFO_LOGF("Saved original and interpolated data to: %s", hardcodedPath);
-  } else {
-    WARNING_LOGF("Failed to create CSV file: %s", hardcodedPath);
-  }
+  // const char* hardcodedPath = "/Users/nammehta/EF5Data/1_GhanaEF5_90m/outputs/test/obsQ_validation.csv";
+  // FILE* csvFile = fopen(hardcodedPath, "w");
+  // if (csvFile) {
+  //   fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge\n");
+  //   for (size_t i = 0; i < n; i++) {
+  //     if (std::isnan(originalData[i]) || !std::isfinite(originalData[i])) {
+  //       fprintf(csvFile, "%zu,NaN,%.6f\n", i, obsQ[i]);
+  //     } else {
+  //       fprintf(csvFile, "%zu,%.6f,%.6f\n", i, originalData[i], obsQ[i]);
+  //     }
+  //   }
+  //   fclose(csvFile);
+  //   INFO_LOGF("Saved original and interpolated data to: %s", hardcodedPath);
+  // } else {
+  //   WARNING_LOGF("Failed to create CSV file: %s", hardcodedPath);
+  // }
   INFO_LOGF("%s", "Successfully applied smooth interpolation to observed discharge data");
 }

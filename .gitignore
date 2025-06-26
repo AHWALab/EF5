@@ -21,3 +21,5 @@ depcomp
 stamp-h1
 *.cache/*
 src/.*
+compile
+configure~

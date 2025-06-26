@@ -467,15 +467,15 @@ void KWRoute::InitializeParameters(
   size_t numNodes = nodes->size();
   size_t unused = 0;
 
-  if (paramGrids->at(PARAM_KINEMATIC_ALPHA) && g_DEM->IsSpatialMatch(paramGrids->at(PARAM_KINEMATIC_ALPHA)))
-  {
-      printf("Alpha grid is match!\n");
-  }
+  // if (paramGrids->at(PARAM_KINEMATIC_ALPHA) && g_DEM->IsSpatialMatch(paramGrids->at(PARAM_KINEMATIC_ALPHA)))
+  // {
+  //     printf("Alpha grid is match!\n");
+  // }
 
-  if (paramGrids->at(PARAM_KINEMATIC_BETA) && g_DEM->IsSpatialMatch(paramGrids->at(PARAM_KINEMATIC_BETA)))
-  {
-      printf("Beta grid is match!\n");
-  }
+  // if (paramGrids->at(PARAM_KINEMATIC_BETA) && g_DEM->IsSpatialMatch(paramGrids->at(PARAM_KINEMATIC_BETA)))
+  // {
+  //     printf("Beta grid is match!\n");
+  // }
 
   for (size_t i = 0; i < numNodes; i++)
   {
