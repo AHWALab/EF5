@@ -613,31 +613,11 @@ void DREAM::WriteOutput(char *outputDir, MODELS model, ROUTES route,
   // Write best parameter values (first row)
   for (i = 0; i < pointerMCMC->n; i++) {
     fprintf(bestFile, "%s%f", (i == 0) ? "" : ",", bestParams[i]);
-  }
-  // Compute objective function value for bestParams
-  float objValue = sim->SimulateForCali(bestParams);
-  float objValue2 = objValue / 2.0f;
-  fprintf(bestFile, ",%f,%f\n", objValue, objValue2);
-  
-  // Append parameter=value format after CSV in best_parameters.csv
-  fprintf(bestFile, "\n[WaterBalance]\n");
-  for (i = 0; i < numModelParams[model]; i++) {
-    fprintf(bestFile, "%s=%f\n", modelParamStrings[model][i], bestParams[i]);
-  }
-  fprintf(bestFile, "[Routing]\n");
-  endi = numModelParams[model] + numRouteParams[route];
-  for (i = numModelParams[model]; i < endi; i++) {
-    fprintf(bestFile, "%s=%f\n", routeParamStrings[route][i - numModelParams[model]], bestParams[i]);
-  }
-  if (snow != SNOW_QTY) {
-    fprintf(bestFile, "[Snow]\n");
-    int starti = numModelParams[model] + numRouteParams[route];
-    int endi = numModelParams[model] + numRouteParams[route] + numSnowParams[snow];
-    for (i = starti; i < endi; i++) {
-      fprintf(bestFile, "%s=%f\n", snowParamStrings[snow][i - starti], bestParams[i]);
-    }
-  }
-  fprintf(bestFile, "[Objective]\n%s=%f\n%s/2=%f\n", objectiveString, objValue, objectiveString, objValue2);
+   }
+  // Write objective function values (dummy for now)
+  fprintf(bestFile, ",,");
+  fprintf(bestFile, "\n");
+  fclose(bestFile);
 
   // Write all parameters to all_parameters.csv
   FILE *allFile = fopen(allFilePath, "w");
@@ -670,10 +650,9 @@ void DREAM::WriteOutput(char *outputDir, MODELS model, ROUTES route,
     for (i = 0; i < pointerMCMC->n; i++) {
       fprintf(allFile, "%s%f", (i == 0) ? "" : ",", ParSet[row][i]);
     }
-    // Compute and write objective function for each parameter set
-    float rowObj = sim->SimulateForCali(ParSet[row]);
-    float rowObj2 = rowObj / 2.0f;
-    fprintf(allFile, ",%f,%f\n", rowObj, rowObj2);
+    // Write objective function values (dummy for now)
+    fprintf(allFile, ",,");
+    fprintf(allFile, "\n");
   }
   fclose(allFile);
 
