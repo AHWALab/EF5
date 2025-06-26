@@ -568,17 +568,37 @@ void DREAM::WriteOutput(char *outputFile, MODELS model, ROUTES route,
     fprintf(file, "***INTERPOLATION OF OBSERVED DATA WAS USED FOR THIS CALIBRATION AS THE OBSERVED DATA FREQUENCIES DOES NOT MATCH WITH THE TIMESTAMP***\n\n");
   }
 
-  // Generate a 2D matrix with samples and fill bestParams
-  allocate2D(&ParSet, post_Sequences * pointerMCMC->seq, pointerMCMC->n + 2);
-  GenParSet(ParSet, pointerRUNvar, post_Sequences, pointerMCMC, NULL, bestParams);
+  for (i = 0; i < numModelParams[model]; i++) {
+    fprintf(file, "%s%s", (i == 0) ? "" : ",", modelParamStrings[model][i]);
+  }
+  int endi = numModelParams[model] + numRouteParams[route];
+  for (i = numModelParams[model]; i < endi; i++) {
+    fprintf(file, ",%s", routeParamStrings[route][i - numModelParams[model]]);
+  }
 
-  // Write [WaterBalance] and [Routing] at the top
+  if (snow != SNOW_QTY) {
+    int starti = numModelParams[model] + numRouteParams[route];
+    int endi = numModelParams[model] + numRouteParams[route] + numSnowParams[snow];
+    for (i = starti; i < endi; i++) {
+      fprintf(file, ",%s\n", snowParamStrings[snow][i - starti]);
+    }
+  }
+
+  fprintf(file, ",%s,%s/2%s", objectiveString, objectiveString, "\n");
+
+  // Generate a 2D matrix with samples
+  allocate2D(&ParSet, post_Sequences * pointerMCMC->seq, pointerMCMC->n + 2);
+  GenParSet(ParSet, pointerRUNvar, post_Sequences, pointerMCMC, file, bestParams);
+
+  deallocate2D(&ParSet, post_Sequences * pointerMCMC->seq);
+
+  // Print best parameters at the bottom
   fprintf(file, "[WaterBalance]\n");
   for (i = 0; i < numModelParams[model]; i++) {
     fprintf(file, "%s=%f\n", modelParamStrings[model][i], bestParams[i]);
   }
   fprintf(file, "[Routing]\n");
-  int endi = numModelParams[model] + numRouteParams[route];
+  endi = numModelParams[model] + numRouteParams[route];
   for (i = numModelParams[model]; i < endi; i++) {
     fprintf(file, "%s=%f\n",
             routeParamStrings[route][i - numModelParams[model]], bestParams[i]);
@@ -591,28 +611,6 @@ void DREAM::WriteOutput(char *outputFile, MODELS model, ROUTES route,
       fprintf(file, "%s=%f\n", snowParamStrings[snow][i - starti], bestParams[i]);
     }
   }
-  fprintf(file, "\n"); // Add a blank line before the table
-
-  // Write the header for the parameter table
-  for (i = 0; i < numModelParams[model]; i++) {
-    fprintf(file, "%s%s", (i == 0) ? "" : ",", modelParamStrings[model][i]);
-  }
-  endi = numModelParams[model] + numRouteParams[route];
-  for (i = numModelParams[model]; i < endi; i++) {
-    fprintf(file, ",%s", routeParamStrings[route][i - numModelParams[model]]);
-  }
-  if (snow != SNOW_QTY) {
-    int starti = numModelParams[model] + numRouteParams[route];
-    int endi = numModelParams[model] + numRouteParams[route] + numSnowParams[snow];
-    for (i = starti; i < endi; i++) {
-      fprintf(file, ",%s", snowParamStrings[snow][i - starti]);
-    }
-  }
-  fprintf(file, ",%s,%s/2%s", objectiveString, objectiveString, "\n");
-
-  // Now print all parameter sets (table)
-  GenParSet(ParSet, pointerRUNvar, post_Sequences, pointerMCMC, file, bestParams);
-  deallocate2D(&ParSet, post_Sequences * pointerMCMC->seq);
 
   fclose(file);
 }
