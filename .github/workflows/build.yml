@@ -3,6 +3,8 @@ name: EF5 Multi-Platform Build
 on:
   push:
     branches: [ v1.2.5 ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ v1.2.5 ]
 
@@ -163,4 +165,63 @@ jobs:
           name: ${{ matrix.cross }}-build
           path: |
             shared/ef5_win64.zip
-            shared/ef5_win32.zip 
+            shared/ef5_win32.zip
+
+  release:
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-linux
+          path: ./artifacts
+
+      - name: Download Windows mingw64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mingw64-build
+          path: ./artifacts
+
+      - name: Download Windows mingw32 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mingw32-build
+          path: ./artifacts
+
+      - name: Get release info
+        id: get_release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const release = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: context.ref.replace('refs/tags/', '')
+            });
+            return release.data.upload_url;
+
+      - name: Upload Linux artifact
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.get_release.outputs.result }}
+          asset_path: ./artifacts/shared/ef5_linux.tar.gz
+          asset_name: ef5_linux.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload Windows mingw64 artifact
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.get_release.outputs.result }}
+          asset_path: ./artifacts/shared/ef5_win64.zip
+          asset_name: ef5_win64.zip
+          asset_content_type: application/zip
+
+      - name: Upload Windows mingw32 artifact
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.get_release.outputs.result }}
+          asset_path: ./artifacts/shared/ef5_win32.zip
+          asset_name: ef5_win32.zip
+          asset_content_type: application/zip 
