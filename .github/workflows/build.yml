@@ -1,0 +1,170 @@
+name: EF5 Multi-Platform Build
+
+on:
+  push:
+    branches: [ v1.2.5 ]
+  pull_request:
+    branches: [ v1.2.5 ]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libgeotiff-dev build-essential autoconf automake libtool
+
+      - name: Build
+        run: |
+          autoreconf --force --install
+          ./configure
+          make
+
+      - name: Archive Linux build
+        run: |
+          mkdir -p shared
+          cp bin/ef5 shared/ef5 || true
+          tar -czf shared/ef5_linux.tar.gz -C shared ef5 || true
+
+  build-windows:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cross:
+          - mingw64
+          - mingw32
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install MinGW and dependencies
+        run: |
+          sudo apt-get update
+          if [ "${{ matrix.cross }}" = "mingw64" ]; then
+            sudo apt-get install -y gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 binutils-mingw-w64-x86-64 mingw-w64-x86-64-dev zlib1g-dev autoconf automake libtool wget
+          else
+            sudo apt-get install -y gcc-mingw-w64-i686 g++-mingw-w64-i686 binutils-mingw-w64-i686 mingw-w64-i686-dev zlib1g-dev autoconf automake libtool wget
+          fi
+
+      - name: Build and install dependencies (zlib, libtiff, libgeotiff)
+        run: |
+          set -e
+          if [ "${{ matrix.cross }}" = "mingw64" ]; then
+            export CC=x86_64-w64-mingw32-gcc
+            export CXX=x86_64-w64-mingw32-g++
+            export CXXFLAGS="-I/usr/local/include -I/usr/x86_64-w64-mingw32/sys-root/mingw/include $CXXFLAGS"
+            export CFLAGS="-I/usr/local/include -I/usr/x86_64-w64-mingw32/sys-root/mingw/include $CFLAGS"
+            export LDFLAGS="-L/usr/x86_64-w64-mingw32/sys-root/mingw/lib $LDFLAGS"
+            export PATH=/usr/x86_64-w64-mingw32/sys-root/mingw/lib:$PATH
+            # zlib
+            wget http://zlib.net/zlib-1.2.11.tar.gz
+            tar zxf zlib-1.2.11.tar.gz
+            cd zlib-1.2.11
+            sed -e s/"PREFIX ="/"PREFIX = x86_64-w64-mingw32-"/ -i win32/Makefile.gcc
+            make -f win32/Makefile.gcc
+            sudo INCLUDE_PATH=/usr/local/include LIBRARY_PATH=/usr/x86_64-w64-mingw32/sys-root/mingw/lib BINARY_PATH=/usr/x86_64-w64-mingw32/sys-root/mingw/lib/bin make -f win32/Makefile.gcc install
+            cd ..
+            # libtiff
+            wget http://dl.maptools.org/dl/libtiff/tiff-3.8.2.tar.gz
+            tar zxf tiff-3.8.2.tar.gz
+            cd tiff-3.8.2
+            ./configure --host=x86_64-w64-mingw32 --prefix=/usr/x86_64-w64-mingw32/sys-root/mingw --enable-cxx --enable-static --with-zlib-include-dir=/usr/local/include --with-zlib-lib-dir=/usr/x86_64-w64-mingw32/sys-root/mingw/lib --disable-shared
+            make
+            sudo make install
+            cd ..
+            # libgeotiff
+            wget http://download.osgeo.org/geotiff/libgeotiff/libgeotiff-1.4.2.tar.gz
+            tar zxf libgeotiff-1.4.2.tar.gz
+            cd libgeotiff-1.4.2
+            ./configure --host=x86_64-w64-mingw32 --without-proj --prefix=/usr/x86_64-w64-mingw32/sys-root/mingw --enable-static --with-zip=yes --enable-incode-epsg --disable-static
+            make
+            sudo make install
+            cd ..
+          else
+            export CC=i686-w64-mingw32-gcc
+            export CXX=i686-w64-mingw32-g++
+            export CXXFLAGS="-I/usr/local/include -I/usr/i686-w64-mingw32/sys-root/mingw/include $CXXFLAGS"
+            export CFLAGS="-I/usr/local/include -I/usr/i686-w64-mingw32/sys-root/mingw/include $CFLAGS"
+            export LDFLAGS="-L/usr/i686-w64-mingw32/sys-root/mingw/lib $LDFLAGS"
+            export PATH=/usr/i686-w64-mingw32/sys-root/mingw/lib:$PATH
+            # zlib
+            wget http://zlib.net/zlib-1.2.11.tar.gz
+            tar zxf zlib-1.2.11.tar.gz
+            cd zlib-1.2.11
+            sed -e s/"PREFIX ="/"PREFIX = i686-w64-mingw32-"/ -i win32/Makefile.gcc
+            make -f win32/Makefile.gcc
+            sudo INCLUDE_PATH=/usr/local/include LIBRARY_PATH=/usr/i686-w64-mingw32/sys-root/mingw/lib BINARY_PATH=/usr/i686-w64-mingw32/sys-root/mingw/lib/bin make -f win32/Makefile.gcc install
+            cd ..
+            # libtiff
+            wget http://dl.maptools.org/dl/libtiff/tiff-3.8.2.tar.gz
+            tar zxf tiff-3.8.2.tar.gz
+            cd tiff-3.8.2
+            ./configure --host=i686-w64-mingw32 --prefix=/usr/i686-w64-mingw32/sys-root/mingw --enable-cxx --enable-static --with-zlib-include-dir=/usr/local/include --with-zlib-lib-dir=/usr/i686-w64-mingw32/sys-root/mingw/lib --disable-shared
+            make
+            sudo make install
+            cd ..
+            # libgeotiff
+            wget http://download.osgeo.org/geotiff/libgeotiff/libgeotiff-1.4.2.tar.gz
+            tar zxf libgeotiff-1.4.2.tar.gz
+            cd libgeotiff-1.4.2
+            ./configure --host=i686-w64-mingw32 --without-proj --prefix=/usr/i686-w64-mingw32/sys-root/mingw --enable-static --with-zip=yes --enable-incode-epsg --disable-static
+            make
+            sudo make install
+            cd ..
+          fi
+          set +e
+
+      - name: Build for Windows
+        run: |
+          set -e
+          if [ "${{ matrix.cross }}" = "mingw64" ]; then
+            export CC=x86_64-w64-mingw32-gcc
+            export CXX=x86_64-w64-mingw32-g++
+            autoreconf --force --install
+            ./configure --host=x86_64-w64-mingw32
+            make
+            mkdir -p shared
+            cp bin/ef5.exe shared/ef5_64.exe
+            cd shared
+            zip ef5_win64.zip ef5_64.exe
+          else
+            export CC=i686-w64-mingw32-gcc
+            export CXX=i686-w64-mingw32-g++
+            autoreconf --force --install
+            ./configure --host=i686-w64-mingw32
+            make
+            mkdir -p shared
+            cp bin/ef5.exe shared/ef5_32.exe
+            cd shared
+            zip ef5_win32.zip ef5_32.exe
+          fi
+
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.cross }}-build
+          path: |
+            shared/ef5_win64.zip
+            shared/ef5_win32.zip
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Build with Xcode
+        run: |
+          xcodebuild -project EF5/EF5.xcodeproj -alltargets -configuration Release
+          mkdir -p shared
+          cp EF5/build/Release/EF5 shared/ef5
+          cd shared
+          tar -czf ef5_osx.tar.gz ef5
+
+      - name: Upload MacOS Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-build
+          path: shared/ef5_osx.tar.gz 
