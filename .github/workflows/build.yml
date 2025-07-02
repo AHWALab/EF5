@@ -163,27 +163,4 @@ jobs:
           name: ${{ matrix.cross }}-build
           path: |
             shared/ef5_win64.zip
-            shared/ef5_win32.zip
-
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Install dependencies
-        run: brew install libgeotiff libtiff
-
-      - name: Build with Xcode
-        run: |
-          xcodebuild -project EF5/EF5.xcodeproj -alltargets -configuration Release
-          mkdir -p shared
-          cp EF5/build/Release/EF5 shared/ef5
-          cd shared
-          tar -czf ef5_osx.tar.gz ef5
-
-      - name: Upload MacOS Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-build
-          path: shared/ef5_osx.tar.gz 
+            shared/ef5_win32.zip 
