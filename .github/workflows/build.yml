@@ -59,9 +59,9 @@ jobs:
             export LDFLAGS="-L/usr/x86_64-w64-mingw32/sys-root/mingw/lib $LDFLAGS"
             export PATH=/usr/x86_64-w64-mingw32/sys-root/mingw/lib:$PATH
             # zlib
-            wget http://zlib.net/zlib-1.2.11.tar.gz
-            tar zxf zlib-1.2.11.tar.gz
-            cd zlib-1.2.11
+            wget https://zlib.net/zlib-1.3.1.tar.gz
+            tar zxf zlib-1.3.1.tar.gz
+            cd zlib-1.3.1
             sed -e s/"PREFIX ="/"PREFIX = x86_64-w64-mingw32-"/ -i win32/Makefile.gcc
             make -f win32/Makefile.gcc
             sudo INCLUDE_PATH=/usr/local/include LIBRARY_PATH=/usr/x86_64-w64-mingw32/sys-root/mingw/lib BINARY_PATH=/usr/x86_64-w64-mingw32/sys-root/mingw/lib/bin make -f win32/Makefile.gcc install
@@ -90,9 +90,9 @@ jobs:
             export LDFLAGS="-L/usr/i686-w64-mingw32/sys-root/mingw/lib $LDFLAGS"
             export PATH=/usr/i686-w64-mingw32/sys-root/mingw/lib:$PATH
             # zlib
-            wget http://zlib.net/zlib-1.2.11.tar.gz
-            tar zxf zlib-1.2.11.tar.gz
-            cd zlib-1.2.11
+            wget https://zlib.net/zlib-1.3.1.tar.gz
+            tar zxf zlib-1.3.1.tar.gz
+            cd zlib-1.3.1
             sed -e s/"PREFIX ="/"PREFIX = i686-w64-mingw32-"/ -i win32/Makefile.gcc
             make -f win32/Makefile.gcc
             sudo INCLUDE_PATH=/usr/local/include LIBRARY_PATH=/usr/i686-w64-mingw32/sys-root/mingw/lib BINARY_PATH=/usr/i686-w64-mingw32/sys-root/mingw/lib/bin make -f win32/Makefile.gcc install
@@ -154,6 +154,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: brew install libgeotiff libtiff
 
       - name: Build with Xcode
         run: |
