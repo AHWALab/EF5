@@ -142,7 +142,7 @@ jobs:
           fi
 
       - name: Upload Windows Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.cross }}-build
           path: |
@@ -164,7 +164,7 @@ jobs:
           tar -czf ef5_osx.tar.gz ef5
 
       - name: Upload MacOS Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macos-build
           path: shared/ef5_osx.tar.gz 
