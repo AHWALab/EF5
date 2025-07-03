@@ -42,6 +42,12 @@ bool SimpleInundation::InitializeModel(
     iNodes[i].elevationChannel = g_DEM->data[channelNode->y][channelNode->x];
     iNodes[i].elevDiff = iNodes[i].elevation - iNodes[i].elevationChannel;
     iNodes[i].channelIndex = channelNode->index;
+    // Set channelGridCell using th_inu threshold
+    if (node->fac > iNodes[i].params[PARAM_SI_TH_INU]) {
+      node->channelGridCell = true;
+    } else {
+      node->channelGridCell = false;
+    }
   }
 
   return true;

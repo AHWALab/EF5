@@ -78,6 +78,7 @@ ADDPARAMSNOW17("scf", SCF)
 ADDINUNDATION("simpleinundation", SI)
 ADDPARAMSI("alpha", ALPHA)
 ADDPARAMSI("beta", BETA)
+ADDPARAMSI("th_inu", TH_INU)
 
 ADDINUNDATION("vcinundation", VCI)
 ADDPARAMVCI("alpha", ALPHA)
