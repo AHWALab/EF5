@@ -2,11 +2,11 @@ name: EF5 Multi-Platform Build
 
 on:
   push:
-    branches: [ v1.2.5 ]
+    branches: [ v1.2.5, v1.2.6, master ]
     tags:
       - 'v*'
   pull_request:
-    branches: [ v1.2.5 ]
+    branches: [ v1.2.5, v1.2.6, master ]
 
 jobs:
   build-linux:
