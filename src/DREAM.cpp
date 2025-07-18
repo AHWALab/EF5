@@ -159,9 +159,7 @@ void DREAM::CalibrateParams() {
   struct DREAM_Output *pointerOutput;
   bool converged = false;
 
-  // Initializing global interpolation flags
-  g_interpolationUsed = false;
-  g_mismatchedFrequencies = false;
+
 
   // steps = pointerMCMC->steps; //Steps will change, need to kepp original
   // value for memory deallocation
@@ -568,7 +566,7 @@ void DREAM::WriteOutput(char *outputFile, MODELS model, ROUTES route,
   float **ParSet;
   float *bestParams = new float[pointerMCMC->n];
 
-  // Printing warning if interpolation was used or if mismatched frequencies were found
+  // Print warning if interpolation was used or if mismatched frequencies were found
   if (g_interpolationUsed) {
     fprintf(file, "***INTERPOLATION OF OBSERVED DATA WAS USED FOR THIS CALIBRATION AS THE OBSERVED DATA FREQUENCIES DOES NOT MATCH WITH THE TIMESTAMP***\n\n");
   } else if (g_mismatchedFrequencies) {
