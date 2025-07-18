@@ -25,12 +25,19 @@
 #include <cmath>
 #include <string.h>
 #include <zlib.h>
+#include <algorithm>
+#include <iostream>
+#include <memory>
+#include <ostream>
+#include <sstream>
+#include <string>
 
 // Global flag to indicate if interpolation was used in observed data
 bool g_interpolationUsed = false;
+bool g_mismatchedFrequencies = false;
 
 // Function to handle NaN values in observed discharge data
-void FixNaNsInObservedData(std::vector<float> &obsQ);
+void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate);
 
 bool Simulator::Initialize(TaskConfigSection *taskN)
 {
@@ -2495,7 +2502,7 @@ void Simulator::PreloadForcings(char *file, bool cali)
 
   // Fix NaN values in observed discharge data for calibration
   if (cali && !obsQ.empty()) {
-    FixNaNsInObservedData(obsQ);
+    FixNaNsInObservedData(obsQ, task->GetInterpolateObs());
   }
 
   SaveForcings(file);
@@ -2588,7 +2595,7 @@ bool Simulator::LoadSavedForcings(char *file, bool cali)
   
   // Fix NaN values in observed discharge data for calibration
   if (!obsQ.empty()) {
-    FixNaNsInObservedData(obsQ);
+    FixNaNsInObservedData(obsQ, this->task->GetInterpolateObs());
   }
   
   return true;
@@ -2943,7 +2950,7 @@ bool Simulator::InitializeGridParams(TaskConfigSection *task)
 }
 
 // Simple function to fix NaN values in observed discharge data
-void FixNaNsInObservedData(std::vector<float> &obsQ)
+void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate)
 {
   if (obsQ.empty()) return;
   
@@ -2982,11 +2989,26 @@ void FixNaNsInObservedData(std::vector<float> &obsQ)
   //   return;
   // }
 
+  // Check if we have NaN values and set flag accordingly
   if (nanCount > 0) {
-    g_interpolationUsed = true;
+    if (shouldInterpolate) {
+      g_interpolationUsed = true;
+      g_mismatchedFrequencies = false;
+      INFO_LOGF("Found %zu NaN values in observed discharge - applying interpolation", nanCount);
+    } else {
+      // Set flag to indicate that we have varying frequencies but didn't interpolate
+      g_interpolationUsed = false;
+      g_mismatchedFrequencies = true;
+      INFO_LOGF("Found %zu NaN values in observed discharge - NOT interpolating (INTERPOLATE_OBS=false)", nanCount);
+      return;
+    }
+  } else {
+    // No NaN values found - no interpolation needed
+    g_interpolationUsed = false;
+    g_mismatchedFrequencies = false;
+    INFO_LOGF("%s", "Observed discharge data is complete - no interpolation needed");
+    return;
   }
-  
-  INFO_LOGF("Found %zu NaN values in observed discharge - applying interpolation", nanCount);
   
   // Find first and last valid values
   size_t firstValid = 0;
