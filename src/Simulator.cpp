@@ -2502,7 +2502,7 @@ void Simulator::PreloadForcings(char *file, bool cali)
 
   // Fix NaN values in observed discharge data for calibration
   if (cali && !obsQ.empty()) {
-    FixNaNsInObservedData(obsQ, task->GetInterpolateObs());
+    FixNaNsInObservedData(obsQ, caliParamSec->GetInterpolateObs());
   }
 
   SaveForcings(file);
@@ -2595,7 +2595,7 @@ bool Simulator::LoadSavedForcings(char *file, bool cali)
   
   // Fix NaN values in observed discharge data for calibration
   if (!obsQ.empty()) {
-    FixNaNsInObservedData(obsQ, this->task->GetInterpolateObs());
+    FixNaNsInObservedData(obsQ, this->caliParamSec->GetInterpolateObs());
   }
   
   return true;

@@ -15,7 +15,7 @@ TaskConfigSection::TaskConfigSection(const char *nameVal)
       routingCaliParamSet(false), defaultParamsSet(false), routeSet(false),
       snowParamsSet(false), snowCaliParamSet(false), snowSet(false), tempSet(false), tempFSet(false),
       inundationParamsSet(false), inundationCaliParamSet(false), inundationSet(false),
-      timeBeginLRSet(false), timestepLRSet(false), interpolateObs(false),
+      timeBeginLRSet(false), timestepLRSet(false),
       model(MODEL_QTY), routing(ROUTE_QTY), snow(SNOW_QTY), inundation(INUNDATION_QTY),
       basin(nullptr), precip(nullptr), qpf(nullptr), pet(nullptr), temp(nullptr), tempf(nullptr),
       params(nullptr), caliParam(nullptr), paramsRouting(nullptr), caliParamRouting(nullptr),
@@ -641,22 +641,6 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char *name, char *value)
   {
     strncpy(basinAvgInput, value, CONFIG_MAX_LEN - 1);
     basinAvgInput[CONFIG_MAX_LEN - 1] = '\0';
-  }
-  else if (!strcasecmp(name, "interpolate_obs"))
-  {
-    if (!strcasecmp(value, "true") || !strcasecmp(value, "1"))
-    {
-      interpolateObs = true;
-    }
-    else if (!strcasecmp(value, "false") || !strcasecmp(value, "0"))
-    {
-      interpolateObs = false;
-    }
-    else
-    {
-      ERROR_LOGF("Invalid value for INTERPOLATE_OBS: \"%s\". Expected true/false or 1/0", value);
-      return INVALID_RESULT;
-    }
   }
   else
   {

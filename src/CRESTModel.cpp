@@ -7,6 +7,8 @@
 #include "AscGrid.h"
 #include "CRESTModel.h"
 #include "DatedName.h"
+#include <set>
+#include <iomanip>
 
 static const char *stateStrings[] = {
     "SM",
@@ -330,12 +332,24 @@ void CRESTModel::InitializeParameters(
     }
 
     if (cNode->states[STATE_CREST_SM] < 0.0) {
-      printf("Node Soil Moisture(%f) is less than 0, setting to 0.\n",
-             cNode->states[STATE_CREST_SM]);
+      static std::set<float> printed_sm_below_zero;
+      float val = cNode->states[STATE_CREST_SM];
+      // Round to 3 decimal places for uniqueness
+      float rounded_val = std::round(val * 1000.0f) / 1000.0f;
+      if (printed_sm_below_zero.find(rounded_val) == printed_sm_below_zero.end()) {
+        printf("Node Soil Moisture(%f) is less than 0, setting to 0.\n", val);
+        printed_sm_below_zero.insert(rounded_val);
+      }
       cNode->states[STATE_CREST_SM] = 0.0;
     } else if (cNode->states[STATE_CREST_SM] > cNode->params[PARAM_CREST_WM]) {
-      printf("Node Soil Moisture(%f) is greater than WM, setting to %f.\n",
-             cNode->states[STATE_CREST_SM], cNode->params[PARAM_CREST_WM]);
+      static std::set<float> printed_sm_above_wm;
+      float val = cNode->states[STATE_CREST_SM];
+      // Round to 3 decimal places for uniqueness
+      float rounded_val = std::round(val * 1000.0f) / 1000.0f;
+      if (printed_sm_above_wm.find(rounded_val) == printed_sm_above_wm.end()) {
+        printf("Node Soil Moisture(%f) is greater than WM, setting to %f.\n", val, cNode->params[PARAM_CREST_WM]);
+        printed_sm_above_wm.insert(rounded_val);
+      }
     }
 
     if (cNode->params[PARAM_CREST_IM] < 0.0) {

@@ -73,7 +73,6 @@ public:
   GaugeConfigSection *GetDefaultGauge();
   bool UseStates() { return stateSet; }
   bool SaveStates() { return (stateSet && timeStateSet); }
-  bool GetInterpolateObs() { return interpolateObs; }
   CONFIG_SEC_RET ProcessKeyValue(char *name, char *value);
   CONFIG_SEC_RET ValidateSection();
   int GetGriddedOutputs() { return griddedOutputs; }
@@ -90,7 +89,6 @@ private:
   bool snowParamsSet, snowCaliParamSet, snowSet, tempSet, tempFSet;
   bool inundationParamsSet, inundationCaliParamSet, inundationSet;
   bool timeBeginLRSet, timestepLRSet;
-  bool interpolateObs;
   char output[CONFIG_MAX_LEN], state[CONFIG_MAX_LEN];
   char name[CONFIG_MAX_LEN];
   char stdGrid[CONFIG_MAX_LEN], avgGrid[CONFIG_MAX_LEN], scGrid[CONFIG_MAX_LEN];

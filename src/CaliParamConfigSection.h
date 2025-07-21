@@ -28,6 +28,9 @@ public:
 
   // DREAM
   int DREAMGetNDraw() { return dream_ndraw; }
+  
+  // Interpolation
+  bool GetInterpolateObs() { return interpolateObs; }
 
   char *GetName();
   CONFIG_SEC_RET ProcessKeyValue(char *name, char *value);
@@ -50,6 +53,7 @@ private:
   float ars_convergenceCriteria;
   int ars_burnInSets;
   int dream_ndraw;
+  bool interpolateObs;
 };
 
 extern std::map<std::string, CaliParamConfigSection *> g_caliParamConfigs[];

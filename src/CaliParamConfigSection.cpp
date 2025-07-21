@@ -29,6 +29,9 @@ CaliParamConfigSection::CaliParamConfigSection(char *nameVal, MODELS modelVal) {
 
   // DREAM defaults
   dream_ndraw = 10000;
+  
+  // Interpolation defaults
+  interpolateObs = false;
 }
 
 CaliParamConfigSection::~CaliParamConfigSection() {
@@ -79,6 +82,16 @@ CONFIG_SEC_RET CaliParamConfigSection::ProcessKeyValue(char *name,
     return VALID_RESULT;
   } else if (!strcasecmp(name, "dream_ndraw")) {
     dream_ndraw = atoi(value);
+    return VALID_RESULT;
+  } else if (!strcasecmp(name, "interpolate_obs")) {
+    if (!strcasecmp(value, "true") || !strcasecmp(value, "1")) {
+      interpolateObs = true;
+    } else if (!strcasecmp(value, "false") || !strcasecmp(value, "0")) {
+      interpolateObs = false;
+    } else {
+      ERROR_LOGF("Invalid value for INTERPOLATE_OBS: \"%s\". Expected true/false or 1/0", value);
+      return INVALID_RESULT;
+    }
     return VALID_RESULT;
   } else {
     if (!gauge) {
