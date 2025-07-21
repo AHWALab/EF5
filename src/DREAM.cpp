@@ -568,9 +568,9 @@ void DREAM::WriteOutput(char *outputFile, MODELS model, ROUTES route,
 
   // Print warning if interpolation was used or if mismatched frequencies were found
   if (g_interpolationUsed) {
-    fprintf(file, "***INTERPOLATION OF OBSERVED DATA WAS USED FOR THIS CALIBRATION AS THE OBSERVED DATA FREQUENCIES DOES NOT MATCH WITH THE TIMESTAMP***\n\n");
+    fprintf(file, "***Interpolation of observed data was applied during calibration due to mismatched time steps or missing values in the observed dataset***\n\n");
   } else if (g_mismatchedFrequencies) {
-    fprintf(file, "***THIS CALIBRATION WAS PERFORMED ON VARYING OBSERVED DATA FREQUENCIES AND TIMESTAMP PROVIDED IN THE CONTROL FILE, CONSIDER ADDING INTERPOLATE_OBS=True TO INTERPOLATE THE OBSERVED DATA TO MATCH WITH THE TIMESTAMP***\n\n");
+    fprintf(file, "***Calibration was performed using observed data that either contains missing values or has a frequency that does not match the time steps specified in the control file. Consider setting INTERPOLATE_OBS=True to interpolate the observed data***\n\n");
   }
 
   for (i = 0; i < numModelParams[model]; i++) {

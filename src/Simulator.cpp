@@ -37,7 +37,7 @@ bool g_interpolationUsed = false;
 bool g_mismatchedFrequencies = false;
 
 // Function to handle NaN values in observed discharge data
-void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate);
+void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate, const char* outputPath, TimeVar* beginTime, TimeUnit* timeStep);
 
 bool Simulator::Initialize(TaskConfigSection *taskN)
 {
@@ -2502,7 +2502,7 @@ void Simulator::PreloadForcings(char *file, bool cali)
 
   // Fix NaN values in observed discharge data for calibration
   if (cali && !obsQ.empty()) {
-    FixNaNsInObservedData(obsQ, caliParamSec->GetInterpolateObs());
+    FixNaNsInObservedData(obsQ, caliParamSec->GetInterpolateObs(), task->GetOutput(), &beginTime, timeStep);
   }
 
   SaveForcings(file);
@@ -2595,7 +2595,7 @@ bool Simulator::LoadSavedForcings(char *file, bool cali)
   
   // Fix NaN values in observed discharge data for calibration
   if (!obsQ.empty()) {
-    FixNaNsInObservedData(obsQ, this->caliParamSec->GetInterpolateObs());
+    FixNaNsInObservedData(obsQ, this->caliParamSec->GetInterpolateObs(), this->task->GetOutput(), &beginTime, timeStep);
   }
   
   return true;
@@ -2950,9 +2950,12 @@ bool Simulator::InitializeGridParams(TaskConfigSection *task)
 }
 
 // Simple function to fix NaN values in observed discharge data
-void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate)
+void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate, const char* outputPath, TimeVar* beginTime, TimeUnit* timeStep)
 {
-  if (obsQ.empty()) return;
+  if (obsQ.empty()) {
+    ERROR_LOGF("%s", "The observed data is empty, stopping the calibration!");
+    exit(1);
+  }
   
   size_t n = obsQ.size();
   
@@ -3101,4 +3104,45 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate)
   //   WARNING_LOGF("Failed to create CSV file: %s", hardcodedPath);
   // }
   INFO_LOGF("%s", "Successfully applied smooth interpolation to observed discharge data");
+  
+  // Create CSV output file with interpolation results
+  if (outputPath) {
+    // Create the interpolation results CSV filename
+    std::string outputDir(outputPath);
+    if (outputDir.back() != '/') outputDir += '/';
+    std::string csvFilename = outputDir + "interpolation_results.csv";
+    
+    FILE* csvFile = fopen(csvFilename.c_str(), "w");
+    if (csvFile) {
+      fprintf(csvFile, "DateTime,Original_Discharge,Interpolated_Discharge\n");
+      
+             // Generate datetime values and write data
+       TimeVar currentTime = *beginTime;
+       for (size_t i = 0; i < n; i++) {
+         // Get the tm struct for date/time components
+         tm* timeInfo = currentTime.GetTM();
+         
+         // Format the datetime (YYYYMMDDHHMM)
+         char timeStr[32];
+         snprintf(timeStr, sizeof(timeStr), "%04d%02d%02d%02d%02d", 
+                 timeInfo->tm_year + 1900, timeInfo->tm_mon + 1, timeInfo->tm_mday, 
+                 timeInfo->tm_hour, timeInfo->tm_min);
+         
+         // Write the row
+         if (std::isnan(originalData[i]) || !std::isfinite(originalData[i])) {
+           fprintf(csvFile, "%s,NaN,%.6f\n", timeStr, obsQ[i]);
+         } else {
+           fprintf(csvFile, "%s,%.6f,%.6f\n", timeStr, originalData[i], obsQ[i]);
+         }
+         
+         // Increment time for next observation
+         currentTime.Increment(timeStep);
+       }
+      
+      fclose(csvFile);
+      INFO_LOGF("Saved interpolation results to: %s", csvFilename.c_str());
+    } else {
+      WARNING_LOGF("Failed to create interpolation results file: %s", csvFilename.c_str());
+    }
+  }
 }
