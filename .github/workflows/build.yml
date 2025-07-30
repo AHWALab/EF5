@@ -257,9 +257,16 @@ jobs:
               throw error;
             }
 
+      - name: Debug artifacts directory
+        run: |
+          echo "Contents of ./artifacts:"
+          ls -la ./artifacts/
+          echo "Contents of ./artifacts/shared (if exists):"
+          ls -la ./artifacts/shared/ || echo "shared directory does not exist"
+
       - name: Upload Linux artifact to tag release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v2
         with:
           upload_url: ${{ steps.get_release.outputs.result }}
           asset_path: ./artifacts/ef5_linux.tar.gz
@@ -268,7 +275,7 @@ jobs:
 
       - name: Upload Windows mingw64 artifact to tag release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v2
         with:
           upload_url: ${{ steps.get_release.outputs.result }}
           asset_path: ./artifacts/ef5_win64.zip
@@ -277,7 +284,7 @@ jobs:
 
       - name: Upload Windows mingw32 artifact to tag release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v2
         with:
           upload_url: ${{ steps.get_release.outputs.result }}
           asset_path: ./artifacts/ef5_win32.zip
@@ -286,7 +293,7 @@ jobs:
 
       - name: Upload Linux artifact to latest release
         if: github.ref == 'refs/heads/master'
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v2
         with:
           upload_url: ${{ steps.create_latest_release.outputs.result }}
           asset_path: ./artifacts/ef5_linux.tar.gz
@@ -295,7 +302,7 @@ jobs:
 
       - name: Upload Windows mingw64 artifact to latest release
         if: github.ref == 'refs/heads/master'
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v2
         with:
           upload_url: ${{ steps.create_latest_release.outputs.result }}
           asset_path: ./artifacts/ef5_win64.zip
@@ -304,7 +311,7 @@ jobs:
 
       - name: Upload Windows mingw32 artifact to latest release
         if: github.ref == 'refs/heads/master'
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v2
         with:
           upload_url: ${{ steps.create_latest_release.outputs.result }}
           asset_path: ./artifacts/ef5_win32.zip
