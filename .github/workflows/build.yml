@@ -30,6 +30,12 @@ jobs:
           cp bin/ef5 shared/ef5 || true
           tar -czf shared/ef5_linux.tar.gz -C shared ef5 || true
 
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-linux
+          path: shared/ef5_linux.tar.gz
+
   build-windows:
     runs-on: ubuntu-latest
     strategy:
