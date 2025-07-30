@@ -262,7 +262,7 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.get_release.outputs.result }}
-          asset_path: ./artifacts/shared/ef5_linux.tar.gz
+          asset_path: ./artifacts/ef5_linux.tar.gz
           asset_name: ef5_linux.tar.gz
           asset_content_type: application/gzip
 
@@ -271,7 +271,7 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.get_release.outputs.result }}
-          asset_path: ./artifacts/shared/ef5_win64.zip
+          asset_path: ./artifacts/ef5_win64.zip
           asset_name: ef5_win64.zip
           asset_content_type: application/zip
 
@@ -280,7 +280,7 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.get_release.outputs.result }}
-          asset_path: ./artifacts/shared/ef5_win32.zip
+          asset_path: ./artifacts/ef5_win32.zip
           asset_name: ef5_win32.zip
           asset_content_type: application/zip
 
@@ -289,7 +289,7 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_latest_release.outputs.result }}
-          asset_path: ./artifacts/shared/ef5_linux.tar.gz
+          asset_path: ./artifacts/ef5_linux.tar.gz
           asset_name: ef5_linux.tar.gz
           asset_content_type: application/gzip
 
@@ -298,7 +298,7 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_latest_release.outputs.result }}
-          asset_path: ./artifacts/shared/ef5_win64.zip
+          asset_path: ./artifacts/ef5_win64.zip
           asset_name: ef5_win64.zip
           asset_content_type: application/zip
 
@@ -307,6 +307,6 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_latest_release.outputs.result }}
-          asset_path: ./artifacts/shared/ef5_win32.zip
+          asset_path: ./artifacts/ef5_win32.zip
           asset_name: ef5_win32.zip
           asset_content_type: application/zip 
