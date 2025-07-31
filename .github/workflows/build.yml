@@ -210,6 +210,7 @@ jobs:
               repo: context.repo.repo,
               tag: context.ref.replace('refs/tags/', '')
             });
+            core.setOutput('upload_url', release.data.upload_url);
             return release.data.upload_url;
 
       - name: Create or update latest release for master
@@ -238,6 +239,7 @@ jobs:
                   draft: false,
                   prerelease: true
                 });
+                core.setOutput('upload_url', latestRelease.upload_url);
                 return latestRelease.upload_url;
               } else {
                 // Create new latest release
@@ -250,6 +252,7 @@ jobs:
                   draft: false,
                   prerelease: true
                 });
+                core.setOutput('upload_url', newRelease.data.upload_url);
                 return newRelease.data.upload_url;
               }
             } catch (error) {
@@ -272,7 +275,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ steps.get_release.outputs.result }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_path: ./artifacts/ef5_linux.tar.gz
           asset_name: ef5_linux.tar.gz
           asset_content_type: application/gzip
@@ -281,7 +284,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ steps.get_release.outputs.result }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_path: ./artifacts/ef5_win64.zip
           asset_name: ef5_win64.zip
           asset_content_type: application/zip
@@ -290,7 +293,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ steps.get_release.outputs.result }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_path: ./artifacts/ef5_win32.zip
           asset_name: ef5_win32.zip
           asset_content_type: application/zip
@@ -299,7 +302,7 @@ jobs:
         if: github.ref == 'refs/heads/master'
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ steps.create_latest_release.outputs.result }}
+          upload_url: ${{ steps.create_latest_release.outputs.upload_url }}
           asset_path: ./artifacts/ef5_linux.tar.gz
           asset_name: ef5_linux.tar.gz
           asset_content_type: application/gzip
@@ -308,7 +311,7 @@ jobs:
         if: github.ref == 'refs/heads/master'
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ steps.create_latest_release.outputs.result }}
+          upload_url: ${{ steps.create_latest_release.outputs.upload_url }}
           asset_path: ./artifacts/ef5_win64.zip
           asset_name: ef5_win64.zip
           asset_content_type: application/zip
@@ -317,7 +320,7 @@ jobs:
         if: github.ref == 'refs/heads/master'
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ steps.create_latest_release.outputs.result }}
+          upload_url: ${{ steps.create_latest_release.outputs.upload_url }}
           asset_path: ./artifacts/ef5_win32.zip
           asset_name: ef5_win32.zip
           asset_content_type: application/zip 
