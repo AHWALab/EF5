@@ -1098,13 +1098,29 @@ int Simulator::LoadForcings(PrecipReader *precipReader, PETReader *petReader,
 #endif
   if (currentTimePrecip < currentTime)
   {
-    currentTimePrecip.Increment(timeStepPrecip);
+    // In long-range mode, if precipitation timestep is smaller than simulation timestep,
+    // use the simulation timestep to avoid looking for intermediate precipitation files
+    TimeUnit *effectivePrecipTimeStep = timeStepPrecip;
+    if (inLR && timeStepPrecip->GetTimeInSec() < timeStep->GetTimeInSec())
+    {
+      effectivePrecipTimeStep = timeStep;
+    }
+    
+    currentTimePrecip.Increment(effectivePrecipTimeStep);
     precipFile->UpdateName(currentTimePrecip.GetTM());
   }
 
   if (hasQPF && currentTimeQPF < currentTime)
   {
-    currentTimeQPF.Increment(timeStepQPF);
+    // In long-range mode, if QPF timestep is smaller than simulation timestep,
+    // use the simulation timestep to avoid looking for intermediate QPF files
+    TimeUnit *effectiveQPFTimeStep = timeStepQPF;
+    if (inLR && timeStepQPF->GetTimeInSec() < timeStep->GetTimeInSec())
+    {
+      effectiveQPFTimeStep = timeStep;
+    }
+    
+    currentTimeQPF.Increment(effectiveQPFTimeStep);
     qpfFile->UpdateName(currentTimeQPF.GetTM());
   }
 
