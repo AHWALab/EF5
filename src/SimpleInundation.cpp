@@ -8,6 +8,14 @@ SimpleInundation::SimpleInundation() {}
 
 SimpleInundation::~SimpleInundation() {}
 
+int SimpleInundation::GetChannelIndex(size_t i) const {
+    return iNodes[i].channelIndex;
+}
+
+size_t SimpleInundation::GetNumINodes() const {
+    return iNodes.size();
+}
+
 bool SimpleInundation::InitializeModel(
     std::vector<GridNode> *newNodes,
     std::map<GaugeConfigSection *, float *> *paramSettings,

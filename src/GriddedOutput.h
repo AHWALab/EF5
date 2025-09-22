@@ -23,9 +23,10 @@ enum SUPPORTED_OUTPUT_GRIDS
   OG_MAXTHRESP = 65536,
   OG_PRECIPACCUM = 131072,
   OG_MAXDEPTH = 262144,
+  OG_HANDCATCHMENT = 524288
 };
 
-#define OG_QTY 20
+#define OG_QTY 21
 
 extern const char *GriddedOutputText[];
 extern const int GriddedOutputFlags[];
