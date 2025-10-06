@@ -2,11 +2,14 @@ name: EF5 Multi-Platform Build
 
 on:
   push:
-    branches: [ v1.2.5, v1.2.6, master ]
+    branches: [v1.2.6, master]
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
-    branches: [ v1.2.5, v1.2.6, master ]
+    branches: [v1.2.6, master]
+
+permissions:
+  contents: write
 
 jobs:
   build-linux:
@@ -29,6 +32,12 @@ jobs:
           mkdir -p shared
           cp bin/ef5 shared/ef5 || true
           tar -czf shared/ef5_linux.tar.gz -C shared ef5 || true
+
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-linux
+          path: shared/ef5_linux.tar.gz
 
   build-windows:
     runs-on: ubuntu-latest
@@ -170,7 +179,7 @@ jobs:
   release:
     needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/master'
     steps:
       - name: Download Linux artifact
         uses: actions/download-artifact@v4
@@ -190,8 +199,9 @@ jobs:
           name: mingw32-build
           path: ./artifacts
 
-      - name: Get release info
+      - name: Get release info for tags
         id: get_release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/github-script@v7
         with:
           script: |
@@ -200,28 +210,129 @@ jobs:
               repo: context.repo.repo,
               tag: context.ref.replace('refs/tags/', '')
             });
+            core.setOutput('upload_url', release.data.upload_url);
             return release.data.upload_url;
 
-      - name: Upload Linux artifact
-        uses: actions/upload-release-asset@v1
+      - name: Create or update latest release for master
+        id: create_latest_release
+        if: github.ref == 'refs/heads/master'
+        uses: actions/github-script@v7
         with:
-          upload_url: ${{ steps.get_release.outputs.result }}
-          asset_path: ./artifacts/shared/ef5_linux.tar.gz
+          script: |
+            try {
+              // Try to get existing latest release
+              const releases = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+              
+              const latestRelease = releases.data.find(release => release.tag_name === 'latest');
+              
+              if (latestRelease) {
+                // Update existing latest release
+                await github.rest.repos.updateRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: latestRelease.id,
+                  name: 'Latest Build',
+                  body: `Latest build from master branch (${new Date().toISOString()})`,
+                  draft: false,
+                  prerelease: true
+                });
+                core.setOutput('upload_url', latestRelease.upload_url);
+                return latestRelease.upload_url;
+              } else {
+                // Create new latest release
+                const newRelease = await github.rest.repos.createRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag_name: 'latest',
+                  name: 'Latest Build',
+                  body: `Latest build from master branch (${new Date().toISOString()})`,
+                  draft: false,
+                  prerelease: true
+                });
+                core.setOutput('upload_url', newRelease.data.upload_url);
+                return newRelease.data.upload_url;
+              }
+            } catch (error) {
+              console.error('Error creating/updating latest release:', error);
+              throw error;
+            }
+
+      - name: Debug artifacts directory
+        run: |
+          echo "Contents of ./artifacts:"
+          ls -la ./artifacts/
+          echo "Contents of ./artifacts/shared (if exists):"
+          ls -la ./artifacts/shared/ || echo "shared directory does not exist"
+          echo "Checking if files exist:"
+          test -f ./artifacts/ef5_linux.tar.gz && echo "Linux file exists" || echo "Linux file missing"
+          test -f ./artifacts/ef5_win64.zip && echo "Windows 64 file exists" || echo "Windows 64 file missing"
+          test -f ./artifacts/ef5_win32.zip && echo "Windows 32 file exists" || echo "Windows 32 file missing"
+
+      - name: Upload Linux artifact to tag release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: ./artifacts/ef5_linux.tar.gz
           asset_name: ef5_linux.tar.gz
           asset_content_type: application/gzip
 
-      - name: Upload Windows mingw64 artifact
+      - name: Upload Windows mingw64 artifact to tag release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.get_release.outputs.result }}
-          asset_path: ./artifacts/shared/ef5_win64.zip
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: ./artifacts/ef5_win64.zip
           asset_name: ef5_win64.zip
           asset_content_type: application/zip
 
-      - name: Upload Windows mingw32 artifact
+      - name: Upload Windows mingw32 artifact to tag release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.get_release.outputs.result }}
-          asset_path: ./artifacts/shared/ef5_win32.zip
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: ./artifacts/ef5_win32.zip
           asset_name: ef5_win32.zip
-          asset_content_type: application/zip 
+          asset_content_type: application/zip
+
+      - name: Upload Linux artifact to latest release
+        if: github.ref == 'refs/heads/master'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_latest_release.outputs.upload_url }}
+          asset_path: ./artifacts/ef5_linux.tar.gz
+          asset_name: ef5_linux.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload Windows mingw64 artifact to latest release
+        if: github.ref == 'refs/heads/master'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_latest_release.outputs.upload_url }}
+          asset_path: ./artifacts/ef5_win64.zip
+          asset_name: ef5_win64.zip
+          asset_content_type: application/zip
+
+      - name: Upload Windows mingw32 artifact to latest release
+        if: github.ref == 'refs/heads/master'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_latest_release.outputs.upload_url }}
+          asset_path: ./artifacts/ef5_win32.zip
+          asset_name: ef5_win32.zip
+          asset_content_type: application/zip
