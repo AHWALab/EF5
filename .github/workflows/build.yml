@@ -200,17 +200,17 @@ jobs:
       - name: Create release for tags
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          gh release create ${{ github.ref_name }} --title "EF5 Version ${{ github.ref_name }}" --notes "See CHANGELOG.md for details"
+          gh release create ${{ github.ref_name }} --repo ${{ github.repository }} --title "EF5 Version ${{ github.ref_name }}" --notes "See CHANGELOG.md for details"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create or update latest release for master
         if: github.ref == 'refs/heads/master'
         run: |
-          if gh release view latest >/dev/null 2>&1; then
+          if gh release view latest --repo ${{ github.repository }} >/dev/null 2>&1; then
             echo "Latest release exists, updating..."
           else
-            gh release create latest --title "Latest Build" --notes "Latest build from master branch" --prerelease
+            gh release create latest --repo ${{ github.repository }} --title "Latest Build" --notes "Latest build from master branch" --prerelease
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -229,41 +229,41 @@ jobs:
       - name: Upload Linux artifact to tag release
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          gh release upload ${{ github.ref_name }} ./artifacts/ef5_linux.tar.gz --clobber
+          gh release upload ${{ github.ref_name }} --repo ${{ github.repository }} ./artifacts/ef5_linux.tar.gz --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Windows mingw64 artifact to tag release
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          gh release upload ${{ github.ref_name }} ./artifacts/ef5_win64.zip --clobber
+          gh release upload ${{ github.ref_name }} --repo ${{ github.repository }} ./artifacts/ef5_win64.zip --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Windows mingw32 artifact to tag release
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          gh release upload ${{ github.ref_name }} ./artifacts/ef5_win32.zip --clobber
+          gh release upload ${{ github.ref_name }} --repo ${{ github.repository }} ./artifacts/ef5_win32.zip --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Linux artifact to latest release
         if: github.ref == 'refs/heads/master'
         run: |
-          gh release upload latest ./artifacts/ef5_linux.tar.gz --clobber
+          gh release upload latest --repo ${{ github.repository }} ./artifacts/ef5_linux.tar.gz --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Windows mingw64 artifact to latest release
         if: github.ref == 'refs/heads/master'
         run: |
-          gh release upload latest ./artifacts/ef5_win64.zip --clobber
+          gh release upload latest --repo ${{ github.repository }} ./artifacts/ef5_win64.zip --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Windows mingw32 artifact to latest release
         if: github.ref == 'refs/heads/master'
         run: |
-          gh release upload latest ./artifacts/ef5_win32.zip --clobber
+          gh release upload latest --repo ${{ github.repository }} ./artifacts/ef5_win32.zip --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
