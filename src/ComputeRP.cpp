@@ -7,20 +7,25 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <vector>
+#include "RuntimeStats.h"
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
+  static ef5::RuntimeStatsReporter runtime_stats_reporter_instance;
   struct dirent *dp;
   DIR *dfd;
 
   char *dir;
   dir = argv[1];
 
-  if (argc == 1) {
+  if (argc == 1)
+  {
     printf("Usage: %s dirname\n", argv[0]);
     return 0;
   }
 
-  if ((dfd = opendir(dir)) == NULL) {
+  if ((dfd = opendir(dir)) == NULL)
+  {
     fprintf(stderr, "Can't open %s\n", dir);
     return 0;
   }
@@ -30,29 +35,36 @@ int main(int argc, char **argv) {
   char filename_qfd[100];
   char new_name_qfd[100];
 
-  while ((dp = readdir(dfd)) != NULL) {
+  while ((dp = readdir(dfd)) != NULL)
+  {
     struct stat stbuf;
     sprintf(filename_qfd, "%s/%s", dir, dp->d_name);
-    if (stat(filename_qfd, &stbuf) == -1) {
+    if (stat(filename_qfd, &stbuf) == -1)
+    {
       printf("Unable to stat file: %s\n", filename_qfd);
       continue;
     }
 
-    if ((stbuf.st_mode & S_IFMT) == S_IFDIR) {
+    if ((stbuf.st_mode & S_IFMT) == S_IFDIR)
+    {
       continue;
       // Skip directories
-    } else {
+    }
+    else
+    {
 
       printf("%s\n", filename_qfd);
       FloatGrid *precipGrid = ReadFloatTifGrid(filename_qfd);
-      if (!precipGrid) {
+      if (!precipGrid)
+      {
         continue;
       }
 
       grids.push_back(precipGrid);
     }
   }
-  if (grids.size() > 0) {
+  if (grids.size() > 0)
+  {
     FloatGrid *blah = grids[0];
     FloatGrid *avgGrid = new FloatGrid;
     avgGrid->numCols = blah->numCols;
@@ -84,7 +96,8 @@ int main(int argc, char **argv) {
     csGrid->extent.left = blah->extent.left;
     csGrid->noData = blah->noData;
     csGrid->data = new float *[csGrid->numRows];
-    for (int i = 0; i < blah->numRows; i++) {
+    for (int i = 0; i < blah->numRows; i++)
+    {
       avgGrid->data[i] = new float[blah->numCols];
       stdGrid->data[i] = new float[blah->numCols];
       csGrid->data[i] = new float[blah->numCols];
@@ -92,15 +105,20 @@ int main(int argc, char **argv) {
 
     float numYears = (float)(grids.size());
 
-    for (int year = 0; year < grids.size(); year++) {
-      for (int j = 0; j < avgGrid->numRows; j++) {
-        for (int i = 0; i < avgGrid->numCols; i++) {
-          if (year == 0) {
+    for (int year = 0; year < grids.size(); year++)
+    {
+      for (int j = 0; j < avgGrid->numRows; j++)
+      {
+        for (int i = 0; i < avgGrid->numCols; i++)
+        {
+          if (year == 0)
+          {
             avgGrid->data[j][i] = 0.0;
             stdGrid->data[j][i] = 0.0;
             csGrid->data[j][i] = 0.0;
           }
-          if (grids[year]->data[j][i] == 0.0) {
+          if (grids[year]->data[j][i] == 0.0)
+          {
             grids[year]->data[j][i] = 0.0000001;
           }
           grids[year]->data[j][i] = log10(grids[year]->data[j][i]);
@@ -109,10 +127,13 @@ int main(int argc, char **argv) {
       }
     }
 
-    for (int j = 0; j < avgGrid->numRows; j++) {
-      for (int i = 0; i < avgGrid->numCols; i++) {
+    for (int j = 0; j < avgGrid->numRows; j++)
+    {
+      for (int i = 0; i < avgGrid->numCols; i++)
+      {
         float total = 0.0;
-        for (int year = 0; year < grids.size(); year++) {
+        for (int year = 0; year < grids.size(); year++)
+        {
           stdGrid->data[j][i] +=
               powf(grids[year]->data[j][i] - avgGrid->data[j][i], 2.0);
           total += powf(grids[year]->data[j][i] - avgGrid->data[j][i], 3.0);

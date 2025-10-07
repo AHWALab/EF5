@@ -3,10 +3,15 @@
 
 #include "AscGrid.h"
 #include "BifGrid.h"
+#include "RuntimeStats.h"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
 
-  if (argc != 3) {
+  static ef5::RuntimeStatsReporter runtime_stats_reporter_instance;
+
+  if (argc != 3)
+  {
     printf("Use this program as BIFClip <input_filename> <output_filename>\n");
     return 0;
   }
@@ -16,7 +21,8 @@ int main(int argc, char *argv[]) {
 
   FloatGrid *precipGrid = ReadFloatBifGrid(filename);
 
-  if (!precipGrid) {
+  if (!precipGrid)
+  {
     printf("Failed to open file %s\n", filename);
     return 0;
   }

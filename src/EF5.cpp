@@ -6,29 +6,39 @@
 #include "Defines.h"
 #include "EF5.h"
 #include "ExecutionController.h"
+#include "RuntimeStats.h"
 
 extern Config *g_config;
 
 void PrintStartupMessage();
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
+
+  static ef5::RuntimeStatsReporter ef5_runtime_stats_reporter_instance;
 
   PrintStartupMessage();
 
-  if (argc <= 2) {
+  if (argc <= 2)
+  {
 
     g_config = new Config((argc == 2) ? argv[1] : "control.txt");
-    if (g_config->ParseConfig() != CONFIG_SUCCESS) {
+    if (g_config->ParseConfig() != CONFIG_SUCCESS)
+    {
       return 1;
     }
 
     ExecuteTasks();
-  } else {
+  }
+  else
+  {
     int opt = 0;
     int mode = 0;
     char *demFile = NULL, *flowDirFile = NULL, *flowAccFile = NULL;
-    while ((opt = getopt(argc, argv, "z:d:a:ps")) != -1) {
-      switch (opt) {
+    while ((opt = getopt(argc, argv, "z:d:a:ps")) != -1)
+    {
+      switch (opt)
+      {
       case 'z':
         demFile = optarg;
         break;
@@ -52,7 +62,8 @@ int main(int argc, char *argv[]) {
   return ERROR_SUCCESS;
 }
 
-void PrintStartupMessage() {
+void PrintStartupMessage()
+{
   printf("\033[38;2;0;107;255m");
   printf("********************************************************\n");
   printf("**   Ensemble Framework For Flash Flood Forecasting   **\n");

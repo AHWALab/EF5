@@ -37,7 +37,7 @@ bool g_interpolationUsed = false;
 bool g_mismatchedFrequencies = false;
 
 // Function to handle NaN values in observed discharge data
-void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate, const char* outputPath, TimeVar* beginTime, TimeUnit* timeStep);
+void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate, const char *outputPath, TimeVar *beginTime, TimeUnit *timeStep);
 
 bool Simulator::Initialize(TaskConfigSection *taskN)
 {
@@ -780,7 +780,7 @@ void Simulator::CleanUp()
   }
 }
 
-void Simulator::BasinAvg(const char* inputDir)
+void Simulator::BasinAvg(const char *inputDir)
 {
   char buffer[CONFIG_MAX_LEN * 2];
   std::vector<float> avgVals, areaVals, fileVals;
@@ -1105,13 +1105,29 @@ int Simulator::LoadForcings(PrecipReader *precipReader, PETReader *petReader,
 #endif
   if (currentTimePrecip < currentTime)
   {
-    currentTimePrecip.Increment(timeStepPrecip);
+    // In long-range mode, if precipitation timestep is smaller than simulation timestep,
+    // use the simulation timestep to avoid looking for intermediate precipitation files
+    TimeUnit *effectivePrecipTimeStep = timeStepPrecip;
+    if (inLR && timeStepPrecip->GetTimeInSec() < timeStep->GetTimeInSec())
+    {
+      effectivePrecipTimeStep = timeStep;
+    }
+
+    currentTimePrecip.Increment(effectivePrecipTimeStep);
     precipFile->UpdateName(currentTimePrecip.GetTM());
   }
 
   if (hasQPF && currentTimeQPF < currentTime)
   {
-    currentTimeQPF.Increment(timeStepQPF);
+    // In long-range mode, if QPF timestep is smaller than simulation timestep,
+    // use the simulation timestep to avoid looking for intermediate QPF files
+    TimeUnit *effectiveQPFTimeStep = timeStepQPF;
+    if (inLR && timeStepQPF->GetTimeInSec() < timeStep->GetTimeInSec())
+    {
+      effectiveQPFTimeStep = timeStep;
+    }
+
+    currentTimeQPF.Increment(effectiveQPFTimeStep);
     qpfFile->UpdateName(currentTimeQPF.GetTM());
   }
 
@@ -1157,35 +1173,39 @@ int Simulator::LoadForcings(PrecipReader *precipReader, PETReader *petReader,
 
   if (precipReader)
   {
-    sprintf(buffer, "%s/%s", precipSec->GetLoc(), precipFile->GetName());
-    if (!precipReader->Read(buffer, precipSec->GetType(), &nodes,
-                            &currentPrecipSimu, precipConvert, NULL, hasQPF))
+    // Prefer QPF during long-range mode; otherwise use QPE. No cross fallback.
+    if (inLR && hasQPF)
     {
-      if (hasQPF)
+      // Try to read QPF
+      sprintf(qpfBuffer, "%s/%s", qpfSec->GetLoc(), qpfFile->GetName());
+      if (precipReader->Read(qpfBuffer, qpfSec->GetType(), &nodes,
+                             &currentPrecipSimu, qpfConvert, NULL, false))
       {
-        sprintf(qpfBuffer, "%s/%s", qpfSec->GetLoc(), qpfFile->GetName());
+
+        retVal = 1;
       }
-      if (!hasQPF ||
-          !precipReader->Read(qpfBuffer, qpfSec->GetType(), &nodes,
-                              &currentPrecipSimu, qpfConvert, NULL, false))
+      else
       {
 #ifdef _WIN32
         outputError = true;
 #endif
-        NORMAL_LOGF(" Missing precip file(%s%s%s)... Assuming zeros.", buffer,
-                    (!hasQPF) ? "" : "; ", (!hasQPF) ? "" : qpfBuffer);
-        if (inLR)
-        {
-          missingQPF = missingQPF + 1;
-        }
-        else
-        {
-          missingQPE = missingQPE + 1;
-        }
+        NORMAL_LOGF(" Missing precip forecast file(%s)... Assuming zeros.", qpfBuffer);
+        // Count as missing QPF during LR
+        missingQPF = missingQPF + 1;
       }
-      else if (hasQPF)
+    }
+    else
+    {
+      // Use QPE during non-LR; if missing, assume zeros
+      sprintf(buffer, "%s/%s", precipSec->GetLoc(), precipFile->GetName());
+      if (!precipReader->Read(buffer, precipSec->GetType(), &nodes,
+                              &currentPrecipSimu, precipConvert, NULL, false))
       {
-        retVal = 1;
+#ifdef _WIN32
+        outputError = true;
+#endif
+        NORMAL_LOGF(" Missing precip file(%s)... Assuming zeros.", buffer);
+        missingQPE = missingQPE + 1;
       }
     }
   }
@@ -1998,6 +2018,21 @@ void Simulator::SimulateDistributed(bool trackPeaks)
                 currentTimeTextOutput.GetName(), iModel->GetName());
         gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
       }
+      if (iModel && (griddedOutputs & OG_HANDCATCHMENT) == OG_HANDCATCHMENT)
+      {
+        // Cast iModel to SimpleInundation to access iNodes
+        SimpleInundation *siModel = dynamic_cast<SimpleInundation *>(iModel);
+        if (siModel)
+        {
+          std::vector<float> handcatchment(nodes.size());
+          for (size_t i = 0; i < nodes.size(); i++)
+          {
+            handcatchment[i] = static_cast<float>(siModel->GetChannelIndex(i));
+          }
+          sprintf(buffer, "%s/handcatchment.%s.tif", outputPath, iModel->GetName());
+          gridWriter.WriteGrid(&nodes, &handcatchment, buffer, false);
+        }
+      }
       if ((griddedOutputs & OG_UNITQ) == OG_UNITQ)
       {
         for (size_t i = 0; i < currentQ.size(); i++)
@@ -2075,7 +2110,6 @@ void Simulator::SimulateDistributed(bool trackPeaks)
       rpMaxGrid[i] = val;
     }
     gridWriter.WriteGrid(&nodes, &rpMaxGrid, buffer, false);
-
   }
 
   if ((griddedOutputs & OG_MAXSM) == OG_MAXSM)
@@ -2139,7 +2173,8 @@ void Simulator::SimulateDistributed(bool trackPeaks)
   //   gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
   // }
 
-  if ((griddedOutputs & OG_MAXDEPTH) == OG_MAXDEPTH) {
+  if ((griddedOutputs & OG_MAXDEPTH) == OG_MAXDEPTH)
+  {
     sprintf(buffer, "%s/maxdepth.%04i%02i%02i.%02i%02i%02i.tif", outputPath, ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday, ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
     gridWriter.WriteGrid(&nodes, &maxDepthGrid, buffer, false);
   }
@@ -2501,7 +2536,8 @@ void Simulator::PreloadForcings(char *file, bool cali)
   }
 
   // Fix NaN values in observed discharge data for calibration
-  if (cali && !obsQ.empty()) {
+  if (cali && !obsQ.empty())
+  {
     FixNaNsInObservedData(obsQ, caliParamSec->GetInterpolateObs(), task->GetOutput(), &beginTime, timeStep);
   }
 
@@ -2592,12 +2628,13 @@ bool Simulator::LoadSavedForcings(char *file, bool cali)
       tsIndexWarm++;
     }
   }
-  
+
   // Fix NaN values in observed discharge data for calibration
-  if (!obsQ.empty()) {
+  if (!obsQ.empty())
+  {
     FixNaNsInObservedData(obsQ, this->caliParamSec->GetInterpolateObs(), this->task->GetOutput(), &beginTime, timeStep);
   }
-  
+
   return true;
 }
 
@@ -2950,32 +2987,35 @@ bool Simulator::InitializeGridParams(TaskConfigSection *task)
 }
 
 // Simple function to fix NaN values in observed discharge data
-void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate, const char* outputPath, TimeVar* beginTime, TimeUnit* timeStep)
+void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate, const char *outputPath, TimeVar *beginTime, TimeUnit *timeStep)
 {
-  if (obsQ.empty()) {
+  if (obsQ.empty())
+  {
     ERROR_LOGF("%s", "The observed data is empty, stopping the calibration!");
     exit(1);
   }
-  
+
   size_t n = obsQ.size();
-  
+
   // Store original data for comparison
   std::vector<float> originalData = obsQ;
-  
+
   // Count NaN values to see if we need to do anything
   size_t nanCount = 0;
-  for (size_t i = 0; i < n; i++) {
-    if (std::isnan(obsQ[i]) || !std::isfinite(obsQ[i])) {
+  for (size_t i = 0; i < n; i++)
+  {
+    if (std::isnan(obsQ[i]) || !std::isfinite(obsQ[i]))
+    {
       nanCount++;
     }
   }
-  
+
   // INFO_LOGF("After NaN count: %zu NaNs in %zu values", nanCount, n);
-  
+
   // // If no NaN values, still save comparison file but no interpolation needed
   // if (nanCount == 0) {
   //   INFO_LOGF("%s", "Observed discharge data is complete - no interpolation needed");
-    
+
   //   // Save comparison file showing original data (no changes)
   //   const char* hardcodedPath = "/Users/nammehta/EF5Data/1_GhanaEF5_90m/outputs/test/obsQ_validation.csv";
   //   FILE* csvFile = fopen(hardcodedPath, "w");
@@ -2993,34 +3033,42 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate, con
   // }
 
   // Check if we have NaN values and set flag accordingly
-  if (nanCount > 0) {
-    if (shouldInterpolate) {
+  if (nanCount > 0)
+  {
+    if (shouldInterpolate)
+    {
       g_interpolationUsed = true;
       g_mismatchedFrequencies = false;
       INFO_LOGF("Found %zu NaN values in observed discharge - applying interpolation", nanCount);
-    } else {
+    }
+    else
+    {
       // Set flag to indicate that we have varying frequencies but didn't interpolate
       g_interpolationUsed = false;
       g_mismatchedFrequencies = true;
       INFO_LOGF("Found %zu NaN values in observed discharge - NOT interpolating (INTERPOLATE_OBS=false)", nanCount);
       return;
     }
-  } else {
+  }
+  else
+  {
     // No NaN values found - no interpolation needed
     g_interpolationUsed = false;
     g_mismatchedFrequencies = false;
     INFO_LOGF("%s", "Observed discharge data is complete - no interpolation needed");
     return;
   }
-  
+
   // Find first and last valid values
   size_t firstValid = 0;
-  while (firstValid < n && (std::isnan(obsQ[firstValid]) || !std::isfinite(obsQ[firstValid]))) {
+  while (firstValid < n && (std::isnan(obsQ[firstValid]) || !std::isfinite(obsQ[firstValid])))
+  {
     firstValid++;
   }
   // INFO_LOGF("After finding firstValid: %zu", firstValid);
-  
-  if (firstValid >= n) {
+
+  if (firstValid >= n)
+  {
     // ERROR_LOGF("%s", "All observed discharge values are NaN - cannot calibrate");
     // Save comparison file showing the problem
     // const char* hardcodedPath = "/Users/nammehta/EF5Data/1_GhanaEF5_90m/outputs/test/obsQ_validation.csv";
@@ -3035,46 +3083,56 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate, con
     // }
     return;
   }
-  
+
   size_t lastValid = n > 0 ? n - 1 : 0;
-  while (lastValid > firstValid && (std::isnan(obsQ[lastValid]) || !std::isfinite(obsQ[lastValid]))) {
+  while (lastValid > firstValid && (std::isnan(obsQ[lastValid]) || !std::isfinite(obsQ[lastValid])))
+  {
     lastValid--;
   }
   // INFO_LOGF("After finding lastValid: %zu", lastValid);
   // Safety: lastValid should never be < firstValid
-  if (lastValid < firstValid || lastValid >= n) {
+  if (lastValid < firstValid || lastValid >= n)
+  {
     // ERROR_LOGF("Invalid lastValid index: %zu (firstValid: %zu, n: %zu)", lastValid, firstValid, n);
     return;
   }
-  
+
   // Fill leading NaN values with first valid value
-  if (firstValid > 0) {
+  if (firstValid > 0)
+  {
     float firstValidValue = obsQ[firstValid];
-    for (size_t i = 0; i < firstValid; i++) {
+    for (size_t i = 0; i < firstValid; i++)
+    {
       obsQ[i] = firstValidValue;
     }
     // INFO_LOGF("Filled leading NaNs up to index %zu with value %.6f", firstValid-1, firstValidValue);
   }
-  
-  // Fill trailing NaN values with last valid value  
-  if (lastValid < n - 1) {
+
+  // Fill trailing NaN values with last valid value
+  if (lastValid < n - 1)
+  {
     float lastValidValue = obsQ[lastValid];
-    for (size_t i = lastValid + 1; i < n; i++) {
+    for (size_t i = lastValid + 1; i < n; i++)
+    {
       obsQ[i] = lastValidValue;
     }
     // INFO_LOGF("Filled trailing NaNs from index %zu to %zu with value %.6f", lastValid+1, n-1, lastValidValue);
   }
-  
+
   // Linear interpolation for gaps between valid values
   size_t lastValidIdx = firstValid;
-  for (size_t i = firstValid + 1; i <= lastValid; i++) {
-    if (!std::isnan(obsQ[i]) && std::isfinite(obsQ[i])) {
+  for (size_t i = firstValid + 1; i <= lastValid; i++)
+  {
+    if (!std::isnan(obsQ[i]) && std::isfinite(obsQ[i]))
+    {
       // Found next valid value - interpolate the gap
-      if (i - lastValidIdx > 1) {
+      if (i - lastValidIdx > 1)
+      {
         float startValue = obsQ[lastValidIdx];
         float endValue = obsQ[i];
         size_t gap = i - lastValidIdx;
-        for (size_t j = 1; j < gap; j++) {
+        for (size_t j = 1; j < gap; j++)
+        {
           float fraction = (float)j / (float)gap;
           obsQ[lastValidIdx + j] = startValue + (endValue - startValue) * fraction;
         }
@@ -3085,7 +3143,6 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate, con
   }
   // INFO_LOGF("%s", "Finished interpolation loop");
 
-  
   // Save original and interpolated data to the hardcoded path
   // const char* hardcodedPath = "/Users/nammehta/EF5Data/1_GhanaEF5_90m/outputs/test/obsQ_validation.csv";
   // FILE* csvFile = fopen(hardcodedPath, "w");
@@ -3104,44 +3161,53 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate, con
   //   WARNING_LOGF("Failed to create CSV file: %s", hardcodedPath);
   // }
   INFO_LOGF("%s", "Successfully applied smooth interpolation to observed discharge data");
-  
+
   // Create CSV output file with interpolation results
-  if (outputPath) {
+  if (outputPath)
+  {
     // Create the interpolation results CSV filename
     std::string outputDir(outputPath);
-    if (outputDir.back() != '/') outputDir += '/';
+    if (outputDir.back() != '/')
+      outputDir += '/';
     std::string csvFilename = outputDir + "interpolation_results.csv";
-    
-    FILE* csvFile = fopen(csvFilename.c_str(), "w");
-    if (csvFile) {
+
+    FILE *csvFile = fopen(csvFilename.c_str(), "w");
+    if (csvFile)
+    {
       fprintf(csvFile, "DateTime,Original_Discharge,Interpolated_Discharge\n");
-      
-             // Generate datetime values and write data
-       TimeVar currentTime = *beginTime;
-       for (size_t i = 0; i < n; i++) {
-         // Get the tm struct for date/time components
-         tm* timeInfo = currentTime.GetTM();
-         
-         // Format the datetime (YYYYMMDDHHMM)
-         char timeStr[32];
-         snprintf(timeStr, sizeof(timeStr), "%04d%02d%02d%02d%02d", 
-                 timeInfo->tm_year + 1900, timeInfo->tm_mon + 1, timeInfo->tm_mday, 
+
+      // Generate datetime values and write data
+      TimeVar currentTime = *beginTime;
+      for (size_t i = 0; i < n; i++)
+      {
+        // Get the tm struct for date/time components
+        tm *timeInfo = currentTime.GetTM();
+
+        // Format the datetime (YYYYMMDDHHMM)
+        char timeStr[32];
+        snprintf(timeStr, sizeof(timeStr), "%04d%02d%02d%02d%02d",
+                 timeInfo->tm_year + 1900, timeInfo->tm_mon + 1, timeInfo->tm_mday,
                  timeInfo->tm_hour, timeInfo->tm_min);
-         
-         // Write the row
-         if (std::isnan(originalData[i]) || !std::isfinite(originalData[i])) {
-           fprintf(csvFile, "%s,NaN,%.6f\n", timeStr, obsQ[i]);
-         } else {
-           fprintf(csvFile, "%s,%.6f,%.6f\n", timeStr, originalData[i], obsQ[i]);
-         }
-         
-         // Increment time for next observation
-         currentTime.Increment(timeStep);
-       }
-      
+
+        // Write the row
+        if (std::isnan(originalData[i]) || !std::isfinite(originalData[i]))
+        {
+          fprintf(csvFile, "%s,NaN,%.6f\n", timeStr, obsQ[i]);
+        }
+        else
+        {
+          fprintf(csvFile, "%s,%.6f,%.6f\n", timeStr, originalData[i], obsQ[i]);
+        }
+
+        // Increment time for next observation
+        currentTime.Increment(timeStep);
+      }
+
       fclose(csvFile);
       INFO_LOGF("Saved interpolation results to: %s", csvFilename.c_str());
-    } else {
+    }
+    else
+    {
       WARNING_LOGF("Failed to create interpolation results file: %s", csvFilename.c_str());
     }
   }

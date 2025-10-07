@@ -2,11 +2,11 @@ name: EF5 Multi-Platform Build
 
 on:
   push:
-    branches: [ v1.2.5, master ]
+    branches: [v1.2.6, master]
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
-    branches: [ v1.2.5, master ]
+    branches: [v1.2.6, master]
 
 permissions:
   contents: write
@@ -32,6 +32,12 @@ jobs:
           mkdir -p shared
           cp bin/ef5 shared/ef5 || true
           tar -czf shared/ef5_linux.tar.gz -C shared ef5 || true
+
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-linux
+          path: shared/ef5_linux.tar.gz
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
@@ -335,4 +341,4 @@ jobs:
           upload_url: ${{ steps.create_latest_release.outputs.upload_url }}
           asset_path: ./artifacts/ef5_win32.zip
           asset_name: ef5_win32.zip
-          asset_content_type: application/zip 
+          asset_content_type: application/zip
