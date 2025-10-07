@@ -42,7 +42,7 @@ jobs:
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-linux
+          name: build-linux-${{ github.run_id }}
           path: shared/ef5_linux.tar.gz
 
   build-windows:
@@ -177,10 +177,8 @@ jobs:
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.cross }}-build
-          path: |
-            shared/ef5_win64.zip
-            shared/ef5_win32.zip
+          name: ${{ matrix.cross }}-build-${{ github.run_id }}
+          path: shared/ef5_win${{ matrix.cross == 'mingw64' && '64' || '32' }}.zip
 
   release:
     needs: [build-linux, build-windows]
@@ -190,19 +188,19 @@ jobs:
       - name: Download Linux artifact
         uses: actions/download-artifact@v4
         with:
-          name: build-linux
+          name: build-linux-${{ github.run_id }}
           path: ./artifacts
 
       - name: Download Windows mingw64 artifact
         uses: actions/download-artifact@v4
         with:
-          name: mingw64-build
+          name: mingw64-build-${{ github.run_id }}
           path: ./artifacts
 
       - name: Download Windows mingw32 artifact
         uses: actions/download-artifact@v4
         with:
-          name: mingw32-build
+          name: mingw32-build-${{ github.run_id }}
           path: ./artifacts
 
       - name: Get release info for tags
