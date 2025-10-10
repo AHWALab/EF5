@@ -40,15 +40,21 @@ Clone the source code from GitHub.
 
 ## Contributors
 
+The following people currently contribute to EF5:
+
+- [Humberto Vergara](https://ahwa.lab.uiowa.edu/people/humberto-vergara-phd)
+- [Naman Mehta](https://ahwa.lab.uiowa.edu/people/naman-mehta)
+- [Vanessa Robledo](https://ahwa.lab.uiowa.edu/people/vanessa-robledo-msc)
+- [Santiago Henao Gomez](https://ahwa.lab.uiowa.edu/people/santiago-henao-gomez)
+- [Mohamed Abdelkader](https://ahwa.lab.uiowa.edu/people/mohamed-abdelkader)
+
+### Original contributors
+
 The following people are acknowledged for their contributions to the creation of EF5.
 
-Zac Flamig
-
-Humberto Vergara
-
-Race Clark
-
-JJ Gourley
-
-Yang Hong
+- Zac Flamig
+- Humberto Vergara
+- Race Clark
+- JJ Gourley
+- Yang Hong
 
