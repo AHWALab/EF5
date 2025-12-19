@@ -111,7 +111,10 @@ bool CRESTModel::WaterBalance(float stepHours, std::vector<float> *precip,
   size_t numNodes = nodes->size();
 
 #if _OPENMP
-  //#pragma omp parallel for
+  // Per-node water balance is independent (each iteration only touches
+  // crestNodes[i], fastFlow[i], slowFlow[i], soilMoisture[i]).
+  // This is safe to parallelize and is typically the easiest multi-core win.
+#pragma omp parallel for schedule(static)
 #endif
   for (size_t i = 0; i < numNodes; i++) {
     GridNode *node = &nodes->at(i);
