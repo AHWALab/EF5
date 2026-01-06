@@ -74,6 +74,36 @@ struct State {
 };
 
 // ============================================================================
+// Diagnostics (returned from computation for logging)
+// ============================================================================
+
+/**
+ * @brief Diagnostic information from water balance computation.
+ *
+ * This struct is returned by water_balance_grid() and provides counts of
+ * cells that had issues which the Python layer can log if desired.
+ */
+struct Diagnostics {
+  size_t cells_processed; ///< Total cells processed
+  size_t sm_clamped_low;  ///< Cells where soil moisture was < 0 (clamped to 0)
+  size_t sm_clamped_high; ///< Cells where SM > WM (clamped to WM)
+  size_t runoff_clamped;  ///< Cells where runoff was < 0 (clamped to 0)
+  size_t
+      infiltration_clamped; ///< Cells where infiltration was negative (clamped)
+  size_t nan_values_fixed;  ///< Cells where NaN was detected and fixed
+
+  Diagnostics()
+      : cells_processed(0), sm_clamped_low(0), sm_clamped_high(0),
+        runoff_clamped(0), infiltration_clamped(0), nan_values_fixed(0) {}
+
+  /// Check if any warnings occurred
+  bool has_warnings() const {
+    return sm_clamped_low > 0 || sm_clamped_high > 0 || runoff_clamped > 0 ||
+           infiltration_clamped > 0 || nan_values_fixed > 0;
+  }
+};
+
+// ============================================================================
 // Core Computation Functions
 // ============================================================================
 
@@ -92,10 +122,11 @@ struct State {
  * routing)
  * @param slow_flow  Output: slow flow / interflow excess (m/s equivalent for
  * routing)
+ * @param diag       Optional: diagnostics to update (can be nullptr)
  */
 void water_balance_cell(const Parameters &params, State &state, float precip,
                         float pet, float step_hours, float &fast_flow,
-                        float &slow_flow);
+                        float &slow_flow, Diagnostics *diag = nullptr);
 
 /**
  * @brief Compute water balance for entire grid (OpenMP parallelized).
@@ -113,11 +144,13 @@ void water_balance_cell(const Parameters &params, State &state, float precip,
  * @param fast_flow    Output: fast flow array (allocated by caller)
  * @param slow_flow    Output: slow flow array (allocated by caller)
  * @param soil_moisture Output: soil moisture % array (allocated by caller)
+ * @return Diagnostics struct with counts of any clamped/fixed values
  */
-void water_balance_grid(const Parameters *params, State *states,
-                        const float *precip, const float *pet, size_t n_cells,
-                        float step_hours, float *fast_flow, float *slow_flow,
-                        float *soil_moisture);
+Diagnostics water_balance_grid(const Parameters *params, State *states,
+                               const float *precip, const float *pet,
+                               size_t n_cells, float step_hours,
+                               float *fast_flow, float *slow_flow,
+                               float *soil_moisture);
 
 /**
  * @brief Initialize states from initial water content fraction.
@@ -133,8 +166,46 @@ void initialize_states(const Parameters *params, State *states, size_t n_cells);
  *
  * @param params   Parameter array to validate (modified in-place)
  * @param n_cells  Number of cells
+ * @return Diagnostics with counts of parameters that were clamped
  */
-void validate_parameters(Parameters *params, size_t n_cells);
+Diagnostics validate_parameters(Parameters *params, size_t n_cells);
+
+// ============================================================================
+// State Access Functions (for Python I/O)
+// ============================================================================
+
+/**
+ * @brief Extract soil moisture values from state array into flat float array.
+ *
+ * Use this to get states for saving to file via Python (rasterio, etc).
+ *
+ * @param states      State array
+ * @param n_cells     Number of cells
+ * @param out_sm      Output: soil moisture array (must be pre-allocated)
+ */
+void get_states_soil_moisture(const State *states, size_t n_cells,
+                              float *out_sm);
+
+/**
+ * @brief Set soil moisture values in state array from flat float array.
+ *
+ * Use this to restore states loaded from file via Python.
+ *
+ * @param states      State array (modified in-place)
+ * @param n_cells     Number of cells
+ * @param in_sm       Input: soil moisture array to load
+ */
+void set_states_soil_moisture(State *states, size_t n_cells,
+                              const float *in_sm);
+
+/**
+ * @brief Get actual ET values from last timestep.
+ *
+ * @param states      State array
+ * @param n_cells     Number of cells
+ * @param out_et      Output: actual ET array (must be pre-allocated)
+ */
+void get_actual_et(const State *states, size_t n_cells, float *out_et);
 
 } // namespace crest
 } // namespace ef5

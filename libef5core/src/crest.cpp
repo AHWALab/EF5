@@ -4,6 +4,7 @@
 
 #include "ef5core/crest.hpp"
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
 #if _OPENMP
@@ -15,7 +16,7 @@ namespace crest {
 
 void water_balance_cell(const Parameters &params, State &state,
                         float precip_rate, float pet_rate, float step_hours,
-                        float &fast_flow, float &slow_flow) {
+                        float &fast_flow, float &slow_flow, Diagnostics *diag) {
   // Convert rates to totals for this timestep
   double precip = precip_rate * step_hours; // mm/hr -> mm
   double pet = pet_rate * step_hours;       // mm/hr -> mm
@@ -31,6 +32,18 @@ void water_balance_cell(const Parameters &params, State &state,
   const double b = params.b;
   const double im = params.im;
   const double fc = params.fc;
+
+  // Check for NaN in inputs
+  if (diag &&
+      (!std::isfinite(sm) || !std::isfinite(precip) || !std::isfinite(pet))) {
+    diag->nan_values_fixed++;
+    if (!std::isfinite(sm))
+      sm = 0.0;
+    if (!std::isfinite(precip))
+      precip = 0.0;
+    if (!std::isfinite(pet))
+      pet = 0.0;
+  }
 
   // Case 1: Precipitation exceeds adjusted PET (wet conditions)
   if (precip > adj_pet) {
@@ -48,6 +61,8 @@ void water_balance_cell(const Parameters &params, State &state,
 
     // Cap soil moisture at maximum
     if (sm > wm) {
+      if (diag)
+        diag->sm_clamped_high++;
       sm = wm;
     }
 
@@ -59,8 +74,11 @@ void water_balance_cell(const Parameters &params, State &state,
       if (precip_soil + A >= Wmaxm) {
         // Soil is saturated: excess goes to runoff
         R = precip_soil - (wm - sm);
-        if (R < 0.0)
+        if (R < 0.0) {
+          if (diag)
+            diag->runoff_clamped++;
           R = 0.0;
+        }
         Wo = wm;
       } else {
         // Partial infiltration using variable infiltration curve
@@ -72,12 +90,17 @@ void water_balance_cell(const Parameters &params, State &state,
         if (infiltration > precip_soil) {
           infiltration = precip_soil;
         } else if (infiltration < 0.0) {
+          if (diag)
+            diag->infiltration_clamped++;
           infiltration = 0.0;
         }
 
         R = precip_soil - infiltration;
-        if (R < 0.0)
+        if (R < 0.0) {
+          if (diag)
+            diag->runoff_clamped++;
           R = 0.0;
+        }
         Wo = sm + infiltration;
       }
     } else {
@@ -110,6 +133,8 @@ void water_balance_cell(const Parameters &params, State &state,
     state.excess_interflow = static_cast<float>(interflow_excess);
 
     if (sm > wm) {
+      if (diag)
+        diag->sm_clamped_high++;
       sm = wm;
     }
 
@@ -125,6 +150,11 @@ void water_balance_cell(const Parameters &params, State &state,
   }
 
   // Update soil moisture state
+  if (Wo < 0.0) {
+    if (diag)
+      diag->sm_clamped_low++;
+    Wo = 0.0;
+  }
   state.soil_moisture = static_cast<float>(Wo);
 
   // Convert excess to flow rates (m/s equivalent for routing)
@@ -134,20 +164,50 @@ void water_balance_cell(const Parameters &params, State &state,
   slow_flow = state.excess_interflow / time_factor;
 }
 
-void water_balance_grid(const Parameters *params, State *states,
-                        const float *precip, const float *pet, size_t n_cells,
-                        float step_hours, float *fast_flow, float *slow_flow,
-                        float *soil_moisture) {
+Diagnostics water_balance_grid(const Parameters *params, State *states,
+                               const float *precip, const float *pet,
+                               size_t n_cells, float step_hours,
+                               float *fast_flow, float *slow_flow,
+                               float *soil_moisture) {
+  Diagnostics total_diag;
+  total_diag.cells_processed = n_cells;
+
+  // Thread-local diagnostics for parallel reduction
 #if _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
+#pragma omp parallel
+  {
+    Diagnostics local_diag;
+
+#pragma omp for schedule(static)
+    for (size_t i = 0; i < n_cells; i++) {
+      water_balance_cell(params[i], states[i], precip[i], pet[i], step_hours,
+                         fast_flow[i], slow_flow[i], &local_diag);
+
+      // Output soil moisture as percentage of max capacity
+      soil_moisture[i] = states[i].soil_moisture * 100.0f / params[i].wm;
+    }
+
+// Reduce diagnostics (critical section)
+#pragma omp critical
+    {
+      total_diag.sm_clamped_low += local_diag.sm_clamped_low;
+      total_diag.sm_clamped_high += local_diag.sm_clamped_high;
+      total_diag.runoff_clamped += local_diag.runoff_clamped;
+      total_diag.infiltration_clamped += local_diag.infiltration_clamped;
+      total_diag.nan_values_fixed += local_diag.nan_values_fixed;
+    }
+  }
+#else
+  Diagnostics local_diag;
   for (size_t i = 0; i < n_cells; i++) {
     water_balance_cell(params[i], states[i], precip[i], pet[i], step_hours,
-                       fast_flow[i], slow_flow[i]);
-
-    // Output soil moisture as percentage of max capacity
+                       fast_flow[i], slow_flow[i], &local_diag);
     soil_moisture[i] = states[i].soil_moisture * 100.0f / params[i].wm;
   }
+  total_diag = local_diag;
+#endif
+
+  return total_diag;
 }
 
 void initialize_states(const Parameters *params, State *states,
@@ -164,40 +224,150 @@ void initialize_states(const Parameters *params, State *states,
   }
 }
 
-void validate_parameters(Parameters *params, size_t n_cells) {
+Diagnostics validate_parameters(Parameters *params, size_t n_cells) {
+  Diagnostics diag;
+  diag.cells_processed = n_cells;
+
+#if _OPENMP
+#pragma omp parallel
+  {
+    size_t local_count = 0;
+
+#pragma omp for schedule(static)
+    for (size_t i = 0; i < n_cells; i++) {
+      Parameters &p = params[i];
+      bool clamped = false;
+
+      // WM: max soil water capacity, must be positive
+      if (p.wm < 1.0f) {
+        p.wm = 100.0f;
+        clamped = true;
+      }
+
+      // B exponent: must be non-negative
+      if (p.b < 0.0f) {
+        p.b = 0.0f;
+        clamped = true;
+      }
+      if (!std::isfinite(p.b)) {
+        p.b = 0.0f;
+        clamped = true;
+      }
+
+      // IM: impervious fraction, clamp to [0, 1]
+      if (p.im < 0.0f || p.im > 1.0f) {
+        p.im = std::clamp(p.im, 0.0f, 1.0f);
+        clamped = true;
+      }
+
+      // KE: evaporation coefficient, should be positive
+      if (p.ke < 0.0f) {
+        p.ke = 1.0f;
+        clamped = true;
+      }
+
+      // FC: field capacity, should be positive
+      if (p.fc < 0.0f) {
+        p.fc = 1.0f;
+        clamped = true;
+      }
+
+      // IWU: initial water content %, clamp to [0, 100]
+      if (p.iwu < 0.0f || p.iwu > 100.0f) {
+        p.iwu = std::clamp(p.iwu, 0.0f, 100.0f);
+        clamped = true;
+      }
+
+      // KSAT: saturated hydraulic conductivity, should be positive
+      if (p.ksat < 0.0f) {
+        p.ksat = 45.0f;
+        clamped = true;
+      }
+
+      if (clamped)
+        local_count++;
+    }
+
+#pragma omp atomic
+    diag.sm_clamped_low +=
+        local_count; // Reusing this field for param clamp count
+  }
+#else
+  for (size_t i = 0; i < n_cells; i++) {
+    Parameters &p = params[i];
+    bool clamped = false;
+
+    if (p.wm < 1.0f) {
+      p.wm = 100.0f;
+      clamped = true;
+    }
+    if (p.b < 0.0f) {
+      p.b = 0.0f;
+      clamped = true;
+    }
+    if (!std::isfinite(p.b)) {
+      p.b = 0.0f;
+      clamped = true;
+    }
+    if (p.im < 0.0f || p.im > 1.0f) {
+      p.im = std::clamp(p.im, 0.0f, 1.0f);
+      clamped = true;
+    }
+    if (p.ke < 0.0f) {
+      p.ke = 1.0f;
+      clamped = true;
+    }
+    if (p.fc < 0.0f) {
+      p.fc = 1.0f;
+      clamped = true;
+    }
+    if (p.iwu < 0.0f || p.iwu > 100.0f) {
+      p.iwu = std::clamp(p.iwu, 0.0f, 100.0f);
+      clamped = true;
+    }
+    if (p.ksat < 0.0f) {
+      p.ksat = 45.0f;
+      clamped = true;
+    }
+
+    if (clamped)
+      diag.sm_clamped_low++;
+  }
+#endif
+
+  return diag;
+}
+
+// ============================================================================
+// State Access Functions (for Python I/O)
+// ============================================================================
+
+void get_states_soil_moisture(const State *states, size_t n_cells,
+                              float *out_sm) {
 #if _OPENMP
 #pragma omp parallel for schedule(static)
 #endif
   for (size_t i = 0; i < n_cells; i++) {
-    Parameters &p = params[i];
+    out_sm[i] = states[i].soil_moisture;
+  }
+}
 
-    // WM: max soil water capacity, must be positive
-    if (p.wm < 1.0f)
-      p.wm = 100.0f;
+void set_states_soil_moisture(State *states, size_t n_cells,
+                              const float *in_sm) {
+#if _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+  for (size_t i = 0; i < n_cells; i++) {
+    states[i].soil_moisture = in_sm[i];
+  }
+}
 
-    // B exponent: must be non-negative
-    if (p.b < 0.0f)
-      p.b = 0.0f;
-    if (!std::isfinite(p.b))
-      p.b = 0.0f;
-
-    // IM: impervious fraction, clamp to [0, 1]
-    p.im = std::clamp(p.im, 0.0f, 1.0f);
-
-    // KE: evaporation coefficient, should be positive
-    if (p.ke < 0.0f)
-      p.ke = 1.0f;
-
-    // FC: field capacity, should be positive
-    if (p.fc < 0.0f)
-      p.fc = 1.0f;
-
-    // IWU: initial water content %, clamp to [0, 100]
-    p.iwu = std::clamp(p.iwu, 0.0f, 100.0f);
-
-    // KSAT: saturated hydraulic conductivity, should be positive
-    if (p.ksat < 0.0f)
-      p.ksat = 45.0f;
+void get_actual_et(const State *states, size_t n_cells, float *out_et) {
+#if _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+  for (size_t i = 0; i < n_cells; i++) {
+    out_et[i] = states[i].actual_et;
   }
 }
 
