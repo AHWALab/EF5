@@ -311,6 +311,91 @@ void classify_channel_cells(GridCell *cells, const Parameters *params,
   }
 }
 
+// ============================================================================
+// State Access Functions (for Python I/O)
+// ============================================================================
+
+void get_states_prev_channel_q(const State *states, size_t n_cells,
+                               float *out) {
+#if _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+  for (size_t i = 0; i < n_cells; i++) {
+    out[i] = states[i].prev_channel_q;
+  }
+}
+
+void set_states_prev_channel_q(State *states, size_t n_cells, const float *in) {
+#if _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+  for (size_t i = 0; i < n_cells; i++) {
+    states[i].prev_channel_q = in[i];
+  }
+}
+
+void get_states_prev_overland_q(const State *states, size_t n_cells,
+                                float *out) {
+#if _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+  for (size_t i = 0; i < n_cells; i++) {
+    out[i] = states[i].prev_overland_q;
+  }
+}
+
+void set_states_prev_overland_q(State *states, size_t n_cells,
+                                const float *in) {
+#if _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+  for (size_t i = 0; i < n_cells; i++) {
+    states[i].prev_overland_q = in[i];
+  }
+}
+
+void get_states_interflow_reservoir(const State *states, size_t n_cells,
+                                    float *out) {
+#if _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+  for (size_t i = 0; i < n_cells; i++) {
+    out[i] = states[i].interflow_reservoir;
+  }
+}
+
+void set_states_interflow_reservoir(State *states, size_t n_cells,
+                                    const float *in) {
+#if _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+  for (size_t i = 0; i < n_cells; i++) {
+    states[i].interflow_reservoir = in[i];
+  }
+}
+
+void get_all_states(const State *states, size_t n_cells, float *out) {
+#if _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+  for (size_t i = 0; i < n_cells; i++) {
+    out[i * 3 + 0] = states[i].prev_channel_q;
+    out[i * 3 + 1] = states[i].prev_overland_q;
+    out[i * 3 + 2] = states[i].interflow_reservoir;
+  }
+}
+
+void set_all_states(State *states, size_t n_cells, const float *in) {
+#if _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+  for (size_t i = 0; i < n_cells; i++) {
+    states[i].prev_channel_q = in[i * 3 + 0];
+    states[i].prev_overland_q = in[i * 3 + 1];
+    states[i].interflow_reservoir = in[i * 3 + 2];
+  }
+}
+
 } // namespace kinematic
 
 // Implementation of RoutingTopology::compute_from_grid

@@ -208,6 +208,71 @@ void validate_parameters(Parameters *params, size_t n_cells);
 void classify_channel_cells(GridCell *cells, const Parameters *params,
                             size_t n_cells);
 
+// ============================================================================
+// State Access Functions (for Python I/O)
+// ============================================================================
+
+// State indices matching original EF5
+enum StateIndex {
+  STATE_PREV_CHANNEL_Q = 0, // Previous channel discharge
+  STATE_PREV_OVERLAND_Q,    // Previous overland discharge
+  STATE_INTERFLOW_RES,      // Interflow reservoir
+  STATE_QTY
+};
+
+/**
+ * @brief Get previous channel discharge (for saving states).
+ */
+void get_states_prev_channel_q(const State *states, size_t n_cells, float *out);
+
+/**
+ * @brief Set previous channel discharge (for loading states).
+ */
+void set_states_prev_channel_q(State *states, size_t n_cells, const float *in);
+
+/**
+ * @brief Get previous overland discharge.
+ */
+void get_states_prev_overland_q(const State *states, size_t n_cells,
+                                float *out);
+
+/**
+ * @brief Set previous overland discharge.
+ */
+void set_states_prev_overland_q(State *states, size_t n_cells, const float *in);
+
+/**
+ * @brief Get interflow reservoir storage.
+ */
+void get_states_interflow_reservoir(const State *states, size_t n_cells,
+                                    float *out);
+
+/**
+ * @brief Set interflow reservoir storage.
+ */
+void set_states_interflow_reservoir(State *states, size_t n_cells,
+                                    const float *in);
+
+/**
+ * @brief Get all states into a single 2D array (n_cells x 3).
+ *
+ * Column order: [prev_channel_q, prev_overland_q, interflow_reservoir]
+ *
+ * @param states    State array
+ * @param n_cells   Number of cells
+ * @param out       Output: flat array of size n_cells * 3 (row-major)
+ */
+void get_all_states(const State *states, size_t n_cells, float *out);
+
+/**
+ * @brief Set all states from a single 2D array (n_cells x 3).
+ *
+ * @param states    State array
+ * @param n_cells   Number of cells
+ * @param in        Input: flat array of size n_cells * 3 (row-major)
+ */
+void set_all_states(State *states, size_t n_cells, const float *in);
+
 } // namespace kinematic
 } // namespace ef5
 
