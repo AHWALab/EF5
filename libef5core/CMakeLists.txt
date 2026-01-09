@@ -23,6 +23,7 @@ endif()
 option(EF5_USE_OPENMP "Enable OpenMP parallelization" ON)
 option(EF5_BUILD_TESTS "Build unit tests" OFF)
 option(EF5_BUILD_EXAMPLES "Build example programs" OFF)
+option(EF5_BUILD_PYTHON "Build Python bindings" ON)
 
 # ============================================================================
 # Find Dependencies
@@ -93,6 +94,47 @@ target_compile_options(ef5core PRIVATE
 if(OpenMP_CXX_FOUND)
     target_link_libraries(ef5core PUBLIC OpenMP::OpenMP_CXX)
     target_compile_definitions(ef5core PUBLIC EF5_HAVE_OPENMP)
+endif()
+
+# ============================================================================
+# Python Bindings
+# ============================================================================
+
+if(EF5_BUILD_PYTHON)
+    # Find Python
+    find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
+    message(STATUS "Python found: ${Python3_EXECUTABLE} (${Python3_VERSION})")
+    message(STATUS "NumPy found: ${Python3_NumPy_INCLUDE_DIRS}")
+    
+    # Add pybind11 subdirectory
+    add_subdirectory(extern/pybind11)
+    
+    # Create Python module
+    pybind11_add_module(_ef5core python/bindings.cpp)
+    
+    target_link_libraries(_ef5core PRIVATE ef5core)
+    
+    target_include_directories(_ef5core PRIVATE
+        ${Python3_NumPy_INCLUDE_DIRS}
+    )
+    
+    # Set output directory for easier testing
+    set_target_properties(_ef5core PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/ef5py"
+    )
+    
+    # Create __init__.py for the ef5py package
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/ef5py/__init__.py"
+"\"\"\"
+EF5 Python Package - Hydrological Modeling
+
+This package provides Python bindings to the EF5 computational core.
+\"\"\"
+
+from ._ef5core import *
+
+__version__ = get_version() if 'get_version' in dir() else '2.0.0'
+")
 endif()
 
 # ============================================================================
@@ -168,6 +210,7 @@ message(STATUS "EF5 Core Library Configuration:")
 message(STATUS "  Version:    ${PROJECT_VERSION}")
 message(STATUS "  Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "  OpenMP:     ${EF5_USE_OPENMP} (found: ${OpenMP_CXX_FOUND})")
+message(STATUS "  Python:     ${EF5_BUILD_PYTHON}")
 message(STATUS "  Tests:      ${EF5_BUILD_TESTS}")
 message(STATUS "  Examples:   ${EF5_BUILD_EXAMPLES}")
 message(STATUS "")
