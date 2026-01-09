@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ef5py"
+version = "2.0.0"
+description = "Python interface to EF5 distributed hydrological model"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "EF5 Development Team"}
+]
+keywords = ["hydrology", "simulation", "modeling", "CREST", "kinematic wave"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Hydrology",
+]
+
+dependencies = [
+    "numpy>=1.20",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+io = [
+    "rasterio>=1.3",
+    "xarray>=2022.0",
+    "netcdf4",
+]
+full = [
+    "rasterio>=1.3",
+    "xarray>=2022.0",
+    "netcdf4",
+    "pandas>=1.5",
+    "matplotlib>=3.5",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "black",
+    "mypy",
+]
+
+[project.urls]
+Homepage = "https://github.com/AHWALab/EF5"
+Documentation = "https://ef5.readthedocs.io"
+Repository = "https://github.com/AHWALab/EF5"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ef5py*"]
+
+[tool.setuptools.package-data]
+ef5py = ["*.so", "*.pyd", "*.dylib"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
