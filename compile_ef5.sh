@@ -147,52 +147,52 @@ install_dependencies() {
         ubuntu|debian)
             if check_root; then
                 apt-get update
-                apt-get install -y git autoconf automake build-essential libgeotiff-dev pkg-config
+                apt-get install -y git autoconf automake build-essential libgeotiff-dev pkg-config zlib1g-dev
             else
                 sudo apt-get update
-                sudo apt-get install -y git autoconf automake build-essential libgeotiff-dev pkg-config
+                sudo apt-get install -y git autoconf automake build-essential libgeotiff-dev pkg-config zlib1g-dev
             fi
             ;;
             
         fedora|rhel|centos|rocky|almalinux)
             if check_root; then
                 if command_exists dnf; then
-                    dnf install -y git autoconf automake gcc-c++ make libgeotiff-devel pkgconfig
+                    dnf install -y git autoconf automake gcc-c++ make libgeotiff-devel pkgconfig zlib-devel
                 else
-                    yum install -y git autoconf automake gcc-c++ make libgeotiff-devel pkgconfig
+                    yum install -y git autoconf automake gcc-c++ make libgeotiff-devel pkgconfig zlib-devel
                 fi
             else
                 if command_exists dnf; then
-                    sudo dnf install -y git autoconf automake gcc-c++ make libgeotiff-devel pkgconfig
+                    sudo dnf install -y git autoconf automake gcc-c++ make libgeotiff-devel pkgconfig zlib-devel
                 else
-                    sudo yum install -y git autoconf automake gcc-c++ make libgeotiff-devel pkgconfig
+                    sudo yum install -y git autoconf automake gcc-c++ make libgeotiff-devel pkgconfig zlib-devel
                 fi
             fi
             ;;
             
         arch|manjaro)
             if check_root; then
-                pacman -Sy --noconfirm git autoconf automake gcc make libgeotiff pkgconf
+                pacman -Sy --noconfirm git autoconf automake gcc make libgeotiff pkgconf zlib
             else
-                sudo pacman -Sy --noconfirm git autoconf automake gcc make libgeotiff pkgconf
+                sudo pacman -Sy --noconfirm git autoconf automake gcc make libgeotiff pkgconf zlib
             fi
             ;;
             
         alpine)
             if check_root; then
                 apk update
-                apk add git autoconf automake build-base libgeotiff-dev pkgconfig
+                apk add git autoconf automake build-base libgeotiff-dev pkgconfig zlib-dev
             else
                 sudo apk update
-                sudo apk add git autoconf automake build-base libgeotiff-dev pkgconfig
+                sudo apk add git autoconf automake build-base libgeotiff-dev pkgconfig zlib-dev
             fi
             ;;
             
         opensuse*|sles)
             if check_root; then
-                zypper install -y git autoconf automake gcc-c++ make libgeotiff-devel pkg-config
+                zypper install -y git autoconf automake gcc-c++ make libgeotiff-devel pkg-config zlib-devel
             else
-                sudo zypper install -y git autoconf automake gcc-c++ make libgeotiff-devel pkg-config
+                sudo zypper install -y git autoconf automake gcc-c++ make libgeotiff-devel pkg-config zlib-devel
             fi
             ;;
             
@@ -206,6 +206,7 @@ install_dependencies() {
             print_info "  - make"
             print_info "  - libgeotiff development libraries"
             print_info "  - pkg-config"
+            print_info "  - zlib development libraries"
             return 1
             ;;
     esac
@@ -285,27 +286,31 @@ run_make() {
 ################################################################################
 compile_ef5() {
     local install_prefix=$1
+    local ef5_source_dir="$SCRIPT_DIR"
     
-    # Change to EF5 directory
-    cd "$SCRIPT_DIR" || {
-        print_error "Failed to change to EF5 directory"
+    # Check if we're already in the EF5 source directory
+    if [ -f "$SCRIPT_DIR/configure.ac" ]; then
+        print_info "Script is in EF5 source directory"
+        ef5_source_dir="$SCRIPT_DIR"
+    elif [ -f "$SCRIPT_DIR/configure" ]; then
+        print_info "Script is in EF5 source directory (configure exists)"
+        ef5_source_dir="$SCRIPT_DIR"
+    elif [ -d "$SCRIPT_DIR/EF5" ] && [ -f "$SCRIPT_DIR/EF5/configure.ac" ]; then
+        print_info "Found EF5 source in subdirectory EF5/"
+        ef5_source_dir="$SCRIPT_DIR/EF5"
+    else
+        print_error "Cannot find EF5 source directory with configure.ac"
+        print_error "Searched in: $SCRIPT_DIR and $SCRIPT_DIR/EF5"
+        exit 1
+    fi
+    
+    # Change to EF5 source directory
+    cd "$ef5_source_dir" || {
+        print_error "Failed to change to EF5 source directory: $ef5_source_dir"
         exit 1
     }
     
-    # Check if configure script exists, if not, check EF5 subdirectory
-    if [ ! -f "configure" ] && [ ! -f "configure.ac" ]; then
-        if [ -d "EF5" ] && [ -f "EF5/configure.ac" ]; then
-            print_info "Found EF5 source in subdirectory, changing to EF5/"
-            cd EF5 || {
-                print_error "Failed to change to EF5 subdirectory"
-                exit 1
-            }
-        else
-            print_error "Neither 'configure' nor 'configure.ac' found in current directory"
-            print_error "Are you sure this is the EF5 source directory?"
-            exit 1
-        fi
-    fi
+    print_info "Working directory: $(pwd)"
     
     # Run autoreconf if needed
     if [ ! -f "configure" ] || [ -n "$FORCE_AUTORECONF" ]; then
@@ -322,7 +327,7 @@ compile_ef5() {
     
     # Check if binary was created
     if [ -f "bin/ef5" ]; then
-        print_success "EF5 binary created at: $SCRIPT_DIR/bin/ef5"
+        print_success "EF5 binary created at: $(pwd)/bin/ef5"
     else
         print_warning "EF5 binary not found at expected location (bin/ef5)"
     fi
@@ -417,7 +422,7 @@ main() {
     
     echo ""
     print_success "EF5 compilation process completed!"
-    print_info "You can now run EF5 using: $SCRIPT_DIR/bin/ef5 <control_file>"
+    print_info "You can now run EF5 using: $(pwd)/bin/ef5 <control_file>"
 }
 
 # Run main function
