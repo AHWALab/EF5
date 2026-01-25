@@ -100,7 +100,7 @@ command_exists() {
 # Function: Check dependencies
 ################################################################################
 check_dependencies() {
-    print_step "Checking dependencies..."
+    print_step "Checking dependencies..." >&2
     
     local missing_deps=()
     local deps=("git" "autoconf" "automake" "make" "g++")
@@ -108,27 +108,27 @@ check_dependencies() {
     for dep in "${deps[@]}"; do
         if ! command_exists "$dep"; then
             missing_deps+=("$dep")
-            print_warning "Missing: $dep"
+            print_warning "Missing: $dep" >&2
         else
-            print_success "Found: $dep"
+            print_success "Found: $dep" >&2
         fi
     done
     
     # Check for pkg-config (needed to find libgeotiff)
     if ! command_exists pkg-config; then
         missing_deps+=("pkg-config")
-        print_warning "Missing: pkg-config"
+        print_warning "Missing: pkg-config" >&2
     else
-        print_success "Found: pkg-config"
+        print_success "Found: pkg-config" >&2
     fi
     
     # Check for libgeotiff
     if command_exists pkg-config; then
         if ! pkg-config --exists libgeotiff 2>/dev/null; then
             missing_deps+=("libgeotiff")
-            print_warning "Missing: libgeotiff development libraries"
+            print_warning "Missing: libgeotiff development libraries" >&2
         else
-            print_success "Found: libgeotiff"
+            print_success "Found: libgeotiff" >&2
         fi
     fi
     
@@ -170,7 +170,7 @@ install_dependencies() {
             fi
             ;;
             
-        arch|manjaro)
+        arch|manjaro|cachyos|endeavouros|garuda)
             if check_root; then
                 pacman -Sy --noconfirm git autoconf automake gcc make libgeotiff pkgconf zlib
             else
