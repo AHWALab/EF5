@@ -36,6 +36,8 @@ public:
     size_t GetNumSteps() { return totalTimeStepsOutsideWarm; }
     const std::vector<GridNode> &GetNodes() const { return nodes; }
     const GaugeMap &GetGaugeMap() const { return gaugeMap; }
+    int GetMissingQPE() const { return missingQPE; }
+    int GetMissingQPF() const { return missingQPF; }
 
 private:
     bool InitializeBasic(TaskConfigSection *task);

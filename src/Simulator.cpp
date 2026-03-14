@@ -1536,7 +1536,9 @@ int Simulator::LoadForcings(PrecipReader *precipReader, PETReader *petReader,
 #ifdef _WIN32
         outputError = true;
 #endif
-        NORMAL_LOGF(" Missing precip forecast file(%s)... Assuming zeros.", qpfBuffer);
+        if (!g_ensembleMode) {
+          NORMAL_LOGF(" Missing precip forecast file(%s)... Assuming zeros.", qpfBuffer);
+        }
         // Count as missing QPF during LR
         missingQPF = missingQPF + 1;
       }
@@ -1551,7 +1553,9 @@ int Simulator::LoadForcings(PrecipReader *precipReader, PETReader *petReader,
 #ifdef _WIN32
         outputError = true;
 #endif
-        NORMAL_LOGF(" Missing precip file(%s)... Assuming zeros.", buffer);
+        if (!g_ensembleMode) {
+          NORMAL_LOGF(" Missing precip file(%s)... Assuming zeros.", buffer);
+        }
         missingQPE = missingQPE + 1;
       }
     }
@@ -1567,7 +1571,9 @@ int Simulator::LoadForcings(PrecipReader *precipReader, PETReader *petReader,
 #ifdef _WIN32
       outputError = true;
 #endif
-      NORMAL_LOGF(" Missing PET file(%s)... Assuming zeros.", buffer);
+      if (!g_ensembleMode) {
+        NORMAL_LOGF(" Missing PET file(%s)... Assuming zeros.", buffer);
+      }
     }
 #ifdef _WIN32
     if (outputError)
@@ -2180,7 +2186,9 @@ void Simulator::SimulateDistributed(bool trackPeaks)
 #if _OPENMP
 #ifndef _WIN32
       double endTimeR = omp_get_wtime();
-      NORMAL_LOGF(" %f routing sec", endTimeR - beginTimeR);
+      if (!g_ensembleMode) {
+        NORMAL_LOGF(" %f routing sec", endTimeR - beginTimeR);
+      }
 #endif
 #endif
     }
@@ -2652,7 +2660,9 @@ void Simulator::SimulateLumped()
       if (!precipReader.Read(buffer, precipSec->GetType(), &nodes,
                              &currentPrecipSimu, precipConvert))
       {
-        printf(" Missing precip file(%s)... Assuming zeros.", buffer);
+        if (!g_ensembleMode) {
+          printf(" Missing precip file(%s)... Assuming zeros.", buffer);
+        }
       }
 
       sprintf(buffer, "%s/%s", petSec->GetLoc(), petFile->GetName());
@@ -2816,7 +2826,9 @@ void Simulator::PreloadForcings(char *file, bool cali)
       if (!precipReader.Read(buffer, precipSec->GetType(), &nodes, &readVec,
                              precipConvert, vecPrev))
       {
-        NORMAL_LOGF("Missing precip file(%s)... Assuming zeros.\n", buffer);
+        if (!g_ensembleMode) {
+          NORMAL_LOGF("Missing precip file(%s)... Assuming zeros.\n", buffer);
+        }
       }
       gaugeMap.GaugeAverage(&nodes, &readVec, vec);
 
@@ -2855,7 +2867,9 @@ void Simulator::PreloadForcings(char *file, bool cali)
       if (!precipReader.Read(buffer, precipSec->GetType(), &nodes, vec,
                              precipConvert, vecPrev))
       {
-        NORMAL_LOGF("Missing precip file(%s)... Assuming zeros.\n", buffer);
+        if (!g_ensembleMode) {
+          NORMAL_LOGF("Missing precip file(%s)... Assuming zeros.\n", buffer);
+        }
       }
 
       sprintf(buffer, "%s/%s", petSec->GetLoc(), petFile->GetName());

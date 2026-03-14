@@ -93,12 +93,14 @@ struct EnsembleTaskInfo {
     std::atomic<bool> failed;
     double startTime;
     double endTime;
+    int missingFiles;
     char currentTimeStr[64];
     std::mutex timeMutex;
 
     EnsembleTaskInfo()
         : color(ENS_FG_WHITE), completedSteps(0), totalSteps(0),
-          finished(false), failed(false), startTime(0), endTime(0) {
+          finished(false), failed(false), startTime(0), endTime(0),
+          missingFiles(0) {
         currentTimeStr[0] = '\0';
     }
 
@@ -169,6 +171,12 @@ public:
             tasks_[taskIdx]->finished.store(true);
             tasks_[taskIdx]->failed.store(!success);
             tasks_[taskIdx]->endTime = GetWallTime();
+        }
+    }
+
+    void SetTaskMissingFiles(int taskIdx, int count) {
+        if (taskIdx >= 0 && taskIdx < (int)tasks_.size()) {
+            tasks_[taskIdx]->missingFiles = count;
         }
     }
 
@@ -261,6 +269,9 @@ public:
 
         std::lock_guard<std::mutex> lock(logMutex_);
 
+        // Hide cursor during redraw for flicker-free display
+        printf(ENS_HIDE_CURSOR);
+
         int numTasks = (int)tasks_.size();
         int barWidth = 30;
         double elapsed = GetWallTime() - startWallTime_;
@@ -346,6 +357,8 @@ public:
         for (int i = 0; i < 72; i++) printf(ENS_BOX_H);
         printf(ENS_BOX_BR "%s\n", ENS_RESET);
 
+        // Show cursor again
+        printf(ENS_SHOW_CURSOR);
         fflush(stdout);
         progressDrawn_ = true;
         spinnerIdx_++;
@@ -362,8 +375,8 @@ public:
                ENS_BOLD, ENS_FG_BGREEN, ENS_RESET);
         PrintHRule('-', 74);
 
-        printf("  %s%-22s  %6s  %10s  %s%s\n",
-               ENS_UNDERLINE, "Task", "Steps", "Time", "Status", ENS_RESET);
+        printf("  %s%-22s  %6s  %10s  %8s  %s%s\n",
+               ENS_UNDERLINE, "Task", "Steps", "Time", "Missing", "Status", ENS_RESET);
 
         for (int i = 0; i < (int)tasks_.size(); i++) {
             EnsembleTaskInfo* t = tasks_[i];
@@ -372,9 +385,19 @@ public:
                 ? (ENS_FG_RED ENS_BOLD ENS_CROSS " FAILED" ENS_RESET)
                 : (ENS_FG_BGREEN ENS_BOLD ENS_CHECK " OK" ENS_RESET);
 
-            printf("  %s%-22s%s  %6d  %8.1fs  %s\n",
+            // Show missing file count (yellow if > 0)
+            char missingBuf[32];
+            if (t->missingFiles > 0) {
+                snprintf(missingBuf, sizeof(missingBuf),
+                         "%s%d%s", ENS_FG_YELLOW, t->missingFiles, ENS_RESET);
+            } else {
+                snprintf(missingBuf, sizeof(missingBuf),
+                         "%s0%s", ENS_FG_BGREEN, ENS_RESET);
+            }
+
+            printf("  %s%-22s%s  %6d  %8.1fs  %s  %s\n",
                    t->color, t->name.c_str(), ENS_RESET,
-                   t->completedSteps.load(), taskTime, status);
+                   t->completedSteps.load(), taskTime, missingBuf, status);
         }
 
         PrintHRule('-', 74);

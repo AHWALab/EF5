@@ -36,8 +36,8 @@ CONFIG_SEC_RET ExecuteConfigSection::ProcessKeyValue(char *name, char *value) {
 }
 
 CONFIG_SEC_RET ExecuteConfigSection::ValidateSection() {
-  if (tasks.size() == 0) {
-    ERROR_LOG("No tasks were defined!");
+  if (tasks.size() == 0 && ensTasks.size() == 0) {
+    ERROR_LOG("No tasks or ensemble tasks were defined!");
     return INVALID_RESULT;
   }
 

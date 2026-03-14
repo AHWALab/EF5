@@ -434,6 +434,7 @@ void ExecuteSimulationEns(EnsTaskConfigSection *ensTask) {
     sims[i]->Simulate(rpMode);
     sims[i]->CleanUp();
 
+    logger.SetTaskMissingFiles(i, sims[i]->GetMissingQPE());
     logger.SetTaskFinished(i, true);
 
     if (!logger.IsTTY()) {
