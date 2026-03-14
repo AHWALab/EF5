@@ -7,6 +7,7 @@
 #endif
 #include "BasicGrids.h"
 #include "CRESTModel.h"
+#include "EnsembleLog.h"
 #include "GridWriterFull.h"
 #include "GriddedOutput.h"
 #include "HPModel.h"
@@ -71,6 +72,40 @@ bool Simulator::Initialize(TaskConfigSection *taskN)
   LoadDAFile(task);
 
   // Everything succeeded!
+  return true;
+}
+
+bool Simulator::InitializeShared(
+    TaskConfigSection *taskN,
+    const std::vector<GridNode> &sharedNodes,
+    const GaugeMap &sharedGaugeMap)
+{
+  task = taskN;
+
+  if (!InitializeBasicFromShared(task, sharedNodes, sharedGaugeMap))
+  {
+    return false;
+  }
+
+  if (task->GetRunStyle() == STYLE_SIMU ||
+      task->GetRunStyle() == STYLE_SIMU_RP ||
+      task->GetRunStyle() == STYLE_BASIN_AVG)
+  {
+    if (!InitializeSimu(task))
+    {
+      return false;
+    }
+  }
+  else
+  {
+    if (!InitializeCali(task))
+    {
+      return false;
+    }
+  }
+
+  LoadDAFile(task);
+
   return true;
 }
 
@@ -337,6 +372,318 @@ bool Simulator::InitializeBasic(TaskConfigSection *task)
   }
 
   // Create the appropriate snow model
+  switch (task->GetSnow())
+  {
+  case SNOW_SNOW17:
+    sModel = new Snow17Model();
+    break;
+  case SNOW_QTY:
+    sModel = NULL;
+    break;
+  default:
+    ERROR_LOG("Unsupported Snow Model!!");
+    return false;
+  }
+
+  switch (task->GetInundation())
+  {
+  case INUNDATION_SI:
+    iModel = new SimpleInundation();
+    break;
+  case INUNDATION_VCI:
+    iModel = new VCInundation();
+    break;
+  case INUNDATION_QTY:
+    iModel = NULL;
+    break;
+  default:
+    ERROR_LOG("Unsupported inundation model!!");
+    return false;
+  }
+
+  gaugesUsed.resize(gauges->size());
+  for (size_t i = 0; i < gauges->size(); i++)
+  {
+    gaugesUsed[i] = false;
+  }
+
+  return true;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// InitializeBasicFromShared — Same as InitializeBasic but uses pre-carved nodes
+// instead of calling CarveBasin. Only parameter mapping is redone per-task.
+// ─────────────────────────────────────────────────────────────────────────────
+bool Simulator::InitializeBasicFromShared(
+    TaskConfigSection *task,
+    const std::vector<GridNode> &sharedNodes,
+    const GaugeMap &sharedGaugeMap)
+{
+  // Everything up to CarveBasin is identical to InitializeBasic
+  // Initialize time step information
+  inLR = false;
+  timeStep = task->GetTimeStep();
+  timeStepSR = task->GetTimeStep();
+  timeStepLR = task->GetTimeStepLR();
+  timeStepPrecip = task->GetPrecipSec()->GetFreq();
+  if (task->GetQPFSec())
+  {
+    hasQPF = true;
+    timeStepQPF = task->GetQPFSec()->GetFreq();
+  }
+  else
+  {
+    hasQPF = false;
+  }
+  timeStepPET = task->GetPETSec()->GetFreq();
+
+  if (task->GetSnow() != SNOW_QTY)
+  {
+    timeStepTemp = task->GetTempSec()->GetFreq();
+    if (task->GetTempFSec())
+    {
+      hasTempF = true;
+      timeStepTempF = task->GetTempFSec()->GetFreq();
+    }
+    else
+    {
+      hasTempF = false;
+    }
+  }
+  else
+  {
+    timeStepTemp = NULL;
+  }
+
+  if (timeStepPrecip->GetTimeInSec() < timeStep->GetTimeInSec())
+  {
+    ERROR_LOG("The time step for precipitation must be greater or equal to the overall time step.");
+    return false;
+  }
+
+  if (timeStepPET->GetTimeInSec() < timeStep->GetTimeInSec())
+  {
+    ERROR_LOG("The time step for PET must be greater or equal to the overall time step.");
+    return false;
+  }
+
+  // Initialize unit converters
+  precipConvert =
+      (3600.0 / (float)task->GetPrecipSec()->GetUnitTime()->GetTimeInSec());
+  if (hasQPF)
+  {
+    qpfConvert =
+        (3600.0 / (float)task->GetQPFSec()->GetUnitTime()->GetTimeInSec());
+  }
+  if (!task->GetPETSec()->IsTemperature())
+  {
+    petConvert =
+        (3600.0 / (float)task->GetPETSec()->GetUnitTime()->GetTimeInSec());
+  }
+  else
+  {
+    petConvert = 1.0;
+  }
+  timeStepHours = timeStep->GetTimeInSec() / 3600.0;
+
+  if (timeStepLR)
+  {
+    timeStepHoursLR = timeStepLR->GetTimeInSec() / 3600.0;
+    beginLRTime = *(task->GetTimeBeginLR());
+  }
+
+  // Initialize time information
+  currentTime = *(task->GetTimeBegin());
+  currentTimePrecip = *(task->GetTimeBegin());
+  currentTimeQPF = *(task->GetTimeBegin());
+  currentTimePET = *(task->GetTimeBegin());
+  currentTimeTemp = *(task->GetTimeBegin());
+  currentTimeTempF = *(task->GetTimeBegin());
+  beginTime = *(task->GetTimeBegin());
+  endTime = *(task->GetTimeEnd());
+  warmEndTime = *(task->GetTimeWarmEnd());
+
+  // Initialize file name information
+  precipFile = task->GetPrecipSec()->GetFileName();
+  if (hasQPF)
+  {
+    qpfFile = task->GetQPFSec()->GetFileName();
+  }
+  petFile = task->GetPETSec()->GetFileName();
+  if (task->GetSnow() != SNOW_QTY)
+  {
+    tempFile = task->GetTempSec()->GetFileName();
+    if (hasTempF)
+    {
+      tempFFile = task->GetTempFSec()->GetFileName();
+    }
+  }
+  currentTimeText.SetNameStr("YYYY-MM-DD HH:UU");
+  currentTimeText.ProcessNameLoose(NULL);
+  currentTimeTextOutput.SetNameStr("YYYYMMDD_HHUU");
+  currentTimeTextOutput.ProcessNameLoose(NULL);
+
+  // Set forcing info
+  precipSec = task->GetPrecipSec();
+  petSec = task->GetPETSec();
+  qpfSec = task->GetQPFSec();
+  tempSec = task->GetTempSec();
+  tempFSec = task->GetTempFSec();
+
+  // Initialize our gauges
+  gauges = task->GetBasinSec()->GetGauges();
+
+  // Initialize parameter settings
+  paramSettings = task->GetParamsSec()->GetParamSettings();
+  if (task->GetRouting() != ROUTE_QTY)
+  {
+    paramSettingsRoute = task->GetRoutingParamsSec()->GetParamSettings();
+  }
+  else
+  {
+    paramSettingsRoute = NULL;
+  }
+  if (task->GetSnow() != SNOW_QTY)
+  {
+    paramSettingsSnow = task->GetSnowParamsSec()->GetParamSettings();
+  }
+  else
+  {
+    paramSettingsSnow = NULL;
+  }
+
+  if (task->GetInundation() != INUNDATION_QTY)
+  {
+    paramSettingsInundation =
+        task->GetInundationParamsSec()->GetParamSettings();
+  }
+  else
+  {
+    paramSettingsInundation = NULL;
+  }
+
+  // Initialize gridded parameter settings
+  if (!InitializeGridParams(task))
+  {
+    return false;
+  }
+
+  float *defaultParams = NULL, *defaultParamsRoute = NULL,
+        *defaultParamsSnow = NULL, *defaultParamsInundation = NULL;
+  GaugeConfigSection *gs = task->GetDefaultGauge();
+  std::map<GaugeConfigSection *, float *>::iterator pitr =
+      paramSettings->find(gs);
+  if (pitr != paramSettings->end())
+  {
+    defaultParams = pitr->second;
+  }
+
+  if (task->GetRouting() != ROUTE_QTY)
+  {
+    pitr = paramSettingsRoute->find(gs);
+    if (pitr != paramSettingsRoute->end())
+    {
+      defaultParamsRoute = pitr->second;
+    }
+  }
+
+  if (task->GetSnow() != SNOW_QTY)
+  {
+    pitr = paramSettingsSnow->find(gs);
+    if (pitr != paramSettingsSnow->end())
+    {
+      defaultParamsSnow = pitr->second;
+    }
+  }
+
+  if (task->GetInundation() != INUNDATION_QTY)
+  {
+    pitr = paramSettingsInundation->find(gs);
+    if (pitr != paramSettingsInundation->end())
+    {
+      defaultParamsInundation = pitr->second;
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // KEY DIFFERENCE: Copy shared nodes + gaugeMap instead of calling CarveBasin
+  // ──────────────────────────────────────────────────────────────────────────
+  nodes = sharedNodes;  // Deep copy of the nodes vector
+  gaugeMap = sharedGaugeMap;  // Copy gauge relationships
+
+  // Do parameter assignment only (the cheap part of CarveBasin)
+  AssignBasinParams(task->GetBasinSec(),
+                    paramSettings, &fullParamSettings, defaultParams,
+                    paramSettingsRoute, &fullParamSettingsRoute,
+                    defaultParamsRoute,
+                    paramSettingsSnow, &fullParamSettingsSnow,
+                    defaultParamsSnow,
+                    paramSettingsInundation, &fullParamSettingsInundation,
+                    defaultParamsInundation);
+
+  // Ensure we actually have at least one node to work with!
+  if (nodes.size() == 0)
+  {
+    ERROR_LOG("The number of grid cells in which we are modeling is 0! "
+              "(Invalid gauge location?)");
+    return false;
+  }
+
+  // Create the appropriate model (same as InitializeBasic)
+  switch (task->GetModel())
+  {
+  case MODEL_CREST:
+    wbModel = new CRESTModel();
+    break;
+  case MODEL_HYMOD:
+    wbModel = new HyMOD();
+    break;
+  case MODEL_SAC:
+    wbModel = new SAC();
+    break;
+  case MODEL_HP:
+    wbModel = new HPModel();
+    break;
+  default:
+    ERROR_LOG("Unsupported Water Balance Model!!");
+    return false;
+  }
+
+  if (wbModel->IsLumped())
+  {
+    std::vector<float> gaugeAreas;
+    gaugeAreas.resize(gauges->size());
+    gaugeMap.GetGaugeArea(&nodes, &gaugeAreas);
+
+    lumpedNodes.resize(gauges->size());
+    for (size_t i = 0; i < gauges->size(); i++)
+    {
+      GaugeConfigSection *gauge = gauges->at(i);
+      memcpy(&(lumpedNodes[i]), &(nodes[gauge->GetGridNodeIndex()]),
+             sizeof(GridNode));
+      lumpedNodes[i].area = gaugeAreas[i];
+    }
+    rModel = NULL;
+  }
+  else
+  {
+    switch (task->GetRouting())
+    {
+    case ROUTE_LINEAR:
+      rModel = new LRRoute();
+      break;
+    case ROUTE_KINEMATIC:
+      rModel = new KWRoute();
+      break;
+    case ROUTE_QTY:
+      rModel = NULL;
+      break;
+    default:
+      ERROR_LOG("Unsupported Routing Model!!");
+      return false;
+    }
+  }
+
   switch (task->GetSnow())
   {
   case SNOW_SNOW17:
@@ -1760,11 +2107,18 @@ void Simulator::SimulateDistributed(bool trackPeaks)
 #endif
 #endif
     currentTimeText.UpdateName(currentTime.GetTM());
+
+    // In ensemble mode, route logging through EnsembleLogger
+    if (g_ensembleMode && g_ensembleTaskIndex >= 0) {
+      EnsembleLogger::Instance().LogTimestep(
+          g_ensembleTaskIndex, currentTimeText.GetName());
+    } else {
 #ifndef _WIN32
-    NORMAL_LOGF("%s", currentTimeText.GetName());
+      NORMAL_LOGF("%s", currentTimeText.GetName());
 #else
-    setTimestep(currentTimeText.GetName());
+      setTimestep(currentTimeText.GetName());
 #endif
+    }
 
     int qpf = 0;
     if (!preloadedForcings)
@@ -2059,34 +2413,44 @@ void Simulator::SimulateDistributed(bool trackPeaks)
       }
     }
 
+    // Per-timestep timing and logging (skip in ensemble mode — progress bar handles it)
+    if (!g_ensembleMode) {
 #if _OPENMP
 #ifndef _WIN32
-    double endTime = omp_get_wtime();
-    double timeDiff = endTime - beginTime;
-    NORMAL_LOGF(" %f sec", endTime - beginTime);
-    timeTotal += timeDiff;
-    timeCount++;
-    if (timeCount == 250)
-    {
-      NORMAL_LOGF(" (%f sec avg)", timeTotal / timeCount);
-      timeCount = 0.0;
-      timeTotal = 0.0;
-    }
+      double endTime = omp_get_wtime();
+      double timeDiff = endTime - beginTime;
+      NORMAL_LOGF(" %f sec", endTime - beginTime);
+      timeTotal += timeDiff;
+      timeCount++;
+      if (timeCount == 250)
+      {
+        NORMAL_LOGF(" (%f sec avg)", timeTotal / timeCount);
+        timeCount = 0.0;
+        timeTotal = 0.0;
+      }
 #endif
 #endif
 
-    if (timeStepLR && !inLR && beginLRTime <= currentTime)
-    {
-      inLR = true;
-      timeStep = timeStepLR;
-      NORMAL_LOGF(" Switching to long range timestep %f hours",
-                  timeStepHoursLR);
-    }
+      if (timeStepLR && !inLR && beginLRTime <= currentTime)
+      {
+        inLR = true;
+        timeStep = timeStepLR;
+        NORMAL_LOGF(" Switching to long range timestep %f hours",
+                    timeStepHoursLR);
+      }
 
-    // All of our status messages are done for this timestep!
+      // All of our status messages are done for this timestep!
 #ifndef _WIN32
-    NORMAL_LOGF("%s", "\n");
+      NORMAL_LOGF("%s", "\n");
 #endif
+    } else {
+      // In ensemble mode, still handle LR switching
+      if (timeStepLR && !inLR && beginLRTime <= currentTime)
+      {
+        inLR = true;
+        timeStep = timeStepLR;
+      }
+    }
     tsIndex++;
   }
 
@@ -2261,7 +2625,12 @@ void Simulator::SimulateLumped()
        currentTime.Increment(timeStep))
   {
     currentTimeText.UpdateName(currentTime.GetTM());
-    printf("%s", currentTimeText.GetName());
+    if (g_ensembleMode && g_ensembleTaskIndex >= 0) {
+      EnsembleLogger::Instance().LogTimestep(
+          g_ensembleTaskIndex, currentTimeText.GetName());
+    } else {
+      printf("%s", currentTimeText.GetName());
+    }
 
     if (!preloadedForcings)
     {

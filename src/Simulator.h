@@ -27,13 +27,21 @@ public:
     void BasinAvg(const char* inputDir);
     void BasinAvgPrecip();
     void Simulate(bool trackPeaks = false);
+    bool InitializeShared(TaskConfigSection *taskN,
+                          const std::vector<GridNode> &sharedNodes,
+                          const GaugeMap &sharedGaugeMap);
     float SimulateForCali(float *testParams);
     float *SimulateForCaliTS(float *testParams);
     float *GetObsTS();
     size_t GetNumSteps() { return totalTimeStepsOutsideWarm; }
+    const std::vector<GridNode> &GetNodes() const { return nodes; }
+    const GaugeMap &GetGaugeMap() const { return gaugeMap; }
 
 private:
     bool InitializeBasic(TaskConfigSection *task);
+    bool InitializeBasicFromShared(TaskConfigSection *task,
+                                   const std::vector<GridNode> &sharedNodes,
+                                   const GaugeMap &sharedGaugeMap);
     bool InitializeSimu(TaskConfigSection *task);
     bool InitializeCali(TaskConfigSection *task);
     bool InitializeGridParams(TaskConfigSection *task);

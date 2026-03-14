@@ -5,6 +5,7 @@
 #include "BasinConfigSection.h"
 #include "DREAM.h"
 #include "EnsTaskConfigSection.h"
+#include "EnsembleLog.h"
 #include "ExecuteConfigSection.h"
 #include "GaugeConfigSection.h"
 #include "GeographicProjection.h"
@@ -18,6 +19,15 @@
 #include <cstring>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <thread>
+#include <chrono>
+#if _OPENMP
+#include <omp.h>
+#endif
+
+// Global ensemble mode state
+bool g_ensembleMode = false;
+thread_local int g_ensembleTaskIndex = -1;
 
 static void LoadProjection();
 static void ExecuteSimulation(TaskConfigSection *task);
@@ -25,6 +35,7 @@ static void ExecuteSimulationRP(TaskConfigSection *task);
 static void ExecuteCalibrationARS(TaskConfigSection *task);
 static void ExecuteCalibrationDREAM(TaskConfigSection *task);
 static void ExecuteCalibrationDREAMEns(EnsTaskConfigSection *task);
+static void ExecuteSimulationEns(EnsTaskConfigSection *task);
 static void ExecuteClipBasin(TaskConfigSection *task);
 static void ExecuteClipGauge(TaskConfigSection *task);
 static void ExecuteMakeBasic(TaskConfigSection *task);
@@ -68,6 +79,10 @@ void ExecuteTasks() {
     switch (ensTask->GetRunStyle()) {
     case STYLE_CALI_DREAM:
       ExecuteCalibrationDREAMEns(ensTask);
+      break;
+    case STYLE_SIMU:
+    case STYLE_SIMU_RP:
+      ExecuteSimulationEns(ensTask);
       break;
     default:
       ERROR_LOGF("Unsupport ensemble task run style \"%u\"",
@@ -268,6 +283,184 @@ void ExecuteCalibrationDREAMEns(EnsTaskConfigSection *task) {
           tasks->at(0)->GetCaliParamSec()->GetGauge()->GetName(), "ensemble");
   dream.WriteOutput(buffer, tasks->at(0)->GetModel(),
                     tasks->at(0)->GetRouting(), tasks->at(0)->GetSnow());
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecuteSimulationEns — Run multiple simulation tasks in parallel
+// ─────────────────────────────────────────────────────────────────────────────
+void ExecuteSimulationEns(EnsTaskConfigSection *ensTask) {
+
+  std::vector<TaskConfigSection *> *tasks = ensTask->GetTasks();
+  int numMembers = (int)tasks->size();
+
+  if (numMembers == 0) {
+    ERROR_LOGF("%s", "Ensemble task has no member tasks!");
+    return;
+  }
+
+  EnsembleLogger &logger = EnsembleLogger::Instance();
+  logger.Initialize(numMembers);
+
+  // ── Print banner ──────────────────────────────────────────────────────────
+  logger.PrintBanner(numMembers);
+
+  // ── Phase 1: Sequential initialization ────────────────────────────────────
+  // CarveBasin is expensive. Since all ensemble tasks share the same basin,
+  // we carve ONCE (first task) and share the nodes for subsequent tasks.
+  INFO_LOGF("%s", "Initializing ensemble members...");
+
+  // Validate all tasks share the same Basin
+  BasinConfigSection *sharedBasin = tasks->at(0)->GetBasinSec();
+  for (int i = 1; i < numMembers; i++) {
+    if (tasks->at(i)->GetBasinSec() != sharedBasin) {
+      ERROR_LOGF("%s", "Ensemble tasks must share the same [Basin]! "
+                 "Different basins are not supported in ensemble mode.");
+      logger.Shutdown();
+      return;
+    }
+  }
+
+  std::vector<Simulator *> sims(numMembers);
+  int firstValidIdx = -1;  // Index of first successfully initialized simulator
+
+  for (int i = 0; i < numMembers; i++) {
+    TaskConfigSection *t = tasks->at(i);
+    logger.SetTaskName(i, t->GetName());
+
+    logger.Log(i, "%s%sInitializing...%s", ENS_DIM, ENS_ITALIC, ENS_RESET);
+
+    // Validate output directory
+    const char *outDir = t->GetOutput();
+    if (!IsDirWritable(outDir)) {
+      logger.Log(i, "%s%s" ENS_CROSS " Output dir '%s' not writable!%s",
+                 ENS_BOLD, ENS_FG_RED, outDir, ENS_RESET);
+      logger.SetTaskFinished(i, false);
+      sims[i] = nullptr;
+      continue;
+    }
+
+    sims[i] = new Simulator();
+    bool initOk = false;
+
+    if (firstValidIdx < 0) {
+      // First task: full initialization with CarveBasin
+      initOk = sims[i]->Initialize(t);
+      if (initOk) {
+        firstValidIdx = i;
+        logger.Log(i, "%s" ENS_CHECK " Basin carved%s  (shared with all tasks)",
+                   ENS_FG_BGREEN, ENS_RESET);
+      }
+    } else {
+      // Subsequent tasks: reuse carved nodes from first task
+      initOk = sims[i]->InitializeShared(
+          t,
+          sims[firstValidIdx]->GetNodes(),
+          sims[firstValidIdx]->GetGaugeMap());
+      if (initOk) {
+        logger.Log(i, "%s" ENS_CHECK " Initialized%s  (shared basin, own params)",
+                   ENS_FG_BCYAN, ENS_RESET);
+      }
+    }
+
+    if (!initOk) {
+      logger.Log(i, "%s%s" ENS_CROSS " Initialization failed!%s",
+                 ENS_BOLD, ENS_FG_RED, ENS_RESET);
+      logger.SetTaskFinished(i, false);
+      delete sims[i];
+      sims[i] = nullptr;
+      continue;
+    }
+
+    // Count total time steps for progress tracking
+    TimeVar tempTime = *(t->GetTimeBegin());
+    TimeVar endTime = *(t->GetTimeEnd());
+    TimeUnit *ts = t->GetTimeStep();
+    int totalSteps = 0;
+    for (tempTime.Increment(ts); tempTime <= endTime; tempTime.Increment(ts)) {
+      totalSteps++;
+    }
+    logger.SetTaskTotalSteps(i, totalSteps);
+
+    logger.Log(i, "%s" ENS_CHECK " Ready%s  (%d timesteps, output: %s)",
+               ENS_FG_BGREEN, ENS_RESET, totalSteps, outDir);
+  }
+
+  // Print task summary table
+  logger.PrintTaskTable();
+
+  // Check if we have any valid tasks
+  int validTasks = 0;
+  for (int i = 0; i < numMembers; i++) {
+    if (sims[i] != nullptr) validTasks++;
+  }
+  if (validTasks == 0) {
+    ERROR_LOGF("%s", "No valid tasks to run in ensemble!");
+    logger.Shutdown();
+    return;
+  }
+
+  // ── Phase 2: Parallel simulation ──────────────────────────────────────────
+  g_ensembleMode = true;
+
+  INFO_LOGF("Starting %d simulation(s)...", validTasks);
+  printf("\n");
+
+  // Start progress bar thread (only in TTY mode)
+  std::atomic<bool> progressDone(false);
+  std::thread progressThread;
+
+  if (logger.IsTTY()) {
+    progressThread = std::thread([&logger, &progressDone]() {
+      while (!progressDone.load()) {
+        logger.DrawProgress();
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+      }
+      // One final draw to show 100%
+      logger.DrawProgress();
+    });
+  }
+
+#if _OPENMP
+  #pragma omp parallel for schedule(dynamic)
+#endif
+  for (int i = 0; i < numMembers; i++) {
+    if (sims[i] == nullptr) continue;
+
+    g_ensembleTaskIndex = i;
+
+    logger.SetTaskStartTime(i);
+
+    bool rpMode = (tasks->at(i)->GetRunStyle() == STYLE_SIMU_RP);
+    sims[i]->Simulate(rpMode);
+    sims[i]->CleanUp();
+
+    logger.SetTaskFinished(i, true);
+
+    if (!logger.IsTTY()) {
+      logger.Log(i, "%s%s" ENS_CHECK " Simulation complete%s",
+                 ENS_BOLD, ENS_FG_BGREEN, ENS_RESET);
+    }
+  }
+
+  // Stop progress bar thread
+  progressDone.store(true);
+  if (progressThread.joinable()) {
+    progressThread.join();
+  }
+
+  // ── Phase 3: Cleanup & summary ────────────────────────────────────────────
+  g_ensembleMode = false;
+  g_ensembleTaskIndex = -1;
+
+  // Print summary
+  logger.PrintSummary();
+
+  // Free simulators
+  for (int i = 0; i < numMembers; i++) {
+    delete sims[i];
+  }
+
+  logger.Shutdown();
 }
 
 void ExecuteClipBasin(TaskConfigSection *task) {

@@ -28,6 +28,20 @@ void CarveBasin(
     std::map<GaugeConfigSection *, float *> *inInundationParamSettings,
     std::map<GaugeConfigSection *, float *> *outInundationParamSettings,
     float *defaultInundationParams);
+void AssignBasinParams(
+    BasinConfigSection *basin,
+    std::map<GaugeConfigSection *, float *> *inParamSettings,
+    std::map<GaugeConfigSection *, float *> *outParamSettings,
+    float *defaultParams,
+    std::map<GaugeConfigSection *, float *> *inRouteParamSettings,
+    std::map<GaugeConfigSection *, float *> *outRouteParamSettings,
+    float *defaultRouteParams,
+    std::map<GaugeConfigSection *, float *> *inSnowParamSettings,
+    std::map<GaugeConfigSection *, float *> *outSnowParamSettings,
+    float *defaultSnowParams,
+    std::map<GaugeConfigSection *, float *> *inInundationParamSettings,
+    std::map<GaugeConfigSection *, float *> *outInundationParamSettings,
+    float *defaultInundationParams);
 void MakeBasic();
 void ReclassifyDDM();
 bool CheckESRIDDM();

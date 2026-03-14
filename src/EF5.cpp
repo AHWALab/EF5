@@ -64,10 +64,16 @@ int main(int argc, char *argv[])
 
 void PrintStartupMessage()
 {
-  printf("\033[38;2;0;107;255m");
+  printf("\033[38;2;255;205;0m");
+  printf("      ______ ______ _____  __      _____   ___  \n");
+  printf("     |  ____|  ____|  ___| \\ \\    / /__ \\ / _ \\ \n");
+  printf("     | |__  | |__  | |__    \\ \\  / /   ) | | | |\n");
+  printf("     |  __| |  __| |___ \\    \\ \\/ /   / /| | | |\n");
+  printf("     | |____| |    ___) |     \\  /   / /_| |_| |\n");
+  printf("     |______|_|   |____/       \\/   |____|\\___/ \n\n");
   printf("********************************************************\n");
   printf("**   Ensemble Framework For Flash Flood Forecasting   **\n");
-  printf("**                   Version %s                    **\n",
+  printf("**                     Version %s                    **\n",
          EF5_VERSION);
   printf("********************************************************\n");
   printf("\033[0m");
