@@ -10,24 +10,67 @@
 #define ANSI_COLOR_RESET "\x1b[0m"
 
 #ifndef _WIN32
+
+#include "EnsembleLog.h"
+
+// ── Ensemble-aware logging ──────────────────────────────────────────────────
+// In ensemble mode, INFO/WARNING/NORMAL go to per-task log files instead of
+// stdout. ERROR always goes to stdout (it indicates a real failure).
+// ─────────────────────────────────────────────────────────────────────────────
+
 #define LOGFR(...) printf(__VA_ARGS__)
-#define NORMAL_LOGF(x, ...) printf(x, __VA_ARGS__)
+
+#define NORMAL_LOGF(x, ...)                                                    \
+  do {                                                                         \
+    if (g_ensembleMode) {                                                      \
+      EnsembleLogger::Instance().LogToFile(g_ensembleTaskIndex, x "\n",        \
+                                           __VA_ARGS__);                       \
+    } else {                                                                   \
+      printf(x, __VA_ARGS__);                                                  \
+    }                                                                          \
+  } while (0)
+
 #define DEBUG_LOGF(x, ...)                                                     \
-  LOGFR(ANSI_COLOR_YELLOW "DEBUG:" __FILE__ "(%i): " ANSI_COLOR_RESET x "\n",  \
-        __LINE__, __VA_ARGS__)
+  do {                                                                         \
+    if (g_ensembleMode) {                                                      \
+      EnsembleLogger::Instance().LogToFile(g_ensembleTaskIndex,                \
+          "DEBUG:" __FILE__ "(%i): " x "\n", __LINE__, __VA_ARGS__);           \
+    } else {                                                                   \
+      LOGFR(ANSI_COLOR_YELLOW "DEBUG:" __FILE__ "(%i): " ANSI_COLOR_RESET x   \
+            "\n", __LINE__, __VA_ARGS__);                                      \
+    }                                                                          \
+  } while (0)
+
 #define INFO_LOGF(x, ...)                                                      \
-  LOGFR(ANSI_COLOR_GREEN "INFO:" __FILE__ "(%i): " ANSI_COLOR_RESET x "\n",    \
-        __LINE__, __VA_ARGS__)
+  do {                                                                         \
+    if (g_ensembleMode) {                                                      \
+      EnsembleLogger::Instance().LogToFile(g_ensembleTaskIndex,                \
+          "INFO:" __FILE__ "(%i): " x "\n", __LINE__, __VA_ARGS__);            \
+    } else {                                                                   \
+      LOGFR(ANSI_COLOR_GREEN "INFO:" __FILE__ "(%i): " ANSI_COLOR_RESET x     \
+            "\n", __LINE__, __VA_ARGS__);                                      \
+    }                                                                          \
+  } while (0)
+
 #define WARNING_LOGF(x, ...)                                                   \
-  LOGFR(ANSI_COLOR_YELLOW "WARNING:" __FILE__ "(%i): " ANSI_COLOR_RESET x      \
-                          "\n",                                                \
-        __LINE__, __VA_ARGS__)
+  do {                                                                         \
+    if (g_ensembleMode) {                                                      \
+      EnsembleLogger::Instance().LogToFile(g_ensembleTaskIndex,                \
+          "WARNING:" __FILE__ "(%i): " x "\n", __LINE__, __VA_ARGS__);         \
+    } else {                                                                   \
+      LOGFR(ANSI_COLOR_YELLOW "WARNING:" __FILE__ "(%i): " ANSI_COLOR_RESET x \
+            "\n", __LINE__, __VA_ARGS__);                                      \
+    }                                                                          \
+  } while (0)
+
+// Errors ALWAYS go to stdout — they indicate fatal issues
 #define ERROR_LOG(x)                                                           \
-  LOGFR(ANSI_COLOR_RED "ERROR:" __FILE__ "(%i): " ANSI_COLOR_RESET x "\n",     \
+  LOGFR(ANSI_COLOR_RED "ERROR:" __FILE__ "(%i): " ANSI_COLOR_RESET x "\n",    \
         __LINE__)
 #define ERROR_LOGF(x, ...)                                                     \
-  LOGFR(ANSI_COLOR_RED "ERROR:" __FILE__ "(%i): " ANSI_COLOR_RESET x "\n",     \
+  LOGFR(ANSI_COLOR_RED "ERROR:" __FILE__ "(%i): " ANSI_COLOR_RESET x "\n",    \
         __LINE__, __VA_ARGS__)
+
 #else
 #include "EF5Windows.h"
 #define NORMAL_LOGF(x, ...) addConsoleText(NORMAL, x, __VA_ARGS__)

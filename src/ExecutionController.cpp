@@ -381,6 +381,9 @@ void ExecuteSimulationEns(EnsTaskConfigSection *ensTask) {
     }
     logger.SetTaskTotalSteps(i, totalSteps);
 
+    // Open per-task log file in the output directory
+    logger.OpenTaskLogFile(i, outDir);
+
     logger.Log(i, "%s" ENS_CHECK " Ready%s  (%d timesteps, output: %s)",
                ENS_FG_BGREEN, ENS_RESET, totalSteps, outDir);
   }

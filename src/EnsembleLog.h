@@ -94,13 +94,15 @@ struct EnsembleTaskInfo {
     double startTime;
     double endTime;
     int missingFiles;
+    FILE* logFile;
+    std::string logFilePath;
     char currentTimeStr[64];
     std::mutex timeMutex;
 
     EnsembleTaskInfo()
         : color(ENS_FG_WHITE), completedSteps(0), totalSteps(0),
           finished(false), failed(false), startTime(0), endTime(0),
-          missingFiles(0) {
+          missingFiles(0), logFile(nullptr) {
         currentTimeStr[0] = '\0';
     }
 
@@ -187,7 +189,64 @@ public:
         return nullptr;
     }
 
-    // Thread-safe log with task prefix
+    // ── Per-task log file management ────────────────────────────────────────
+    void OpenTaskLogFile(int taskIdx, const char* outputDir) {
+        if (taskIdx < 0 || taskIdx >= (int)tasks_.size()) return;
+
+        char logPath[1024];
+        snprintf(logPath, sizeof(logPath), "%s/ensemble_task_%s.log",
+                 outputDir, tasks_[taskIdx]->name.c_str());
+        tasks_[taskIdx]->logFilePath = logPath;
+
+        FILE* f = fopen(logPath, "w");
+        if (f) {
+            tasks_[taskIdx]->logFile = f;
+            // Write log header
+            time_t now = time(NULL);
+            char timeBuf[64];
+            strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S",
+                     localtime(&now));
+            fprintf(f, "═══════════════════════════════════════════════════\n");
+            fprintf(f, " EF5 Ensemble Task Log: %s\n",
+                    tasks_[taskIdx]->name.c_str());
+            fprintf(f, " Started: %s\n", timeBuf);
+            fprintf(f, "═══════════════════════════════════════════════════\n\n");
+            fflush(f);
+        }
+    }
+
+    void CloseTaskLogFiles() {
+        for (auto* t : tasks_) {
+            if (t->logFile) {
+                // Write footer
+                fprintf(t->logFile, "\n───────────────────────────────────────\n");
+                fprintf(t->logFile, " Task finished. Steps: %d, Missing: %d\n",
+                        t->completedSteps.load(), t->missingFiles);
+                fprintf(t->logFile, "───────────────────────────────────────\n");
+                fclose(t->logFile);
+                t->logFile = nullptr;
+            }
+        }
+    }
+
+    // Thread-safe log to per-task file (used by macros in ensemble mode)
+    void LogToFile(int taskIdx, const char* fmt, ...) {
+        if (taskIdx < 0 || taskIdx >= (int)tasks_.size()) return;
+        FILE* f = tasks_[taskIdx]->logFile;
+        if (!f) return;
+
+        char msgBuf[2048];
+        va_list args;
+        va_start(args, fmt);
+        vsnprintf(msgBuf, sizeof(msgBuf), fmt, args);
+        va_end(args);
+
+        std::lock_guard<std::mutex> lock(logMutex_);
+        fprintf(f, "%s", msgBuf);
+        fflush(f);
+    }
+
+    // Thread-safe log with task prefix (console output)
     void Log(int taskIdx, const char* fmt, ...) {
         char msgBuf[1024];
         va_list args;
@@ -214,7 +273,6 @@ public:
         tasks_[taskIdx]->SetCurrentTime(timeStr);
         tasks_[taskIdx]->completedSteps.fetch_add(1);
 
-        // In TTY mode, we don't spam per-timestep logs — the progress bar handles it
         // In non-TTY mode (file redirect), log every Nth step
         if (!isTTY_) {
             int step = tasks_[taskIdx]->completedSteps.load();
@@ -263,7 +321,8 @@ public:
         fflush(stdout);
     }
 
-    // Draw the progress bar (call periodically from main/progress thread)
+    // ── Progress Bar ────────────────────────────────────────────────────────
+    // Redraws in-place using cursor-up. Clean layout with fixed-width columns.
     void DrawProgress() {
         if (!isTTY_ || !active_) return;
 
@@ -273,16 +332,19 @@ public:
         printf(ENS_HIDE_CURSOR);
 
         int numTasks = (int)tasks_.size();
-        int barWidth = 30;
+        int barWidth = 25;
         double elapsed = GetWallTime() - startWallTime_;
 
-        // Move cursor up to overwrite previous progress (numTasks + 3 header/footer lines)
+        // Total lines = 1 (top border) + numTasks + 1 (overall) + 1 (bottom)
+        int totalLines = numTasks + 3;
+
+        // Move cursor up to overwrite previous progress
         if (progressDrawn_) {
-            printf("\x1b[%dA", numTasks + 4);
+            printf("\x1b[%dA", totalLines);
         }
 
         // Top border
-        printf("%s%s" ENS_BOX_TL, ENS_FG_CYAN, ENS_DIM);
+        printf(ENS_CLEAR_LINE "%s%s" ENS_BOX_TL, ENS_FG_CYAN, ENS_DIM);
         for (int i = 0; i < 72; i++) printf(ENS_BOX_H);
         printf(ENS_BOX_TR "%s\n", ENS_RESET);
 
@@ -295,31 +357,33 @@ public:
 
             std::string timeStr = t->GetCurrentTime();
 
-            printf("%s" ENS_BOX_V "%s ", ENS_FG_CYAN, ENS_RESET);
+            printf(ENS_CLEAR_LINE "%s" ENS_BOX_V "%s ", ENS_FG_CYAN, ENS_RESET);
 
-            // Status icon
+            // Status icon (2 chars visual width)
             if (t->finished.load()) {
                 if (t->failed.load()) {
-                    printf("%s%s " ENS_CROSS "%s", ENS_BOLD, ENS_FG_RED, ENS_RESET);
+                    printf("%s%s" ENS_CROSS " %s", ENS_BOLD, ENS_FG_RED, ENS_RESET);
                 } else {
-                    printf("%s%s " ENS_CHECK "%s", ENS_BOLD, ENS_FG_BGREEN, ENS_RESET);
+                    printf("%s%s" ENS_CHECK " %s", ENS_BOLD, ENS_FG_BGREEN, ENS_RESET);
                 }
             } else {
-                printf("%s%s %c%s", ENS_BOLD, t->color,
+                printf("%s%s%c %s", ENS_BOLD, t->color,
                        GetSpinnerChar(), ENS_RESET);
             }
 
-            // Task name (color-coded)
-            printf(" %s%-18s%s ", t->color, t->name.c_str(), ENS_RESET);
+            // Task name (16 chars fixed width)
+            char nameBuf[17];
+            snprintf(nameBuf, sizeof(nameBuf), "%-16s", t->name.c_str());
+            printf("%s%s%s ", t->color, nameBuf, ENS_RESET);
 
-            // Progress bar
+            // Progress bar (25 chars)
             printf("%s", t->color);
             for (int j = 0; j < filled; j++) printf(ENS_BAR_FILLED);
             printf("%s", ENS_DIM);
             for (int j = filled; j < barWidth; j++) printf(ENS_BAR_PARTIAL);
             printf("%s", ENS_RESET);
 
-            // Percentage and current time
+            // Percentage (5 chars) + status/time (up to 20 chars)
             if (t->finished.load()) {
                 double taskTime = t->endTime - t->startTime;
                 printf(" %s%3.0f%%%s %s(%.1fs)%s",
@@ -331,29 +395,30 @@ public:
                        ENS_DIM, timeStr.c_str(), ENS_RESET);
             }
 
-            // Pad to box width and close
-            printf("  %s" ENS_BOX_V "%s\n", ENS_FG_CYAN, ENS_RESET);
+            // Close box right edge
+            printf("%s" ENS_BOX_V "%s\n", ENS_FG_CYAN, ENS_RESET);
         }
 
         // Overall progress line
         float overallPct = GetOverallProgress();
-        int overallFilled = (int)(overallPct / 100.0f * 40);
-        if (overallFilled > 40) overallFilled = 40;
+        int overallBar = 35;
+        int overallFilled = (int)(overallPct / 100.0f * overallBar);
+        if (overallFilled > overallBar) overallFilled = overallBar;
 
-        printf("%s" ENS_BOX_V "%s ", ENS_FG_CYAN, ENS_RESET);
-        printf(" %s%sOverall:%s ", ENS_BOLD, ENS_FG_WHITE, ENS_RESET);
+        printf(ENS_CLEAR_LINE "%s" ENS_BOX_V "%s", ENS_FG_CYAN, ENS_RESET);
+        printf(" %s%sOverall%s  ", ENS_BOLD, ENS_FG_WHITE, ENS_RESET);
         printf("%s" ENS_FG_BWHITE, ENS_BOLD);
         for (int j = 0; j < overallFilled; j++) printf(ENS_BAR_FILLED);
         printf("%s", ENS_DIM);
-        for (int j = overallFilled; j < 40; j++) printf(ENS_BAR_PARTIAL);
+        for (int j = overallFilled; j < overallBar; j++) printf(ENS_BAR_PARTIAL);
         printf("%s", ENS_RESET);
-        printf(" %s%3.0f%%%s  %s%s%s%s       %s" ENS_BOX_V "%s\n",
+        printf(" %s%3.0f%%%s  %s%s %s%s",
                ENS_FG_BWHITE, overallPct, ENS_RESET,
-               ENS_DIM, ENS_CLOCK, " ", FormatTime(elapsed).c_str(), 
-               ENS_FG_CYAN, ENS_RESET);
+               ENS_DIM, ENS_CLOCK, FormatTime(elapsed).c_str(), ENS_RESET);
+        printf("  %s" ENS_BOX_V "%s\n", ENS_FG_CYAN, ENS_RESET);
 
         // Bottom border
-        printf("%s%s" ENS_BOX_BL, ENS_FG_CYAN, ENS_DIM);
+        printf(ENS_CLEAR_LINE "%s%s" ENS_BOX_BL, ENS_FG_CYAN, ENS_DIM);
         for (int i = 0; i < 72; i++) printf(ENS_BOX_H);
         printf(ENS_BOX_BR "%s\n", ENS_RESET);
 
@@ -364,7 +429,7 @@ public:
         spinnerIdx_++;
     }
 
-    // Print final summary after all tasks complete
+    // ── Final Summary ───────────────────────────────────────────────────────
     void PrintSummary() {
         std::lock_guard<std::mutex> lock(logMutex_);
         double totalTime = GetWallTime() - startWallTime_;
@@ -375,29 +440,46 @@ public:
                ENS_BOLD, ENS_FG_BGREEN, ENS_RESET);
         PrintHRule('-', 74);
 
-        printf("  %s%-22s  %6s  %10s  %8s  %s%s\n",
-               ENS_UNDERLINE, "Task", "Steps", "Time", "Missing", "Status", ENS_RESET);
+        // Header row — fixed column widths, no ANSI in width calculations
+        printf("  %-24s %7s %9s %9s   %s\n",
+               "Task", "Steps", "Time", "Missing", "Status");
+        PrintHRule('-', 74);
 
         for (int i = 0; i < (int)tasks_.size(); i++) {
             EnsembleTaskInfo* t = tasks_[i];
             double taskTime = t->endTime - t->startTime;
-            const char* status = t->failed.load()
-                ? (ENS_FG_RED ENS_BOLD ENS_CROSS " FAILED" ENS_RESET)
-                : (ENS_FG_BGREEN ENS_BOLD ENS_CHECK " OK" ENS_RESET);
 
-            // Show missing file count (yellow if > 0)
-            char missingBuf[32];
-            if (t->missingFiles > 0) {
-                snprintf(missingBuf, sizeof(missingBuf),
-                         "%s%d%s", ENS_FG_YELLOW, t->missingFiles, ENS_RESET);
+            // Build task name with color (pad manually)
+            // Build status string
+            const char* statusIcon;
+            const char* statusColor;
+            const char* statusText;
+            if (t->failed.load()) {
+                statusIcon = ENS_CROSS;
+                statusColor = ENS_FG_RED;
+                statusText = "FAILED";
             } else {
-                snprintf(missingBuf, sizeof(missingBuf),
-                         "%s0%s", ENS_FG_BGREEN, ENS_RESET);
+                statusIcon = ENS_CHECK;
+                statusColor = ENS_FG_BGREEN;
+                statusText = "OK";
             }
 
-            printf("  %s%-22s%s  %6d  %8.1fs  %s  %s\n",
+            // Build missing string with conditional color
+            const char* missingColor = (t->missingFiles > 0)
+                ? ENS_FG_YELLOW : ENS_FG_BGREEN;
+
+            printf("  %s%-24s%s %7d %7.1fs   %s%7d%s   %s%s%s %s%s\n",
                    t->color, t->name.c_str(), ENS_RESET,
-                   t->completedSteps.load(), taskTime, missingBuf, status);
+                   t->completedSteps.load(),
+                   taskTime,
+                   missingColor, t->missingFiles, ENS_RESET,
+                   statusColor, ENS_BOLD, statusIcon, statusText, ENS_RESET);
+
+            // Show log file path
+            if (!t->logFilePath.empty()) {
+                printf("  %s  └─ Log: %s%s\n",
+                       ENS_DIM, t->logFilePath.c_str(), ENS_RESET);
+            }
         }
 
         PrintHRule('-', 74);
@@ -409,6 +491,7 @@ public:
     }
 
     void Shutdown() {
+        CloseTaskLogFiles();
         active_ = false;
         for (auto* t : tasks_) {
             delete t;
