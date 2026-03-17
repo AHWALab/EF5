@@ -182,6 +182,7 @@ NAME=Q2_YYYYMMDDHHUU.bif
 <em>ASC</em>: An ESRI ASCII grid.
 <em>BIF</em>: A binary file version of an ESRI ASCII grid.
 <em>TIF</em>: A float32 geotiff grid.
+<em>GRIB2</em>: A GRIB2 precipitation grid. Both plain <em>.grib2</em> and gzip compressed <em>.grib2.gz</em> files are supported.
 <em>TRMMRT</em>: TRMM Multisatellite Precipitation Analysis realtime binary grid. Can be gzip compressed.
 <em>TRMMV7</em>: TRMM Multisatellite Precipitation Analysis 3B42V7 HDF5 grid.
 <em>MRMS</em>: Multi-Radar Multi-Sensor binary grid.
@@ -190,6 +191,15 @@ NAME=Q2_YYYYMMDDHHUU.bif
 <span class="namec">FREQ:</span> Specifies the frequency at which precipitation files should be ingested by the model. Supported time units are year (y), month (m), day (d), hour (h), minute (u) and second (s).<br />
 <span class="namec">LOC:</span> Specifies the directory location of the precipitation forcing files.<br />
 <span class="namec">NAME:</span> Specifies the naming convention of the precipitation forcing files. These files can (and should) contain valid time dates. The name can be of any format. YYYY will be replaced with the year, MM replaced with the month, DD replaced with the day, HH replaced with the hour, UU replaced with the minute and SS replaced with the second.<br /><br />	
+          <p>Example MRMS PrecipRate GRIB2 forcing block:</p>
+<pre>
+[PrecipForcing MRMSPrecipRate]
+TYPE=GRIB2
+UNIT=mm/h
+FREQ=2u
+LOC=/home/apreucil/Kewaunee/preciprate
+NAME=PrecipRate_00.00_YYYYMMDD-HHUU00.grib2.gz
+</pre>
 				<li><a name="pet">Potential Evapotranspiration (PET) Information</a></li>
                                         <p>The potential evapotranspiration forcing section specifies the information necessary to adequately describe the PET product that the model will ingest.<br /></p>
 <pre>

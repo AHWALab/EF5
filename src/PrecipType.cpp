@@ -2,7 +2,7 @@
 #include <cstring>
 
 const char *precipTypeStrings[] = {
-    "asc", "mrms", "trmmrt", "trmmv7", "bif", "tif",
+  "asc", "mrms", "trmmrt", "trmmv7", "bif", "tif", "grib2",
 };
 
 SUPPORTED_PRECIP_TYPES PrecipType::GetType() { return type; }
@@ -23,5 +23,5 @@ SUPPORTED_PRECIP_TYPES PrecipType::ParseType(char *typeStr) {
 }
 
 const char *PrecipType::GetTypes() {
-  return "ASC, MRMS, TRMMRT, TRMMV7, BIF, TIF";
+  return "ASC, MRMS, TRMMRT, TRMMV7, BIF, TIF, GRIB2";
 }

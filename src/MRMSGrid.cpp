@@ -1,10 +1,147 @@
 #include "MRMSGrid.h"
 #include "Messages.h"
 #include <cstdio>
+#include <cctype>
+#include <cstring>
+#include <gdal/gdal_priv.h>
 #include <math.h>
+#include <string>
 #include <zlib.h>
 
+static bool EndsWithNoCase(const char *text, const char *suffix) {
+  size_t textLen = strlen(text);
+  size_t suffixLen = strlen(suffix);
+  if (textLen < suffixLen) {
+    return false;
+  }
+
+  const char *start = text + textLen - suffixLen;
+  for (size_t i = 0; i < suffixLen; i++) {
+    if (tolower((unsigned char)start[i]) != tolower((unsigned char)suffix[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool IsGribFile(const char *file) {
+  return EndsWithNoCase(file, ".grib2") || EndsWithNoCase(file, ".grb2") ||
+         EndsWithNoCase(file, ".grib") || EndsWithNoCase(file, ".grib2.gz") ||
+         EndsWithNoCase(file, ".grb2.gz") || EndsWithNoCase(file, ".grib.gz");
+}
+
+static FloatGrid *ReadFloatGRIB2Grid(const char *file, FloatGrid *grid) {
+  static bool gdalInitialized = false;
+  if (!gdalInitialized) {
+    GDALAllRegister();
+    gdalInitialized = true;
+  }
+
+  std::string gdalPath(file);
+  if (EndsWithNoCase(file, ".gz") && gdalPath.rfind("/vsigzip/", 0) != 0) {
+    gdalPath = std::string("/vsigzip/") + file;
+  }
+
+  GDALDataset *dataset =
+      (GDALDataset *)GDALOpen(gdalPath.c_str(), GA_ReadOnly);
+  if (!dataset) {
+    WARNING_LOGF("Failed to open GRIB2 file %s", file);
+    return NULL;
+  }
+
+  GDALRasterBand *band = dataset->GetRasterBand(1);
+  if (!band) {
+    WARNING_LOGF("GRIB2 file %s has no raster band 1", file);
+    GDALClose(dataset);
+    return NULL;
+  }
+
+  const int nx = band->GetXSize();
+  const int ny = band->GetYSize();
+  const int num = nx * ny;
+  float *backingStore = NULL;
+  if (grid) {
+    if (grid->numCols != nx || grid->numRows != ny || !grid->backingStore) {
+      WARNING_LOGF(
+          "GRIB2 file %s dimensions do not match existing in-memory grid", file);
+      GDALClose(dataset);
+      return NULL;
+    }
+    backingStore = grid->backingStore;
+  } else {
+    backingStore = new float[num];
+    if (!backingStore) {
+      WARNING_LOGF(
+          "GRIB2 file %s too large (out of memory) with %i points", file, num);
+      GDALClose(dataset);
+      return NULL;
+    }
+  }
+
+  CPLErr ioRes =
+      band->RasterIO(GF_Read, 0, 0, nx, ny, backingStore, nx, ny, GDT_Float32,
+                     0, 0);
+  if (ioRes != CE_None) {
+    WARNING_LOGF("Failed reading GRIB2 raster values from %s", file);
+    if (!grid) {
+      delete[] backingStore;
+    }
+    GDALClose(dataset);
+    return NULL;
+  }
+
+  if (!grid) {
+    grid = new FloatGrid();
+    grid->numCols = nx;
+    grid->numRows = ny;
+    grid->backingStore = backingStore;
+    grid->data = new float *[grid->numRows]();
+    if (!grid->data) {
+      WARNING_LOGF("GRIB2 file %s too large (out of memory) with %li rows", file,
+                   grid->numRows);
+      delete[] backingStore;
+      delete grid;
+      GDALClose(dataset);
+      return NULL;
+    }
+    for (int i = 0; i < ny; i++) {
+      grid->data[i] = &(backingStore[i * nx]);
+    }
+  }
+
+  int hasNoData = 0;
+  double noData = band->GetNoDataValue(&hasNoData);
+  grid->noData = hasNoData ? (float)noData : -999.0f;
+
+  double gt[6];
+  if (dataset->GetGeoTransform(gt) == CE_None) {
+    grid->cellSize = fabs(gt[1]);
+    double lonLeft = gt[0];
+    double lonRight = gt[0] + gt[1] * nx;
+    if (lonLeft > 180.0) lonLeft -= 360.0;
+    if (lonRight > 180.0) lonRight -= 360.0;
+    grid->extent.left = (float)lonLeft;
+    grid->extent.top = (float)gt[3];
+    grid->extent.right = (float)lonRight;
+    grid->extent.bottom = (float)(gt[3] + gt[5] * ny);
+  } else {
+    WARNING_LOGF("GRIB2 file %s missing geotransform, using default extent", file);
+    grid->cellSize = 1.0;
+    grid->extent.left = 0.0;
+    grid->extent.top = (float)ny;
+    grid->extent.right = (float)nx;
+    grid->extent.bottom = 0.0;
+  }
+
+  GDALClose(dataset);
+  return grid;
+}
+
 FloatGrid *ReadFloatMRMSGrid(char *file, FloatGrid *grid) {
+
+  if (IsGribFile(file)) {
+    return ReadFloatGRIB2Grid(file, grid);
+  }
 
   gzFile fileH;
 

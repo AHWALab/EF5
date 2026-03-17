@@ -45,6 +45,9 @@ bool PrecipReader::Read(char *file, SUPPORTED_PRECIP_TYPES type,
   case PRECIP_MRMS:
     precipGrid = ReadFloatMRMSGrid(file);
     break;
+  case PRECIP_GRIB2:
+    precipGrid = ReadFloatMRMSGrid(file);
+    break;
   case PRECIP_TRMMRT:
     precipGrid = ReadFloatTRMMRTGrid(file, precipGrid);
     break;

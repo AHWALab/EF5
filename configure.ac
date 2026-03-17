@@ -33,10 +33,15 @@ AM_CONDITIONAL(WINDOWS, test x$WINDOWS = xyes)
 #         echo "gomp library is required for this EF5"
 #         exit -1])
 #fi;
-LIBS=-lz -ltiff -lgeotiff
+LIBS="-lz -ltiff -lgeotiff -lgdal"
 AC_CHECK_HEADERS(xtiffio.h)
 AC_CHECK_HEADERS(geotiff/xtiffio.h)
 AC_CHECK_HEADERS(libgeotiff/xtiffio.h)
+AC_CHECK_HEADERS(gdal/gdal_priv.h)
+AC_CHECK_HEADERS(gdal/cpl_conv.h)
+AC_CHECK_LIB([gdal], [GDALOpen], [],[
+         echo "GDAL library is required for GRIB2 support in EF5"
+         exit -1])
 if test x"$ac_cv_header_geotiff_xtiffio_h" = x"yes"; then
         CPPFLAGS="-I/usr/include/geotiff $CPPFLAGS";
 else
