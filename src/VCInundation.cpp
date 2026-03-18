@@ -9,7 +9,7 @@
 static bool TestUpstream(long nextX, long nextY, FLOW_DIR dir, GridLoc* loc);
 static bool SortByHeight(GridNode* d1, GridNode* d2);
 
-VCInundation::VCInundation() {}
+VCInundation::VCInundation() { nodes = NULL; }
 
 VCInundation::~VCInundation() {}
 

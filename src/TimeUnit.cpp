@@ -28,7 +28,7 @@ SUPPORTED_TIME_UNITS TimeUnit::GetTimeUnit() {
 SUPPORTED_TIME_UNITS TimeUnit::ParseUnit(char* unitText) {
   size_t len = strlen(unitText);
   SUPPORTED_TIME_UNITS result = TIME_UNIT_QTY;
-  char modifier[CONFIG_MAX_LEN];
+  char modifier[CONFIG_MAX_LEN] = {0};
   char* unitStr = unitText;
   int intModifier = 0;
   unsigned long time = 0;

@@ -35,7 +35,7 @@ void InitVar(struct DREAM_Parameters* pstPar, struct DREAM_Variables** pstRUN,
   *pstRUN = (struct DREAM_Variables*)malloc(sizeof(struct DREAM_Variables));
   // Derive the number of elements in the output file
   (*pstRUN)->Nelem = floorf(pstPar->ndraw / pstPar->seq) + 1;
-  INFO_LOGF("Nelem is %i (%f), ndraw is %li", (*pstRUN)->Nelem,
+  INFO_LOGF("Nelem is %i (%f), ndraw is %lu", (*pstRUN)->Nelem,
             floorf(1.25 * (float)((*pstRUN)->Nelem)), pstPar->ndraw);
   // Allocate the array that contains the history of the log_density of each
   // chain
@@ -757,7 +757,7 @@ void RemOutLierChains(float** X, struct DREAM_Variables* RUNvar, struct DREAM_Pa
   }
 
   if (Nid > 0) {
-    INFO_LOGF("Killing outlier chain!! %i", RUNvar->Iter);
+    INFO_LOGF("Killing outlier chain!! %u", RUNvar->Iter);
     // Loop over each outlier chain
     for (qq = 0; qq < Nid; qq++) {
       // Draw random other chain -- cannot be the same as current chain
