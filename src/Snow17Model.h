@@ -22,9 +22,9 @@ class Snow17Model : public SnowModel {
  public:
   Snow17Model();
   ~Snow17Model();
-  bool InitializeModel(std::vector<GridNode>*                 newNodes,
+  bool InitializeModel(std::vector<GridNode>* newNodes,
                        std::map<GaugeConfigSection*, float*>* paramSettings,
-                       std::vector<FloatGrid*>*               paramGrids);
+                       std::vector<FloatGrid*>* paramGrids);
   void InitializeStates(TimeVar* beginTime, char* statePath);
   void SaveStates(TimeVar* currentTime, char* statePath, GridWriterFull* gridWriter);
   bool SnowBalance(float jday, float stepHours, std::vector<float>* precip,
@@ -35,11 +35,11 @@ class Snow17Model : public SnowModel {
 
  private:
   void InitializeParameters(std::map<GaugeConfigSection*, float*>* paramSettings,
-                            std::vector<FloatGrid*>*               paramGrids);
+                            std::vector<FloatGrid*>* paramGrids);
   void SnowBalanceInt(GridNode* node, Snow17GridNode* cNode, float stepHours, float jday,
                       float precipIn, float tempIn, float* melt, float* swe);
 
-  std::vector<GridNode>*      nodes;
+  std::vector<GridNode>* nodes;
   std::vector<Snow17GridNode> snowNodes;
 };
 

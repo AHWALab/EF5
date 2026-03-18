@@ -76,19 +76,19 @@ static const int ENS_NUM_COLORS = sizeof(ENS_TASK_COLORS) / sizeof(ENS_TASK_COLO
 // EnsembleTaskInfo — Tracks progress for one ensemble member
 // ─────────────────────────────────────────────────────────────────────────────
 struct EnsembleTaskInfo {
-  std::string       name;
-  const char*       color;
-  std::atomic<int>  completedSteps;
-  int               totalSteps;
+  std::string name;
+  const char* color;
+  std::atomic<int> completedSteps;
+  int totalSteps;
   std::atomic<bool> finished;
   std::atomic<bool> failed;
-  double            startTime;
-  double            endTime;
-  int               missingFiles;
-  FILE*             logFile;
-  std::string       logFilePath;
-  char              currentTimeStr[64];
-  std::mutex        timeMutex;
+  double startTime;
+  double endTime;
+  int missingFiles;
+  FILE* logFile;
+  std::string logFilePath;
+  char currentTimeStr[64];
+  std::mutex timeMutex;
 
   EnsembleTaskInfo()
       : color(ENS_FG_WHITE),
@@ -104,7 +104,7 @@ struct EnsembleTaskInfo {
   }
 
   // Cannot copy atomics, so delete copy and provide move
-  EnsembleTaskInfo(const EnsembleTaskInfo&)            = delete;
+  EnsembleTaskInfo(const EnsembleTaskInfo&) = delete;
   EnsembleTaskInfo& operator=(const EnsembleTaskInfo&) = delete;
 
   void SetCurrentTime(const char* timeStr) {
@@ -137,13 +137,13 @@ class EnsembleLogger {
   void Initialize(int numTasks) {
     tasks_.resize(numTasks);
     for (int i = 0; i < numTasks; i++) {
-      tasks_[i]        = new EnsembleTaskInfo();
+      tasks_[i] = new EnsembleTaskInfo();
       tasks_[i]->color = ENS_TASK_COLORS[i % ENS_NUM_COLORS];
     }
-    active_        = true;
-    isTTY_         = isatty(STDOUT_FILENO) != 0;
+    active_ = true;
+    isTTY_ = isatty(STDOUT_FILENO) != 0;
     startWallTime_ = GetWallTime();
-    spinnerIdx_    = 0;
+    spinnerIdx_ = 0;
   }
 
   void SetTaskName(int taskIdx, const char* name) {
@@ -199,7 +199,7 @@ class EnsembleLogger {
       tasks_[taskIdx]->logFile = f;
       // Write log header
       time_t now = time(NULL);
-      char   timeBuf[64];
+      char timeBuf[64];
       strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", localtime(&now));
       fprintf(f, "═══════════════════════════════════════════════════\n");
       fprintf(f, " EF5 Ensemble Task Log: %s\n", tasks_[taskIdx]->name.c_str());
@@ -229,7 +229,7 @@ class EnsembleLogger {
     FILE* f = tasks_[taskIdx]->logFile;
     if (!f) return;
 
-    char    msgBuf[2048];
+    char msgBuf[2048];
     va_list args;
     va_start(args, fmt);
     vsnprintf(msgBuf, sizeof(msgBuf), fmt, args);
@@ -242,7 +242,7 @@ class EnsembleLogger {
 
   // Thread-safe log with task prefix (console output)
   void Log(int taskIdx, const char* fmt, ...) {
-    char    msgBuf[1024];
+    char msgBuf[1024];
     va_list args;
     va_start(args, fmt);
     vsnprintf(msgBuf, sizeof(msgBuf), fmt, args);
@@ -267,7 +267,7 @@ class EnsembleLogger {
 
     // In non-TTY mode (file redirect), log every Nth step
     if (!isTTY_) {
-      int step  = tasks_[taskIdx]->completedSteps.load();
+      int step = tasks_[taskIdx]->completedSteps.load();
       int total = tasks_[taskIdx]->totalSteps;
       // Log every 10% milestone
       if (total > 0 && step % std::max(1, total / 10) == 0) {
@@ -317,9 +317,9 @@ class EnsembleLogger {
     // Hide cursor during redraw for flicker-free display
     printf(ENS_HIDE_CURSOR);
 
-    int    numTasks = (int)tasks_.size();
-    int    barWidth = 25;
-    double elapsed  = GetWallTime() - startWallTime_;
+    int numTasks = (int)tasks_.size();
+    int barWidth = 25;
+    double elapsed = GetWallTime() - startWallTime_;
 
     // Total lines = 1 (top border) + numTasks + 1 (overall) + 1 (bottom)
     int totalLines = numTasks + 3;
@@ -336,9 +336,9 @@ class EnsembleLogger {
 
     // Per-task progress bars
     for (int i = 0; i < numTasks; i++) {
-      EnsembleTaskInfo* t      = tasks_[i];
-      float             pct    = t->GetProgress();
-      int               filled = (int)(pct / 100.0f * barWidth);
+      EnsembleTaskInfo* t = tasks_[i];
+      float pct = t->GetProgress();
+      int filled = (int)(pct / 100.0f * barWidth);
       if (filled > barWidth) filled = barWidth;
 
       std::string timeStr = t->GetCurrentTime();
@@ -383,9 +383,9 @@ class EnsembleLogger {
     }
 
     // Overall progress line
-    float overallPct    = GetOverallProgress();
-    int   overallBar    = 35;
-    int   overallFilled = (int)(overallPct / 100.0f * overallBar);
+    float overallPct = GetOverallProgress();
+    int overallBar = 35;
+    int overallFilled = (int)(overallPct / 100.0f * overallBar);
     if (overallFilled > overallBar) overallFilled = overallBar;
 
     printf(ENS_CLEAR_LINE "%s" ENS_BOX_V "%s", ENS_FG_CYAN, ENS_RESET);
@@ -414,7 +414,7 @@ class EnsembleLogger {
   // ── Final Summary ───────────────────────────────────────────────────────
   void PrintSummary() {
     std::lock_guard<std::mutex> lock(logMutex_);
-    double                      totalTime = GetWallTime() - startWallTime_;
+    double totalTime = GetWallTime() - startWallTime_;
 
     printf("\n");
     PrintHRule('=', 74);
@@ -427,8 +427,8 @@ class EnsembleLogger {
     PrintHRule('-', 74);
 
     for (int i = 0; i < (int)tasks_.size(); i++) {
-      EnsembleTaskInfo* t        = tasks_[i];
-      double            taskTime = t->endTime - t->startTime;
+      EnsembleTaskInfo* t = tasks_[i];
+      double taskTime = t->endTime - t->startTime;
 
       // Build task name with color (pad manually)
       // Build status string
@@ -436,13 +436,13 @@ class EnsembleLogger {
       const char* statusColor;
       const char* statusText;
       if (t->failed.load()) {
-        statusIcon  = ENS_CROSS;
+        statusIcon = ENS_CROSS;
         statusColor = ENS_FG_RED;
-        statusText  = "FAILED";
+        statusText = "FAILED";
       } else {
-        statusIcon  = ENS_CHECK;
+        statusIcon = ENS_CHECK;
         statusColor = ENS_FG_BGREEN;
-        statusText  = "OK";
+        statusText = "OK";
       }
 
       // Build missing string with conditional color
@@ -505,7 +505,7 @@ class EnsembleLogger {
   ~EnsembleLogger() {
     Shutdown();
   }
-  EnsembleLogger(const EnsembleLogger&)            = delete;
+  EnsembleLogger(const EnsembleLogger&) = delete;
   EnsembleLogger& operator=(const EnsembleLogger&) = delete;
 
   void PrintHRule(char ch, int width) {
@@ -519,9 +519,9 @@ class EnsembleLogger {
   }
 
   static std::string FormatTime(double seconds) {
-    int  h = (int)(seconds / 3600);
-    int  m = (int)(fmod(seconds, 3600) / 60);
-    int  s = (int)(fmod(seconds, 60));
+    int h = (int)(seconds / 3600);
+    int m = (int)(fmod(seconds, 3600) / 60);
+    int s = (int)(fmod(seconds, 60));
     char buf[32];
     snprintf(buf, sizeof(buf), "%02d:%02d:%02d", h, m, s);
     return std::string(buf);
@@ -534,18 +534,18 @@ class EnsembleLogger {
   }
 
   std::vector<EnsembleTaskInfo*> tasks_;
-  std::mutex                     logMutex_;
-  bool                           active_;
-  bool                           isTTY_;
-  bool                           progressDrawn_;
-  double                         startWallTime_;
-  int                            spinnerIdx_;
+  std::mutex logMutex_;
+  bool active_;
+  bool isTTY_;
+  bool progressDrawn_;
+  double startWallTime_;
+  int spinnerIdx_;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Global ensemble mode flag (checked by Simulator to decide logging strategy)
 // ─────────────────────────────────────────────────────────────────────────────
-extern bool             g_ensembleMode;
+extern bool g_ensembleMode;
 extern thread_local int g_ensembleTaskIndex;
 
 #endif  // ENSEMBLE_LOG_H

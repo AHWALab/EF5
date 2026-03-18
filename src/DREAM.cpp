@@ -14,22 +14,22 @@
 extern bool g_interpolationUsed;
 extern bool g_mismatchedFrequencies;
 
-void DREAM::Initialize(CaliParamConfigSection*        caliParamConfigNew,
+void DREAM::Initialize(CaliParamConfigSection* caliParamConfigNew,
                        RoutingCaliParamConfigSection* routingCaliParamConfigNew,
                        SnowCaliParamConfigSection* snowCaliParamConfigNew, int numParamsWBNew,
                        int numParamsRNew, int numParamsSNew, Simulator* simNew) {
-  caliParamConfig        = caliParamConfigNew;
+  caliParamConfig = caliParamConfigNew;
   routingCaliParamConfig = routingCaliParamConfigNew;
-  snowCaliParamConfig    = snowCaliParamConfigNew;
-  numParamsWB            = numParamsWBNew;
-  numParamsR             = numParamsRNew;
-  numParamsS             = numParamsSNew;
-  numParams              = numParamsWBNew + numParamsRNew + numParamsSNew;
-  sim                    = simNew;
-  isEnsemble             = false;
+  snowCaliParamConfig = snowCaliParamConfigNew;
+  numParamsWB = numParamsWBNew;
+  numParamsR = numParamsRNew;
+  numParamsS = numParamsSNew;
+  numParams = numParamsWBNew + numParamsRNew + numParamsSNew;
+  sim = simNew;
+  isEnsemble = false;
 
   // Stuff from CaliParamConfigSection
-  goal            = objectiveGoals[caliParamConfig->GetObjFunc()];
+  goal = objectiveGoals[caliParamConfig->GetObjFunc()];
   objectiveString = objectiveStrings[caliParamConfig->GetObjFunc()];
 
   /*
@@ -70,18 +70,18 @@ void DREAM::Initialize(CaliParamConfigSection*        caliParamConfigNew,
   }
 
   // srand48(0);
-  pointerMCMC  = new DREAM_Parameters();
+  pointerMCMC = new DREAM_Parameters();
   pointerInput = new Model_Input();
 
   // DREAM Parameters
-  pointerMCMC->n     = numParams;                         // Dimension of the problem
-  pointerMCMC->seq   = pointerMCMC->n + 0;                // Number of Markov Chains / sequences
+  pointerMCMC->n = numParams;                             // Dimension of the problem
+  pointerMCMC->seq = pointerMCMC->n + 0;                  // Number of Markov Chains / sequences
   pointerMCMC->ndraw = caliParamConfig->DREAMGetNDraw();  // Maximum number of function evaluations
-  pointerMCMC->nCR   = 3;       // Crossover values used to generate proposals (geometric series)
-  pointerMCMC->Gamma = 0;       // Kurtosis parameter Bayesian Inference Scheme
-  pointerMCMC->DEpairs = 3;     // Number of DEpairs, only 1 or 2? 3 crashes
-  pointerMCMC->steps   = 10;    // Number of steps in sem
-  pointerMCMC->eps     = 2e-1;  // Random error for ergodicity
+  pointerMCMC->nCR = 3;      // Crossover values used to generate proposals (geometric series)
+  pointerMCMC->Gamma = 0;    // Kurtosis parameter Bayesian Inference Scheme
+  pointerMCMC->DEpairs = 3;  // Number of DEpairs, only 1 or 2? 3 crashes
+  pointerMCMC->steps = 10;   // Number of steps in sem
+  pointerMCMC->eps = 2e-1;   // Random error for ergodicity
   strcpy(pointerMCMC->outlierTest,
          "IQR_Test");  // What kind of test to detect outlier chains?
 
@@ -90,8 +90,8 @@ void DREAM::Initialize(CaliParamConfigSection*        caliParamConfigNew,
       (pointerMCMC->seq * pointerMCMC->steps);
   pointerMCMC->ndraw = newdraw;
 
-  pointerInput->MaxT        = (int)simNew->GetNumSteps();
-  pointerInput->nPar        = numParams;  // Number of Parameters = Dimension of the problem
+  pointerInput->MaxT = (int)simNew->GetNumSteps();
+  pointerInput->nPar = numParams;  // Number of Parameters = Dimension of the problem
   pointerInput->ParRangeMin = minParams;
   pointerInput->ParRangeMax = maxParams;
 }
@@ -100,10 +100,10 @@ void DREAM::Initialize(CaliParamConfigSection* caliParamConfigNew, int numParams
                        float* paramMins, float* paramMaxs, std::vector<Simulator>* ensSimsNew,
                        std::vector<int>* paramsPerSimNew) {
   caliParamConfig = caliParamConfigNew;
-  numParams       = numParamsNew;
-  ensSims         = ensSimsNew;
-  paramsPerSim    = paramsPerSimNew;
-  isEnsemble      = true;
+  numParams = numParamsNew;
+  ensSims = ensSimsNew;
+  paramsPerSim = paramsPerSimNew;
+  isEnsemble = true;
 
   // Stuff from CaliParamConfigSection
   goal = objectiveGoals[caliParamConfig->GetObjFunc()];
@@ -112,17 +112,17 @@ void DREAM::Initialize(CaliParamConfigSection* caliParamConfigNew, int numParams
 #else
   srand48(time(NULL));
 #endif
-  pointerMCMC  = new DREAM_Parameters();
+  pointerMCMC = new DREAM_Parameters();
   pointerInput = new Model_Input();
   // DREAM Parameters
-  pointerMCMC->n       = numParams;
-  pointerMCMC->seq     = pointerMCMC->n + 0;
-  pointerMCMC->ndraw   = caliParamConfig->DREAMGetNDraw();
-  pointerMCMC->nCR     = 3;
-  pointerMCMC->Gamma   = 0;
+  pointerMCMC->n = numParams;
+  pointerMCMC->seq = pointerMCMC->n + 0;
+  pointerMCMC->ndraw = caliParamConfig->DREAMGetNDraw();
+  pointerMCMC->nCR = 3;
+  pointerMCMC->Gamma = 0;
   pointerMCMC->DEpairs = 3;
-  pointerMCMC->steps   = 10;
-  pointerMCMC->eps     = 2e-1;
+  pointerMCMC->steps = 10;
+  pointerMCMC->eps = 2e-1;
   strcpy(pointerMCMC->outlierTest, "IQR_Test");
 
   float newdraw =
@@ -130,8 +130,8 @@ void DREAM::Initialize(CaliParamConfigSection* caliParamConfigNew, int numParams
       (pointerMCMC->seq * pointerMCMC->steps);
   pointerMCMC->ndraw = newdraw;
 
-  pointerInput->MaxT        = (int)ensSimsNew->at(0).GetNumSteps();
-  pointerInput->nPar        = numParams;
+  pointerInput->MaxT = (int)ensSimsNew->at(0).GetNumSteps();
+  pointerInput->nPar = numParams;
   pointerInput->ParRangeMin = paramMins;
   pointerInput->ParRangeMax = paramMaxs;
 }
@@ -139,13 +139,13 @@ void DREAM::Initialize(CaliParamConfigSection* caliParamConfigNew, int numParams
 void DREAM::CalibrateParams() {
   //------VARIABLES
   // BLOCK----------------------------------------------------------//
-  int     i, j, gen_number, ItExtra, start_loc, end_loc;
-  float * delta_tot, *R2 = NULL, c_std, **r, *std_array, *dnX_array, *delta_normX, *post_array;
+  int i, j, gen_number, ItExtra, start_loc, end_loc;
+  float *delta_tot, *R2 = NULL, c_std, **r, *std_array, *dnX_array, *delta_normX, *post_array;
   float **x, **X, **x_old, **x_new, **newgen, **t_newgen;
   float **p, *log_p, *p_old, *log_p_old, **p_xnew, *log_p_xnew, *alpha12, *accept, ***CRpt;
   post_Sequences = 1;
   struct DREAM_Output* pointerOutput;
-  bool                 converged = false;
+  bool converged = false;
 
   // steps = pointerMCMC->steps; //Steps will change, need to kepp original
   // value for memory deallocation
@@ -227,7 +227,7 @@ void DREAM::CalibrateParams() {
     for (j = 0; j < pointerMCMC->n; j++) {
       X[i][j] = x[i][j];
     }
-    X[i][pointerInput->nPar]     = p[i][0];
+    X[i][pointerInput->nPar] = p[i][0];
     X[i][pointerInput->nPar + 1] = log_p[i];
   }
 
@@ -326,7 +326,7 @@ void DREAM::CalibrateParams() {
     for (gen_number = 0; gen_number < pointerMCMC->steps; gen_number++) {
       // Initialize DR properties
       // accept2 = 0;
-      ItExtra                   = 0;
+      ItExtra = 0;
       pointerRUNvar->new_teller = pointerRUNvar->new_teller + 1;
 
       // Define the current locations and associated posterior densities
@@ -555,10 +555,10 @@ void DREAM::CalibrateParams() {
 }
 
 void DREAM::WriteOutput(char* outputFile, MODELS model, ROUTES route, SNOWS snow) {
-  FILE*   file = fopen(outputFile, "w");
-  int     i;
+  FILE* file = fopen(outputFile, "w");
+  int i;
   float** ParSet;
-  float*  bestParams = new float[pointerMCMC->n];
+  float* bestParams = new float[pointerMCMC->n];
 
   // Print warning if interpolation was used or if mismatched frequencies were found
   if (g_interpolationUsed) {
@@ -582,7 +582,7 @@ void DREAM::WriteOutput(char* outputFile, MODELS model, ROUTES route, SNOWS snow
 
   if (snow != SNOW_QTY) {
     int starti = numModelParams[model] + numRouteParams[route];
-    int endi   = numModelParams[model] + numRouteParams[route] + numSnowParams[snow];
+    int endi = numModelParams[model] + numRouteParams[route] + numSnowParams[snow];
     for (i = starti; i < endi; i++) {
       fprintf(file, ",%s\n", snowParamStrings[snow][i - starti]);
     }
@@ -609,7 +609,7 @@ void DREAM::WriteOutput(char* outputFile, MODELS model, ROUTES route, SNOWS snow
   if (snow != SNOW_QTY) {
     fprintf(file, "[Snow]\n");
     int starti = numModelParams[model] + numRouteParams[route];
-    int endi   = numModelParams[model] + numRouteParams[route] + numSnowParams[snow];
+    int endi = numModelParams[model] + numRouteParams[route] + numSnowParams[snow];
     for (i = starti; i < endi; i++) {
       fprintf(file, "%s=%f\n", snowParamStrings[snow][i - starti], bestParams[i]);
     }
@@ -622,8 +622,8 @@ void DREAM::CompDensity(float** p, float* log_p, float** x, struct DREAM_Paramet
                         struct Model_Input* Input, int option) {
   // This function computes the density of each x value
   float objScore;
-  int   count = MCMC->seq;
-  int   i     = 0;
+  int count = MCMC->seq;
+  int i = 0;
 
   // #pragma omp parallel for private(objScore, i)
   if (!isEnsemble) {
@@ -632,22 +632,22 @@ void DREAM::CompDensity(float** p, float* log_p, float** x, struct DREAM_Paramet
 #endif
     for (i = 0; i < count; i++) {
       float score = sim->SimulateForCali(&(x[i][0]));
-      objScore    = ((goal == OBJECTIVE_GOAL_MINIMIZE) ? -1.0 : 1.0f) * score;
+      objScore = ((goal == OBJECTIVE_GOAL_MINIMIZE) ? -1.0 : 1.0f) * score;
 #if _OPENMP
       printf("%i (%i) %f\n", i, omp_get_thread_num(), score);
 #endif
-      p[i][0]  = objScore;
-      p[i][1]  = i;
+      p[i][0] = objScore;
+      p[i][1] = i;
       log_p[i] = 0.5 * objScore;
     }
   } else {
     // Ensemble calculate RHRE
-    int    numEns  = (int)ensSims->size();
-    int    numObs  = (int)ensSims->at(0).GetNumSteps();
+    int numEns = (int)ensSims->size();
+    int numObs = (int)ensSims->at(0).GetNumSteps();
     float* obsVals = ensSims->at(0).GetObsTS();
     float* dischargeVals[numEns];
-    float  currentDischargeSet[numEns];
-    int    bin_tally[numEns + 1];
+    float currentDischargeSet[numEns];
+    int bin_tally[numEns + 1];
 
     for (i = 0; i < count; i++) {
       int paramIndex = 0;
@@ -672,7 +672,7 @@ void DREAM::CompDensity(float** p, float* log_p, float** x, struct DREAM_Paramet
           for (int z = numEns - 1; z >= 0; z--) {
             // printf("test %f, %f, %i\n", cVal, currentDischargeSet[z], z);
             if (cVal >= currentDischargeSet[z]) {
-              float tempVal          = currentDischargeSet[z];
+              float tempVal = currentDischargeSet[z];
               currentDischargeSet[z] = cVal;
               // printf("dSet%i: %f\n", k, cVal);
               cVal = tempVal;
@@ -688,7 +688,7 @@ void DREAM::CompDensity(float** p, float* log_p, float** x, struct DREAM_Paramet
         // currentDischargeSet[1], currentDischargeSet[2]);
 
         float obsVal = obsVals[j];
-        int   bin;
+        int bin;
         for (bin = numEns - 1; bin >= 0; bin--) {
           if (obsVal >= currentDischargeSet[bin]) {
             break;
@@ -709,8 +709,8 @@ void DREAM::CompDensity(float** p, float* log_p, float** x, struct DREAM_Paramet
       objScore = fabs((distMax - distExpected) / distExpected) * 100.0;
       // printf("%f %f %f %f\n", distExpected, distMax, objScore,
       // (float)(numObs));
-      p[i][0]  = -1 * objScore;
-      p[i][1]  = i;
+      p[i][0] = -1 * objScore;
+      p[i][1] = i;
       log_p[i] = -0.5 * objScore;
 
       for (int j = 0; j < numEns; j++) {

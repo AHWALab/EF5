@@ -8,9 +8,9 @@ SAC::SAC() {}
 
 SAC::~SAC() {}
 
-bool SAC::InitializeModel(std::vector<GridNode>*                 newNodes,
+bool SAC::InitializeModel(std::vector<GridNode>* newNodes,
                           std::map<GaugeConfigSection*, float*>* paramSettings,
-                          std::vector<FloatGrid*>*               paramGrids) {
+                          std::vector<FloatGrid*>* paramGrids) {
   nodes = newNodes;
   if (sacNodes.size() != nodes->size()) {
     sacNodes.resize(nodes->size());
@@ -19,7 +19,7 @@ bool SAC::InitializeModel(std::vector<GridNode>*                 newNodes,
   // Fill in modelNode in the gridNodes
   std::vector<SACGridNode>::iterator citr = sacNodes.begin();
   for (std::vector<GridNode>::iterator itr = nodes->begin(); itr != nodes->end(); itr++) {
-    GridNode*    node  = &(*itr);
+    GridNode* node = &(*itr);
     SACGridNode* cNode = &(*citr);
 
     node->modelNode = cNode;
@@ -45,7 +45,7 @@ void SAC::InitializeStates(TimeVar* beginTime, char* statePath) {
     if (g_DEM->IsSpatialMatch(smGrid)) {
       printf("Using Previous UZTWC Grid %s\n", buffer);
       for (size_t i = 0; i < nodes->size(); i++) {
-        GridNode*    node  = &nodes->at(i);
+        GridNode* node = &nodes->at(i);
         SACGridNode* cNode = &(sacNodes[i]);
         if (smGrid->data[node->y][node->x] != smGrid->noData) {
           cNode->UZTWC = smGrid->data[node->y][node->x];
@@ -65,7 +65,7 @@ void SAC::InitializeStates(TimeVar* beginTime, char* statePath) {
     if (g_DEM->IsSpatialMatch(smGrid)) {
       printf("Using Previous UZFWC Grid %s\n", buffer);
       for (size_t i = 0; i < nodes->size(); i++) {
-        GridNode*    node  = &nodes->at(i);
+        GridNode* node = &nodes->at(i);
         SACGridNode* cNode = &(sacNodes[i]);
         if (smGrid->data[node->y][node->x] != smGrid->noData) {
           cNode->UZFWC = smGrid->data[node->y][node->x];
@@ -85,7 +85,7 @@ void SAC::InitializeStates(TimeVar* beginTime, char* statePath) {
     if (g_DEM->IsSpatialMatch(smGrid)) {
       printf("Using Previous LZTWC Grid %s\n", buffer);
       for (size_t i = 0; i < nodes->size(); i++) {
-        GridNode*    node  = &nodes->at(i);
+        GridNode* node = &nodes->at(i);
         SACGridNode* cNode = &(sacNodes[i]);
         if (smGrid->data[node->y][node->x] != smGrid->noData) {
           cNode->LZTWC = smGrid->data[node->y][node->x];
@@ -105,7 +105,7 @@ void SAC::InitializeStates(TimeVar* beginTime, char* statePath) {
     if (g_DEM->IsSpatialMatch(smGrid)) {
       printf("Using Previous LZFSC Grid %s\n", buffer);
       for (size_t i = 0; i < nodes->size(); i++) {
-        GridNode*    node  = &nodes->at(i);
+        GridNode* node = &nodes->at(i);
         SACGridNode* cNode = &(sacNodes[i]);
         if (smGrid->data[node->y][node->x] != smGrid->noData) {
           cNode->LZFSC = smGrid->data[node->y][node->x];
@@ -125,7 +125,7 @@ void SAC::InitializeStates(TimeVar* beginTime, char* statePath) {
     if (g_DEM->IsSpatialMatch(smGrid)) {
       printf("Using Previous LZFPC Grid %s\n", buffer);
       for (size_t i = 0; i < nodes->size(); i++) {
-        GridNode*    node  = &nodes->at(i);
+        GridNode* node = &nodes->at(i);
         SACGridNode* cNode = &(sacNodes[i]);
         if (smGrid->data[node->y][node->x] != smGrid->noData) {
           cNode->LZFPC = smGrid->data[node->y][node->x];
@@ -145,7 +145,7 @@ void SAC::InitializeStates(TimeVar* beginTime, char* statePath) {
     if (g_DEM->IsSpatialMatch(smGrid)) {
       printf("Using Previous ADIMC Grid %s\n", buffer);
       for (size_t i = 0; i < nodes->size(); i++) {
-        GridNode*    node  = &nodes->at(i);
+        GridNode* node = &nodes->at(i);
         SACGridNode* cNode = &(sacNodes[i]);
         if (smGrid->data[node->y][node->x] != smGrid->noData) {
           cNode->ADIMC = smGrid->data[node->y][node->x];
@@ -175,42 +175,42 @@ void SAC::SaveStates(TimeVar* currentTime, char* statePath, GridWriterFull* grid
   sprintf(buffer, "%s/uztwc_%s.tif", statePath, timeStr.GetName());
   for (size_t i = 0; i < nodes->size(); i++) {
     SACGridNode* cNode = &(sacNodes[i]);
-    dataVals[i]        = cNode->UZTWC;
+    dataVals[i] = cNode->UZTWC;
   }
   gridWriter->WriteGrid(nodes, &dataVals, buffer, false);
 
   sprintf(buffer, "%s/uzfwc_%s.tif", statePath, timeStr.GetName());
   for (size_t i = 0; i < nodes->size(); i++) {
     SACGridNode* cNode = &(sacNodes[i]);
-    dataVals[i]        = cNode->UZFWC;
+    dataVals[i] = cNode->UZFWC;
   }
   gridWriter->WriteGrid(nodes, &dataVals, buffer, false);
 
   sprintf(buffer, "%s/lztwc_%s.tif", statePath, timeStr.GetName());
   for (size_t i = 0; i < nodes->size(); i++) {
     SACGridNode* cNode = &(sacNodes[i]);
-    dataVals[i]        = cNode->LZTWC;
+    dataVals[i] = cNode->LZTWC;
   }
   gridWriter->WriteGrid(nodes, &dataVals, buffer, false);
 
   sprintf(buffer, "%s/lzfsc_%s.tif", statePath, timeStr.GetName());
   for (size_t i = 0; i < nodes->size(); i++) {
     SACGridNode* cNode = &(sacNodes[i]);
-    dataVals[i]        = cNode->LZFSC;
+    dataVals[i] = cNode->LZFSC;
   }
   gridWriter->WriteGrid(nodes, &dataVals, buffer, false);
 
   sprintf(buffer, "%s/lzfpc_%s.tif", statePath, timeStr.GetName());
   for (size_t i = 0; i < nodes->size(); i++) {
     SACGridNode* cNode = &(sacNodes[i]);
-    dataVals[i]        = cNode->LZFPC;
+    dataVals[i] = cNode->LZFPC;
   }
   gridWriter->WriteGrid(nodes, &dataVals, buffer, false);
 
   sprintf(buffer, "%s/adimc_%s.tif", statePath, timeStr.GetName());
   for (size_t i = 0; i < nodes->size(); i++) {
     SACGridNode* cNode = &(sacNodes[i]);
-    dataVals[i]        = cNode->ADIMC;
+    dataVals[i] = cNode->ADIMC;
   }
   gridWriter->WriteGrid(nodes, &dataVals, buffer, false);
 }
@@ -218,7 +218,7 @@ bool SAC::WaterBalance(float stepHours, std::vector<float>* precip, std::vector<
                        std::vector<float>* fastFlow, std::vector<float>* slowFlow,
                        std::vector<float>* soilMoisture) {
   size_t numNodes = nodes->size();
-  size_t i        = 0;
+  size_t i = 0;
 
 #if _OPENMP
   // #pragma omp parallel for
@@ -256,7 +256,7 @@ mm float pet = 20.0f; //petIn * stepHours; // petIn in mm/hr, pet is mm float DT
   float precip =
       precipIn * stepHours;       // stepHours; //stepHours; // precipIn is mm/hr, precip is mm
   float pet = petIn * stepHours;  // * 0.06; // petIn in mm/hr, pet is mm
-  float DT  = stepHours / 24.0f;
+  float DT = stepHours / 24.0f;
 
   float PAREA = 1.0f - cNode->params[PARAM_SAC_PCTIM] - cNode->params[PARAM_SAC_ADIMP];
 
@@ -264,23 +264,23 @@ mm float pet = 20.0f; //petIn * stepHours; // petIn in mm/hr, pet is mm float DT
   /*       ET Calculations       */
   /*******************************/
 
-  float E1  = 0.0f;  // ET from upper zone
+  float E1 = 0.0f;   // ET from upper zone
   float RED = 0.0f;  // Residual ET demand
-  float E2  = 0.0f;  // ET from UZFWC
-  float E3  = 0.0f;  // ET from lower zone (LZTWC)
-  float E5  = 0.0f;  // ET from ADIMP area
+  float E2 = 0.0f;   // ET from UZFWC
+  float E3 = 0.0f;   // ET from lower zone (LZTWC)
+  float E5 = 0.0f;   // ET from ADIMP area
 
-  E1  = pet * (cNode->UZTWC / cNode->params[PARAM_SAC_UZTWM]);  // ET from upper zone
-  RED = pet - E1;                                               // Residual ET demand
+  E1 = pet * (cNode->UZTWC / cNode->params[PARAM_SAC_UZTWM]);  // ET from upper zone
+  RED = pet - E1;                                              // Residual ET demand
   cNode->UZTWC -= E1;
   if (cNode->UZTWC < 0.0f) {  // E1 can't exceed UZTWC
     E1 += cNode->UZTWC;
     cNode->UZTWC = 0.0f;
-    RED          = pet - E1;
+    RED = pet - E1;
     if (cNode->UZFWC < RED) {
-      E2           = cNode->UZFWC;
+      E2 = cNode->UZFWC;
       cNode->UZFWC = 0.0f;
-      RED          = RED - E2;
+      RED = RED - E2;
     } else {
       E2 = RED;
       cNode->UZFWC -= E2;
@@ -292,8 +292,8 @@ mm float pet = 20.0f; //petIn * stepHours; // petIn in mm/hr, pet is mm float DT
       (cNode->UZFWC / cNode->params[PARAM_SAC_UZFWM])) {
     // Upper zone free water ratio exceeds upper zone tension
     // water ratio, thus transfer free water to tension
-    float UZRAT  = (cNode->UZTWC + cNode->UZFWC) /
-                   (cNode->params[PARAM_SAC_UZTWM] + cNode->params[PARAM_SAC_UZFWM]);
+    float UZRAT = (cNode->UZTWC + cNode->UZFWC) /
+                  (cNode->params[PARAM_SAC_UZTWM] + cNode->params[PARAM_SAC_UZFWM]);
     cNode->UZTWC = cNode->params[PARAM_SAC_UZTWM] * UZRAT;
     cNode->UZFWC = cNode->params[PARAM_SAC_UZFWM] * UZRAT;
   }
@@ -316,9 +316,9 @@ mm float pet = 20.0f; //petIn * stepHours; // petIn in mm/hr, pet is mm float DT
   }
 
   float RATLZT = cNode->LZTWC / cNode->params[PARAM_SAC_LZTWM];
-  float RATLZ  = (cNode->LZTWC + cNode->LZFPC + cNode->LZFSC - cNode->params[PARAM_SAC_RSERV]) /
-                 (cNode->params[PARAM_SAC_LZTWM] + cNode->params[PARAM_SAC_LZFPM] +
-                  cNode->params[PARAM_SAC_LZFSM] - cNode->params[PARAM_SAC_RSERV]);
+  float RATLZ = (cNode->LZTWC + cNode->LZFPC + cNode->LZFSC - cNode->params[PARAM_SAC_RSERV]) /
+                (cNode->params[PARAM_SAC_LZTWM] + cNode->params[PARAM_SAC_LZFPM] +
+                 cNode->params[PARAM_SAC_LZFSM] - cNode->params[PARAM_SAC_RSERV]);
 
   if (RATLZT < RATLZ) {
     // Resupply lower zone tension water from lower
@@ -384,7 +384,7 @@ mm float pet = 20.0f; //petIn * stepHours; // petIn in mm/hr, pet is mm float DT
                             // time increment
                             // being used-basic depletions are for one day
 
-  float DUZ  = 1.0f - pow(1.0f - cNode->params[PARAM_SAC_UZK], DINC);
+  float DUZ = 1.0f - pow(1.0f - cNode->params[PARAM_SAC_UZK], DINC);
   float DLZP = 1.0f - pow(1.0f - cNode->params[PARAM_SAC_LZPK], DINC);
   float DLZS = 1.0f - pow(1.0f - cNode->params[PARAM_SAC_LZSK], DINC);
 
@@ -432,8 +432,8 @@ cNode->ADIMC = 0.0f;
 
       cNode->ADIMC = cNode->ADIMC + PINC - ADDRO - ADSUR;
       if (cNode->ADIMC > (cNode->params[PARAM_SAC_UZTWM] + cNode->params[PARAM_SAC_LZTWM])) {
-        ADDRO        = ADDRO + cNode->ADIMC -
-                       (cNode->params[PARAM_SAC_UZTWM] + cNode->params[PARAM_SAC_LZTWM]);
+        ADDRO = ADDRO + cNode->ADIMC -
+                (cNode->params[PARAM_SAC_UZTWM] + cNode->params[PARAM_SAC_LZTWM]);
         cNode->ADIMC = cNode->params[PARAM_SAC_UZTWM] + cNode->params[PARAM_SAC_LZTWM];
       }
       SDRO = SDRO + ADDRO * cNode->params[PARAM_SAC_ADIMP];
@@ -444,13 +444,13 @@ cNode->ADIMC = 0.0f;
     }
 
     float PERCM = cNode->params[PARAM_SAC_LZFPM] * DLZP + cNode->params[PARAM_SAC_LZFSM] * DLZS;
-    float PERC  = PERCM * (cNode->UZFWC / cNode->params[PARAM_SAC_UZFWM]);
+    float PERC = PERCM * (cNode->UZFWC / cNode->params[PARAM_SAC_UZFWM]);
     // DEFR is the lower zone moisture deficiency ratio
     float DEFR = 1.0f - ((cNode->LZTWC + cNode->LZFPC + cNode->LZFSC) /
                          (cNode->params[PARAM_SAC_LZTWM] + cNode->params[PARAM_SAC_LZFPM] +
                           cNode->params[PARAM_SAC_LZFSM]));
-    float FR   = 1.0f;  // Change in percolation withdrawal due to frozen ground.
-    float FI   = 1.0f;  // Change in interflow withdrawal due to frozen ground.
+    float FR = 1.0f;  // Change in percolation withdrawal due to frozen ground.
+    float FI = 1.0f;  // Change in interflow withdrawal due to frozen ground.
     // float IFRZE = 0.0f;
 
     PERC = PERC *
@@ -490,7 +490,7 @@ cNode->ADIMC = 0.0f;
       cNode->LZTWC += PERCT;
       PERCF = 0.0f;
     } else {
-      PERCF        = PERCT + cNode->LZTWC - cNode->params[PARAM_SAC_LZTWM];
+      PERCF = PERCT + cNode->LZTWC - cNode->params[PARAM_SAC_LZTWM];
       cNode->LZTWC = cNode->params[PARAM_SAC_LZTWM];
     }
 
@@ -521,7 +521,7 @@ cNode->ADIMC = 0.0f;
 
       cNode->LZFSC += PERCS;
       if (cNode->LZFSC > cNode->params[PARAM_SAC_LZFSM]) {
-        PERCS        = PERCS - cNode->LZFSC + cNode->params[PARAM_SAC_LZFSM];
+        PERCS = PERCS - cNode->LZFSC + cNode->params[PARAM_SAC_LZFSM];
         cNode->LZFSC = cNode->params[PARAM_SAC_LZFSM];
       }
 
@@ -540,7 +540,7 @@ cNode->ADIMC = 0.0f;
         cNode->UZFWC += PINC;
       } else {
         float SUR = PINC + cNode->UZFWC - cNode->params[PARAM_SAC_UZFWM];
-        SSUR      = SSUR + SUR * PAREA;
+        SSUR = SSUR + SUR * PAREA;
 
         ADSUR = SUR * (1.0f - ADDRO / PINC);
         // ADSUR is the amount of surface runoff which comes from
@@ -589,9 +589,9 @@ cNode->ADIMC = 0.0f;
   }
   // float BFNCC = TBF - BFCC; // Baseflow, non-channel component
 
-  float TCI  = ROIMP + SDRO + SSUR + SIF + BFCC;  // Total channel inflow for the time interval
-  float GRND = SIF + BFCC;                        // interflow part of ground flow
-  float SURF = TCI - GRND;                        // interflow part of surface flow
+  float TCI = ROIMP + SDRO + SSUR + SIF + BFCC;  // Total channel inflow for the time interval
+  float GRND = SIF + BFCC;                       // interflow part of ground flow
+  float SURF = TCI - GRND;                       // interflow part of surface flow
 
   float E4 = (pet - EUSED) * cNode->params[PARAM_SAC_RIVA];  // / stepHours; //
                                                              // ET from Riparian
@@ -633,10 +633,10 @@ cNode->ADIMC = 0.0f;
 }
 
 void SAC::InitializeParameters(std::map<GaugeConfigSection*, float*>* paramSettings,
-                               std::vector<FloatGrid*>*               paramGrids) {
+                               std::vector<FloatGrid*>* paramGrids) {
   // This pass distributes parameters
   for (std::vector<GridNode>::iterator itr = nodes->begin(); itr != nodes->end(); itr++) {
-    GridNode*    node  = &(*itr);
+    GridNode* node = &(*itr);
     SACGridNode* cNode = (SACGridNode*)node->modelNode;
     if (!node->gauge) {
       continue;

@@ -27,9 +27,9 @@ class CRESTModel : public WaterBalanceModel {
  public:
   CRESTModel();
   ~CRESTModel();
-  bool InitializeModel(std::vector<GridNode>*                 newNodes,
+  bool InitializeModel(std::vector<GridNode>* newNodes,
                        std::map<GaugeConfigSection*, float*>* paramSettings,
-                       std::vector<FloatGrid*>*               paramGrids);
+                       std::vector<FloatGrid*>* paramGrids);
   void InitializeStates(TimeVar* beginTime, char* statePath);
   void SaveStates(TimeVar* currentTime, char* statePath, GridWriterFull* gridWriter);
   bool WaterBalance(float stepHours, std::vector<float>* precip, std::vector<float>* pet,
@@ -46,9 +46,9 @@ class CRESTModel : public WaterBalanceModel {
   void WaterBalanceInt(GridNode* node, CRESTGridNode* cNode, float stepHours, float precipIn,
                        float petIn, float* fastFlow, float* slowFlow);
   void InitializeParameters(std::map<GaugeConfigSection*, float*>* paramSettings,
-                            std::vector<FloatGrid*>*               paramGrids);
+                            std::vector<FloatGrid*>* paramGrids);
 
-  std::vector<GridNode>*     nodes;
+  std::vector<GridNode>* nodes;
   std::vector<CRESTGridNode> crestNodes;
 };
 

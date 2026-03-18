@@ -16,7 +16,7 @@ class PETConfigSection : public ConfigSection {
   ~PETConfigSection();
 
   DatedName* GetFileName();
-  TimeUnit*  GetFreq() {
+  TimeUnit* GetFreq() {
     return &freq;
   }
   char* GetLoc() {
@@ -37,13 +37,13 @@ class PETConfigSection : public ConfigSection {
   static bool IsDuplicate(char* name);
 
  private:
-  bool                 locSet, freqSet, nameSet, unitSet, typeSet;
-  bool                 isTemp;
-  char                 loc[CONFIG_MAX_LEN];
-  DatedName            fileName;
-  TimeUnit             freq;
+  bool locSet, freqSet, nameSet, unitSet, typeSet;
+  bool isTemp;
+  char loc[CONFIG_MAX_LEN];
+  DatedName fileName;
+  TimeUnit freq;
   DistancePerTimeUnits unit;
-  PETType              type;
+  PETType type;
 };
 
 extern std::map<std::string, PETConfigSection*> g_petConfigs;

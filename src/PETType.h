@@ -14,7 +14,7 @@ class PETType {
  public:
   SUPPORTED_PET_TYPES GetType();
   SUPPORTED_PET_TYPES ParseType(char* typeStr);
-  const char*         GetTypes();
+  const char* GetTypes();
 
  private:
   SUPPORTED_PET_TYPES type;

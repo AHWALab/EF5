@@ -16,9 +16,9 @@ size_t SimpleInundation::GetNumINodes() const {
   return iNodes.size();
 }
 
-bool SimpleInundation::InitializeModel(std::vector<GridNode>*                 newNodes,
+bool SimpleInundation::InitializeModel(std::vector<GridNode>* newNodes,
                                        std::map<GaugeConfigSection*, float*>* paramSettings,
-                                       std::vector<FloatGrid*>*               paramGrids) {
+                                       std::vector<FloatGrid*>* paramGrids) {
   nodes = newNodes;
   if (iNodes.size() != nodes->size()) {
     iNodes.resize(nodes->size());
@@ -29,7 +29,7 @@ bool SimpleInundation::InitializeModel(std::vector<GridNode>*                 ne
   // Fill in modelIndex in the gridNodes
   size_t numNodes = nodes->size();
   for (size_t i = 0; i < numNodes; i++) {
-    GridNode* node   = &nodes->at(i);
+    GridNode* node = &nodes->at(i);
     node->modelIndex = i;
   }
 
@@ -48,18 +48,18 @@ bool SimpleInundation::InitializeModel(std::vector<GridNode>*                 ne
   // Pass 2: Walk downstream to assign each node to its nearest channel cell.
   // channelGridCell is now correctly set by th_fim from Pass 1.
   for (size_t i = 0; i < numNodes; i++) {
-    GridNode* node        = &nodes->at(i);
+    GridNode* node = &nodes->at(i);
     GridNode* channelNode = node;
     while (!channelNode->channelGridCell &&
            channelNode->downStreamNode != INVALID_DOWNSTREAM_NODE) {
       channelNode = &nodes->at(channelNode->downStreamNode);
     }
     iNodes[i].params[PARAM_SI_ALPHA] = iNodes[channelNode->index].params[PARAM_SI_ALPHA];
-    iNodes[i].params[PARAM_SI_BETA]  = iNodes[channelNode->index].params[PARAM_SI_BETA];
-    iNodes[i].elevation              = g_DEM->data[node->y][node->x];
-    iNodes[i].elevationChannel       = g_DEM->data[channelNode->y][channelNode->x];
-    iNodes[i].elevDiff               = iNodes[i].elevation - iNodes[i].elevationChannel;
-    iNodes[i].channelIndex           = channelNode->index;
+    iNodes[i].params[PARAM_SI_BETA] = iNodes[channelNode->index].params[PARAM_SI_BETA];
+    iNodes[i].elevation = g_DEM->data[node->y][node->x];
+    iNodes[i].elevationChannel = g_DEM->data[channelNode->y][channelNode->x];
+    iNodes[i].elevDiff = iNodes[i].elevation - iNodes[i].elevationChannel;
+    iNodes[i].channelIndex = channelNode->index;
   }
 
   return true;
@@ -69,7 +69,7 @@ bool SimpleInundation::Inundation(std::vector<float>* discharge, std::vector<flo
   size_t numNodes = nodes->size();
 
   for (size_t i = 0; i < numNodes; i++) {
-    GridNode*           node  = &nodes->at(i);
+    GridNode* node = &nodes->at(i);
     InundationGridNode* cNode = &(iNodes[i]);
     // InundationGridNode *channelNode = &(iNodes[cNode->channelIndex]);
     InundationInt(node, cNode, discharge->at(cNode->channelIndex), &(depth->at(i)));
@@ -102,12 +102,12 @@ void SimpleInundation::InundationInt(GridNode* node, InundationGridNode* cNode, 
 }
 
 void SimpleInundation::InitializeParameters(std::map<GaugeConfigSection*, float*>* paramSettings,
-                                            std::vector<FloatGrid*>*               paramGrids) {
+                                            std::vector<FloatGrid*>* paramGrids) {
   // This pass distributes parameters
   size_t numNodes = nodes->size();
-  size_t unused   = 0;
+  size_t unused = 0;
   for (size_t i = 0; i < numNodes; i++) {
-    GridNode*           node  = &nodes->at(i);
+    GridNode* node = &nodes->at(i);
     InundationGridNode* cNode = &(iNodes[i]);
     if (!node->gauge) {
       unused++;

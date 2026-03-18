@@ -13,8 +13,8 @@ FloatGrid* ReadFloatMRMSGrid(char* file, FloatGrid* grid) {
   }
 
   short int* binary_data = 0;
-  float      nw_lon, nw_lat;
-  float      dx;  //, dy;
+  float nw_lon, nw_lat;
+  float dx;  //, dy;
 
   MRMSHeader2D header;
   if (gzread(fileH, &header, sizeof(MRMSHeader2D)) != sizeof(MRMSHeader2D)) {
@@ -33,7 +33,7 @@ FloatGrid* ReadFloatMRMSGrid(char* file, FloatGrid* grid) {
   /*** 3. Read binary data ***/
   /*-------------------------*/
 
-  int num     = header.nx * header.ny;
+  int num = header.nx * header.ny;
   binary_data = new short int[num];
 
   if (!binary_data) {
@@ -53,8 +53,8 @@ FloatGrid* ReadFloatMRMSGrid(char* file, FloatGrid* grid) {
   gzclose(fileH);
 
   float* __restrict__ backingStore = new float[num];
-  const float scalef               = (float)header.var_scale;
-  int         li                   = 0;
+  const float scalef = (float)header.var_scale;
+  int li = 0;
   /*#pragma omp parallel for
    for (li = 0; li < num; li += 4) {
    backingStore[li] = ((float)binary_data[li]) / scalef;
@@ -83,26 +83,26 @@ FloatGrid* ReadFloatMRMSGrid(char* file, FloatGrid* grid) {
   nw_lon = (float)header.nw_lon / (float)header.map_scale - (dx / 2.0);
   nw_lat = (float)header.nw_lat / (float)header.map_scale - (dx / 2.0);
   if (!grid) {
-    grid               = new FloatGrid();
-    grid->numCols      = header.nx;
-    grid->numRows      = header.ny;
-    grid->cellSize     = dx;
-    grid->extent.top   = nw_lat;
-    grid->extent.left  = nw_lon;
+    grid = new FloatGrid();
+    grid->numCols = header.nx;
+    grid->numRows = header.ny;
+    grid->cellSize = dx;
+    grid->extent.top = nw_lat;
+    grid->extent.left = nw_lon;
     grid->backingStore = backingStore;
-    grid->data         = new float*[grid->numRows]();
+    grid->data = new float*[grid->numRows]();
     if (!grid->data) {
       WARNING_LOGF("MRMS file %s too large (out of memory) with %li rows", file, grid->numRows);
       delete[] binary_data;
       delete grid;
       return NULL;
     }
-    grid->noData      = -999.0;
+    grid->noData = -999.0;
     const int numRows = (int)grid->numRows;
-    const int nX      = header.nx;
+    const int nX = header.nx;
     for (int i = 0; i < numRows; i++) {
-      int realI     = numRows - i - 1;
-      int index     = realI * nX;
+      int realI = numRows - i - 1;
+      int index = realI * nX;
       grid->data[i] = &(backingStore[index]);
     }
   }
@@ -132,7 +132,7 @@ FloatGrid* ReadFloatMRMSGrid(char* file, FloatGrid* grid) {
 
   // Fill in the rest of the BoundingBox
   grid->extent.bottom = grid->extent.top - grid->numRows * grid->cellSize;
-  grid->extent.right  = grid->extent.left + grid->numCols * grid->cellSize;
+  grid->extent.right = grid->extent.left + grid->numCols * grid->cellSize;
 
   return grid;
 }

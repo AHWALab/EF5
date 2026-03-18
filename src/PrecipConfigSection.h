@@ -16,7 +16,7 @@ class PrecipConfigSection : public ConfigSection {
   ~PrecipConfigSection();
 
   DatedName* GetFileName();
-  char*      GetLoc() {
+  char* GetLoc() {
     return loc;
   }
   TimeUnit* GetFreq() {
@@ -34,12 +34,12 @@ class PrecipConfigSection : public ConfigSection {
   static bool IsDuplicate(char* name);
 
  private:
-  bool                 locSet, freqSet, nameSet, unitSet, typeSet;
-  char                 loc[CONFIG_MAX_LEN];
-  DatedName            fileName;
-  TimeUnit             freq;
+  bool locSet, freqSet, nameSet, unitSet, typeSet;
+  char loc[CONFIG_MAX_LEN];
+  DatedName fileName;
+  TimeUnit freq;
   DistancePerTimeUnits unit;
-  PrecipType           type;
+  PrecipType type;
 };
 
 extern std::map<std::string, PrecipConfigSection*> g_precipConfigs;

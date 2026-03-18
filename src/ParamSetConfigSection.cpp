@@ -8,10 +8,10 @@ std::map<std::string, ParamSetConfigSection*> g_paramSetConfigs[MODEL_QTY];
 
 ParamSetConfigSection::ParamSetConfigSection(char* nameVal, MODELS modelVal) {
   strcpy(name, nameVal);
-  currentGauge     = NULL;
-  currentParams    = NULL;
+  currentGauge = NULL;
+  currentParams = NULL;
   currentParamsSet = NULL;
-  model            = modelVal;
+  model = modelVal;
   paramGrids.resize(numModelParams[model]);
 }
 
@@ -52,8 +52,8 @@ CONFIG_SEC_RET ParamSetConfigSection::ProcessKeyValue(char* name, char* value) {
       return INVALID_RESULT;
     }
 
-    currentGauge     = itr->second;
-    currentParams    = new float[numParams];
+    currentGauge = itr->second;
+    currentParams = new float[numParams];
     currentParamsSet = new bool[numParams];
     memset(currentParams, 0, sizeof(float) * numParams);
     memset(currentParamsSet, 0, sizeof(bool) * numParams);
@@ -81,7 +81,7 @@ CONFIG_SEC_RET ParamSetConfigSection::ProcessKeyValue(char* name, char* value) {
           return INVALID_RESULT;
         }
 
-        currentParams[i]    = atof(value);
+        currentParams[i] = atof(value);
         currentParamsSet[i] = true;
 
         return VALID_RESULT;

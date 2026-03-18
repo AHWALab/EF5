@@ -17,7 +17,7 @@ class TempReader {
   }
 
  private:
-  char       lastTempFile[CONFIG_MAX_LEN * 2];
+  char lastTempFile[CONFIG_MAX_LEN * 2];
   FloatGrid* tempDEM;
 };
 

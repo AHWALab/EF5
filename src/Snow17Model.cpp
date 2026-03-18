@@ -15,9 +15,9 @@ Snow17Model::Snow17Model() {}
 
 Snow17Model::~Snow17Model() {}
 
-bool Snow17Model::InitializeModel(std::vector<GridNode>*                 newNodes,
+bool Snow17Model::InitializeModel(std::vector<GridNode>* newNodes,
                                   std::map<GaugeConfigSection*, float*>* paramSettings,
-                                  std::vector<FloatGrid*>*               paramGrids) {
+                                  std::vector<FloatGrid*>* paramGrids) {
   nodes = newNodes;
   if (snowNodes.size() != nodes->size()) {
     snowNodes.resize(nodes->size());
@@ -26,9 +26,9 @@ bool Snow17Model::InitializeModel(std::vector<GridNode>*                 newNode
   // Fill in modelIndex in the gridNodes
   size_t numNodes = nodes->size();
   for (size_t i = 0; i < numNodes; i++) {
-    GridNode* node     = &nodes->at(i);
-    node->modelIndex   = i;
-    float elevation    = g_DEM->data[node->y][node->x] / 100.0;
+    GridNode* node = &nodes->at(i);
+    node->modelIndex = i;
+    float elevation = g_DEM->data[node->y][node->x] / 100.0;
     snowNodes[i].P_atm = 33.86 * (29.9 - (0.335 * elevation) + (0.00022 * (powf(elevation, 2.4))));
     for (int p = 0; p < STATE_SNOW17_QTY; p++) {
       snowNodes[i].states[p] = 0.0;
@@ -59,7 +59,7 @@ void Snow17Model::InitializeStates(TimeVar* beginTime, char* statePath) {
       printf("Using Snow-17 %s State Grid %s\n", stateStrings[p], buffer);
       if (g_DEM->IsSpatialMatch(sGrid)) {
         for (size_t i = 0; i < nodes->size(); i++) {
-          GridNode*       node  = &nodes->at(i);
+          GridNode* node = &nodes->at(i);
           Snow17GridNode* cNode = &(snowNodes[i]);
           if (sGrid->data[node->y][node->x] != sGrid->noData) {
             cNode->states[p] = sGrid->data[node->y][node->x];
@@ -68,7 +68,7 @@ void Snow17Model::InitializeStates(TimeVar* beginTime, char* statePath) {
       } else {
         GridLoc pt;
         for (size_t i = 0; i < nodes->size(); i++) {
-          GridNode*       node  = &(nodes->at(i));
+          GridNode* node = &(nodes->at(i));
           Snow17GridNode* cNode = &(snowNodes[i]);
           if (sGrid->GetGridLoc(node->refLoc.x, node->refLoc.y, &pt) &&
               sGrid->data[pt.y][pt.x] != sGrid->noData) {
@@ -97,7 +97,7 @@ void Snow17Model::SaveStates(TimeVar* currentTime, char* statePath, GridWriterFu
     sprintf(buffer, "%s/snow17_%s_%s.tif", statePath, stateStrings[p], timeStr.GetName());
     for (size_t i = 0; i < nodes->size(); i++) {
       Snow17GridNode* cNode = &(snowNodes[i]);
-      dataVals[i]           = cNode->states[p];
+      dataVals[i] = cNode->states[p];
     }
     gridWriter->WriteGrid(nodes, &dataVals, buffer, false);
   }
@@ -109,7 +109,7 @@ bool Snow17Model::SnowBalance(float jday, float stepHours, std::vector<float>* p
   size_t numNodes = nodes->size();
 
   for (size_t i = 0; i < numNodes; i++) {
-    GridNode*       node  = &nodes->at(i);
+    GridNode* node = &nodes->at(i);
     Snow17GridNode* cNode = &(snowNodes[i]);
     SnowBalanceInt(node, cNode, stepHours, jday, precip->at(i), temp->at(i), &(melt->at(i)),
                    &(swe->at(i)));
@@ -122,8 +122,8 @@ bool Snow17Model::SnowBalance(float jday, float stepHours, std::vector<float>* p
 
 void Snow17Model::SnowBalanceInt(GridNode* node, Snow17GridNode* cNode, float stepHours, float jday,
                                  float precipIn, float tempIn, float* melt, float* swe) {
-  float stefan   = 6.12e-10;
-  float PXTEMP   = 1;  // Temperature of rainfall (Deg C)
+  float stefan = 6.12e-10;
+  float PXTEMP = 1;  // Temperature of rainfall (Deg C)
   float TIPM_dtt = 1.0 - (powf(1.0 - cNode->params[PARAM_SNOW17_TIPM], stepHours / 6));
 
   float precip = precipIn * stepHours;  // precipIn is mm/hr, precip is mm
@@ -149,17 +149,17 @@ void Snow17Model::SnowBalanceInt(GridNode* node, Snow17GridNode* cNode, float st
   cNode->states[STATE_SNOW17_WI] += Pn;                     // W_i = accumulated water equivalent of
                                                             // the ice portion of the snow cover
                                                             // (mm)
-  float E    = 0;
+  float E = 0;
   float RAIN = fracrain * precip;  // amount of precip (mm) that is rain during this time step
 
   // Temperature and Heat Deficit from new Snow
 
-  float T_snow_new    = 0.0;
+  float T_snow_new = 0.0;
   float delta_HD_snow = 0.0;
-  float T_rain        = tempIn;
+  float T_rain = tempIn;
 
   if (tempIn < 0.0) {
-    T_snow_new    = tempIn;
+    T_snow_new = tempIn;
     delta_HD_snow = -(T_snow_new * Pn) / (80.0 / 0.5);  // delta_HD_snow = change
                                                         // in the heat deficit
                                                         // due to snowfall (mm)
@@ -200,7 +200,7 @@ void Snow17Model::SnowBalanceInt(GridNode* node, Snow17GridNode* cNode, float st
     float M_RoS3 = fmaxf((8.5 * cNode->params[PARAM_SNOW17_UADJ] * (stepHours / 6) *
                           (((0.9 * e_sat) - 6.11) + (0.00057 * cNode->P_atm * tempIn))),
                          0.0);
-    M_RoS        = M_RoS1 + M_RoS2 + M_RoS3;
+    M_RoS = M_RoS1 + M_RoS2 + M_RoS3;
   }
 
   // Non-Rain Melt
@@ -284,8 +284,8 @@ void Snow17Model::SnowBalanceInt(GridNode* node, Snow17GridNode* cNode, float st
     SWE = cNode->states[STATE_SNOW17_WI] + cNode->states[STATE_SNOW17_WQ];  // + E;
   } else {
     // then no snow exists!
-    E                              = Qw;
-    SWE                            = 0;
+    E = Qw;
+    SWE = 0;
     cNode->states[STATE_SNOW17_WQ] = 0;
   }
 
@@ -299,17 +299,17 @@ void Snow17Model::SnowBalanceInt(GridNode* node, Snow17GridNode* cNode, float st
           printf("pIn %f, pOut %f\n", cNode->pIn, cNode->pOut);
   }*/
 
-  *swe  = SWE;  // total SWE (mm) at this time step
+  *swe = SWE;  // total SWE (mm) at this time step
   *melt = E / stepHours;
 }
 
 void Snow17Model::InitializeParameters(std::map<GaugeConfigSection*, float*>* paramSettings,
-                                       std::vector<FloatGrid*>*               paramGrids) {
+                                       std::vector<FloatGrid*>* paramGrids) {
   // This pass distributes parameters
   size_t numNodes = nodes->size();
-  size_t unused   = 0;
+  size_t unused = 0;
   for (size_t i = 0; i < numNodes; i++) {
-    GridNode*       node  = &nodes->at(i);
+    GridNode* node = &nodes->at(i);
     Snow17GridNode* cNode = &(snowNodes[i]);
     if (!node->gauge) {
       unused++;

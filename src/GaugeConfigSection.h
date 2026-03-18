@@ -53,9 +53,9 @@ class GaugeConfigSection : public ConfigSection {
   }
   float GetObserved(TimeVar* currentTime);
   float GetObserved(TimeVar* currentTime, float diff);
-  void  SetObservedValue(char* timeBuffer, float dataValue);
-  void  LoadTS();
-  void  SetGridNodeIndex(long newVal) {
+  void SetObservedValue(char* timeBuffer, float dataValue);
+  void LoadTS();
+  void SetGridNodeIndex(long newVal) {
     gridNodeIndex = newVal;
   }
   void SetLat(float newVal) {
@@ -85,20 +85,20 @@ class GaugeConfigSection : public ConfigSection {
   static bool IsDuplicate(char* name);
 
  private:
-  bool       obsSet, latSet, lonSet, xSet, ySet, obsFlowAccumSet, outputTSSet;
-  bool       outputTS, wantDA, wantCO, continueUpstream;
-  char       observation[CONFIG_MAX_LEN];
-  char       name[CONFIG_MAX_LEN];
-  float      lat;
-  float      lon;
-  float      obsFlowAccum;
+  bool obsSet, latSet, lonSet, xSet, ySet, obsFlowAccumSet, outputTSSet;
+  bool outputTS, wantDA, wantCO, continueUpstream;
+  char observation[CONFIG_MAX_LEN];
+  char name[CONFIG_MAX_LEN];
+  float lat;
+  float lon;
+  float obsFlowAccum;
   TimeSeries obs;
 
   // These are for basin carving procedures!
-  long    flowAccum;
-  bool    used;
+  long flowAccum;
+  bool used;
   GridLoc gridLoc;
-  long    gridNodeIndex;
+  long gridNodeIndex;
 };
 
 extern std::map<std::string, GaugeConfigSection*> g_gaugeConfigs;

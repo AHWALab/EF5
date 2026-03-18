@@ -157,34 +157,34 @@ enum VCI_PARAMS {
   PARAM_VCI_QTY,
 };
 
-extern const char*  runStyleStrings[];
-extern const char*  modelStrings[];
-extern const char*  modelParamSetStrings[];
-extern const char*  modelCaliParamStrings[];
+extern const char* runStyleStrings[];
+extern const char* modelStrings[];
+extern const char* modelParamSetStrings[];
+extern const char* modelCaliParamStrings[];
 extern const char** modelParamStrings[];
 extern const char** modelParamGridStrings[];
-extern const int    numModelParams[];
+extern const int numModelParams[];
 
-extern const char*  routeStrings[];
-extern const char*  routeParamSetStrings[];
-extern const char*  routeCaliParamStrings[];
+extern const char* routeStrings[];
+extern const char* routeParamSetStrings[];
+extern const char* routeCaliParamStrings[];
 extern const char** routeParamStrings[];
 extern const char** routeParamGridStrings[];
-extern const int    numRouteParams[];
+extern const int numRouteParams[];
 
-extern const char*  snowStrings[];
-extern const char*  snowParamSetStrings[];
-extern const char*  snowCaliParamStrings[];
+extern const char* snowStrings[];
+extern const char* snowParamSetStrings[];
+extern const char* snowCaliParamStrings[];
 extern const char** snowParamStrings[];
 extern const char** snowParamGridStrings[];
-extern const int    numSnowParams[];
+extern const int numSnowParams[];
 
-extern const char*  inundationStrings[];
-extern const char*  inundationParamSetStrings[];
-extern const char*  inundationCaliParamStrings[];
+extern const char* inundationStrings[];
+extern const char* inundationParamSetStrings[];
+extern const char* inundationCaliParamStrings[];
 extern const char** inundationParamStrings[];
 extern const char** inundationParamGridStrings[];
-extern const int    numInundationParams[];
+extern const int numInundationParams[];
 
 #define IsCalibrationRunStyle(style) ((style) == STYLE_CALI_ARS || (style) == STYLE_CALI_DREAM)
 

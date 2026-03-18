@@ -42,14 +42,14 @@ void GridWriter::Initialize(std::vector<GridNode>* nodes) {
   g_DEM->GetRefLoc(minX, maxY, &ll);
   g_DEM->GetRefLoc(maxX, minY, &ur);
 
-  grid.extent.left   = ll.x;
+  grid.extent.left = ll.x;
   grid.extent.bottom = ll.y;
-  grid.extent.right  = ur.x;
-  grid.extent.top    = ur.y;
-  grid.numCols       = ncols;
-  grid.numRows       = nrows;
-  grid.cellSize      = g_DEM->cellSize;
-  grid.noData        = -9999.0f;
+  grid.extent.right = ur.x;
+  grid.extent.top = ur.y;
+  grid.numCols = ncols;
+  grid.numRows = nrows;
+  grid.cellSize = g_DEM->cellSize;
+  grid.noData = -9999.0f;
 
   grid.data = new float*[grid.numRows];
   for (long i = 0; i < grid.numRows; i++) {
@@ -78,9 +78,9 @@ void GridWriter::WriteGrid(std::vector<GridNode>* nodes, std::vector<float>* dat
   if (ascii) {
     WriteFloatAscGrid(file, &grid);
   } else {
-    char* artist    = NULL;
+    char* artist = NULL;
     char* copyright = NULL;
-    char* datetime  = NULL;
+    char* datetime = NULL;
     printf("Artist1 is %s\n", g_basicConfig->GetArtist());
     if ((g_basicConfig->GetArtist())[0]) {
       artist = g_basicConfig->GetArtist();
@@ -107,9 +107,9 @@ void GridWriter::WriteGrid(std::vector<GridNode>* nodes, std::vector<double>* da
   if (ascii) {
     WriteFloatAscGrid(file, &grid);
   } else {
-    char* artist    = NULL;
+    char* artist = NULL;
     char* copyright = NULL;
-    char* datetime  = NULL;
+    char* datetime = NULL;
     printf("Artist2 is %s\n", g_basicConfig->GetArtist());
     if (g_basicConfig->GetArtist()[0]) {
       artist = g_basicConfig->GetArtist();

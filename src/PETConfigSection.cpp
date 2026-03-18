@@ -7,12 +7,12 @@
 std::map<std::string, PETConfigSection*> g_petConfigs;
 
 PETConfigSection::PETConfigSection() {
-  locSet  = false;
+  locSet = false;
   freqSet = false;
   nameSet = false;
   typeSet = false;
   unitSet = false;
-  isTemp  = false;
+  isTemp = false;
 }
 
 PETConfigSection::~PETConfigSection() {}

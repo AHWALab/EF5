@@ -17,7 +17,7 @@ class GridWriter {
 
  private:
   FloatGrid grid;
-  long      minX, maxX, minY, maxY;
+  long minX, maxX, minY, maxY;
 };
 
 #endif

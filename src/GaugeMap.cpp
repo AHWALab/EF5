@@ -45,24 +45,24 @@ void GaugeMap::AddUpstreamGauge(GaugeConfigSection* downStream, GaugeConfigSecti
 void GaugeMap::GaugeAverage(std::vector<GridNode>* nodes, std::vector<float>* currentValue,
                             std::vector<float>* gaugeAvg) {
   size_t countGauges = gauges.size();
-  size_t countNodes  = nodes->size();
+  size_t countNodes = nodes->size();
 
   // Zero out the partial vectors
   for (size_t i = 0; i < countGauges; i++) {
-    partialVal[i]  = 0;
+    partialVal[i] = 0;
     partialArea[i] = 0;
   }
 
   // Add up contributions to each gauge
   for (size_t i = 0; i < countNodes; i++) {
-    GridNode* node       = &((*nodes)[i]);
-    size_t    gaugeIndex = gaugeMap[node->gauge];
+    GridNode* node = &((*nodes)[i]);
+    size_t gaugeIndex = gaugeMap[node->gauge];
     partialVal[gaugeIndex] += ((*currentValue)[i] * node->area);
     partialArea[gaugeIndex] += node->area;
   }
 
   for (size_t i = 0; i < countGauges; i++) {
-    float totalVal  = 0;
+    float totalVal = 0;
     float totalArea = 0;
 
     totalVal += partialVal[i];
@@ -81,7 +81,7 @@ void GaugeMap::GaugeAverage(std::vector<GridNode>* nodes, std::vector<float>* cu
 
 void GaugeMap::GetGaugeArea(std::vector<GridNode>* nodes, std::vector<float>* gaugeArea) {
   size_t countGauges = gauges.size();
-  size_t countNodes  = nodes->size();
+  size_t countNodes = nodes->size();
 
   // Zero out the partial vectors
   for (size_t i = 0; i < countGauges; i++) {
@@ -90,8 +90,8 @@ void GaugeMap::GetGaugeArea(std::vector<GridNode>* nodes, std::vector<float>* ga
 
   // Add up contributions to each gauge
   for (size_t i = 0; i < countNodes; i++) {
-    GridNode* node       = &((*nodes)[i]);
-    size_t    gaugeIndex = gaugeMap[node->gauge];
+    GridNode* node = &((*nodes)[i]);
+    size_t gaugeIndex = gaugeMap[node->gauge];
     partialArea[gaugeIndex] += node->area;
   }
 

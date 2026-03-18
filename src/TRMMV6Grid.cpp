@@ -4,7 +4,7 @@
 
 union FloatInt {
   unsigned int data;
-  float        floatVal;
+  float floatVal;
 };
 
 void change_endian(unsigned int& x);
@@ -27,14 +27,14 @@ FloatGrid* ReadFloatTRMMV6Grid(char* file, FloatGrid* grid) {
   // fread(unprocessed, 298, 1, fileH);
 
   if (!grid) {
-    grid                = new FloatGrid();
-    grid->numCols       = 1440;
-    grid->numRows       = 400;
-    grid->cellSize      = 0.25;
+    grid = new FloatGrid();
+    grid->numCols = 1440;
+    grid->numRows = 400;
+    grid->cellSize = 0.25;
     grid->extent.bottom = -50.0;
-    grid->extent.left   = -180.0;
-    grid->data          = new float*[grid->numRows];
-    grid->noData        = -9999.0;
+    grid->extent.left = -180.0;
+    grid->data = new float*[grid->numRows];
+    grid->noData = -9999.0;
     for (long i = 0; i < grid->numRows; i++) {
       grid->data[i] = new float[grid->numCols];
     }
@@ -98,7 +98,7 @@ FloatGrid* ReadFloatTRMMV6Grid(char* file, FloatGrid* grid) {
   delete [] shortData;*/
 
   // Fill in the rest of the BoundingBox
-  grid->extent.top   = grid->extent.bottom + grid->numRows * grid->cellSize;
+  grid->extent.top = grid->extent.bottom + grid->numRows * grid->cellSize;
   grid->extent.right = grid->extent.left + grid->numCols * grid->cellSize;
 
   // fclose(fileH);

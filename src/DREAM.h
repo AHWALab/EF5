@@ -9,7 +9,7 @@
 
 class DREAM : public Calibrate {
  public:
-  void Initialize(CaliParamConfigSection*        caliParamConfigNew,
+  void Initialize(CaliParamConfigSection* caliParamConfigNew,
                   RoutingCaliParamConfigSection* routingCaliParamConfigNew,
                   SnowCaliParamConfigSection* snowCaliParamConfigNew, int numParamsWBNew,
                   int numParamsRNew, int numParamsSNew, Simulator* simNew);
@@ -23,17 +23,17 @@ class DREAM : public Calibrate {
   void CompDensity(float** p, float* log_p, float** x, struct DREAM_Parameters* MCMC,
                    struct Model_Input* Input, int option);
 
-  float*                   minParams;
-  float*                   maxParams;
+  float* minParams;
+  float* maxParams;
   struct DREAM_Parameters* pointerMCMC;
-  struct Model_Input*      pointerInput;
-  OBJECTIVE_GOAL           goal;
-  const char*              objectiveString;
-  bool                     isEnsemble;
-  std::vector<Simulator>*  ensSims;
-  std::vector<int>*        paramsPerSim;
+  struct Model_Input* pointerInput;
+  OBJECTIVE_GOAL goal;
+  const char* objectiveString;
+  bool isEnsemble;
+  std::vector<Simulator>* ensSims;
+  std::vector<int>* paramsPerSim;
 
-  int                     post_Sequences;
+  int post_Sequences;
   struct DREAM_Variables* pointerRUNvar;
 };
 

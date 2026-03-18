@@ -15,10 +15,10 @@ BasicConfigSection::BasicConfigSection()
       esriDDM(false),
       selfFAM(false),
       projection(PROJECTION_GEOGRAPHIC) {
-  DEM[0]       = 0;  // Initialize as empty string
-  DDM[0]       = 0;
-  FAM[0]       = 0;
-  artist[0]    = 0;
+  DEM[0] = 0;  // Initialize as empty string
+  DDM[0] = 0;
+  FAM[0] = 0;
+  artist[0] = 0;
   copyright[0] = 0;
 }
 
@@ -74,10 +74,10 @@ CONFIG_SEC_RET BasicConfigSection::ProcessKeyValue(char* name, char* value) {
     }
   } else if (!strcasecmp(name, "proj")) {
     if (!strcasecmp(value, "geographic")) {
-      projection    = PROJECTION_GEOGRAPHIC;
+      projection = PROJECTION_GEOGRAPHIC;
       projectionSet = true;
     } else if (!strcasecmp(value, "laea")) {
-      projection    = PROJECTION_LAEA;
+      projection = PROJECTION_LAEA;
       projectionSet = true;
     } else {
       ERROR_LOGF("Unknown projection option \"%s\"", value);
@@ -86,10 +86,10 @@ CONFIG_SEC_RET BasicConfigSection::ProcessKeyValue(char* name, char* value) {
     }
   } else if (!strcasecmp(name, "esriddm")) {
     if (!strcasecmp(value, "true")) {
-      esriDDM    = true;
+      esriDDM = true;
       esriDDMSet = true;
     } else if (!strcasecmp(value, "false")) {
-      esriDDM    = false;
+      esriDDM = false;
       esriDDMSet = true;
     } else {
       ERROR_LOGF("Unknown ESRI DDM option \"%s\"", value);
@@ -98,10 +98,10 @@ CONFIG_SEC_RET BasicConfigSection::ProcessKeyValue(char* name, char* value) {
     }
   } else if (!strcasecmp(name, "selffam")) {
     if (!strcasecmp(value, "true")) {
-      selfFAM    = true;
+      selfFAM = true;
       selfFAMSet = true;
     } else if (!strcasecmp(value, "false")) {
-      selfFAM    = false;
+      selfFAM = false;
       selfFAMSet = true;
     } else {
       ERROR_LOGF("Unknown Self FAM option \"%s\"", value);

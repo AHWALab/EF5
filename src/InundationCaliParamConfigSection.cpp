@@ -7,16 +7,16 @@
 std::map<std::string, InundationCaliParamConfigSection*>
     g_inundationCaliParamConfigs[INUNDATION_QTY];
 
-InundationCaliParamConfigSection::InundationCaliParamConfigSection(char*       nameVal,
+InundationCaliParamConfigSection::InundationCaliParamConfigSection(char* nameVal,
                                                                    INUNDATIONS inundationVal) {
   strcpy(name, nameVal);
-  gauge           = NULL;
-  inundation      = inundationVal;
-  int numParams   = numInundationParams[inundation];
-  modelParamMins  = new float[numParams];
-  modelParamMaxs  = new float[numParams];
+  gauge = NULL;
+  inundation = inundationVal;
+  int numParams = numInundationParams[inundation];
+  modelParamMins = new float[numParams];
+  modelParamMaxs = new float[numParams];
   modelParamInits = new float[numParams];
-  paramsSet       = new bool[numParams];
+  paramsSet = new bool[numParams];
   memset(modelParamMins, 0, sizeof(float) * numParams);
   memset(modelParamMins, 0, sizeof(float) * numParams);
   memset(modelParamInits, 0, sizeof(float) * numParams);
@@ -60,17 +60,17 @@ CONFIG_SEC_RET InundationCaliParamConfigSection::ProcessKeyValue(char* name, cha
         }
 
         float minVal = 0, maxVal = 0, initVal = 0;
-        int   count = sscanf(value, "%f,%f,%f", &minVal, &maxVal, &initVal);
+        int count = sscanf(value, "%f,%f,%f", &minVal, &maxVal, &initVal);
 
         if (count < 2) {
           ERROR_LOGF("Parameter \"%s\" has invalid calibration values!", name);
           return INVALID_RESULT;
         }
 
-        modelParamMins[i]  = minVal;
-        modelParamMaxs[i]  = maxVal;
+        modelParamMins[i] = minVal;
+        modelParamMaxs[i] = maxVal;
         modelParamInits[i] = initVal;
-        paramsSet[i]       = true;
+        paramsSet[i] = true;
 
         return VALID_RESULT;
       }

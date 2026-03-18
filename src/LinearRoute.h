@@ -14,11 +14,11 @@ struct LRGridNode : BasicGridNode {
 
   double slopeSqrt;
 
-  double      nexTime[LR_LAYER_QTY];        // This is a by product of computing cell routing
+  double nexTime[LR_LAYER_QTY];             // This is a by product of computing cell routing
   LRGridNode* routeCNode[2][LR_LAYER_QTY];  // This is the node we route water to
-  GridNode*   routeNode[2][LR_LAYER_QTY];
-  double      routeAmount[2][LR_LAYER_QTY];
-  double      incomingWater[LR_LAYER_QTY];
+  GridNode* routeNode[2][LR_LAYER_QTY];
+  double routeAmount[2][LR_LAYER_QTY];
+  double incomingWater[LR_LAYER_QTY];
 
   double reservoirs[LR_LAYER_QTY];  // CREST has two excess storage reservoirs
                                     // (overland & interflow)
@@ -28,29 +28,29 @@ class LRRoute : public RoutingModel {
  public:
   LRRoute();
   ~LRRoute();
-  bool  InitializeModel(std::vector<GridNode>*                 newNodes,
-                        std::map<GaugeConfigSection*, float*>* paramSettings,
-                        std::vector<FloatGrid*>*               paramGrids);
-  void  InitializeStates(TimeVar* beginTime, char* statePath, std::vector<float>* fastFlow,
-                         std::vector<float>* slowFlow);
-  void  SaveStates(TimeVar* currentTime, char* statePath, GridWriterFull* gridWriter);
-  bool  Route(float stepHours, std::vector<float>* fastFlow, std::vector<float>* slowFlow,
-              std::vector<float>* discharge);
+  bool InitializeModel(std::vector<GridNode>* newNodes,
+                       std::map<GaugeConfigSection*, float*>* paramSettings,
+                       std::vector<FloatGrid*>* paramGrids);
+  void InitializeStates(TimeVar* beginTime, char* statePath, std::vector<float>* fastFlow,
+                        std::vector<float>* slowFlow);
+  void SaveStates(TimeVar* currentTime, char* statePath, GridWriterFull* gridWriter);
+  bool Route(float stepHours, std::vector<float>* fastFlow, std::vector<float>* slowFlow,
+             std::vector<float>* discharge);
   float GetMaxSpeed() {
     return maxSpeed;
   }
 
  private:
-  void  RouteInt(GridNode* node, LRGridNode* cNode, float fastFlow, float slowFlow);
-  void  InitializeParameters(std::map<GaugeConfigSection*, float*>* paramSettings,
-                             std::vector<FloatGrid*>*               paramGrids);
-  void  InitializeRouting(float timeSeconds);
+  void RouteInt(GridNode* node, LRGridNode* cNode, float fastFlow, float slowFlow);
+  void InitializeParameters(std::map<GaugeConfigSection*, float*>* paramSettings,
+                            std::vector<FloatGrid*>* paramGrids);
+  void InitializeRouting(float timeSeconds);
   float SetObsInflow(long index, float inflow);
 
-  std::vector<GridNode>*  nodes;
+  std::vector<GridNode>* nodes;
   std::vector<LRGridNode> lrNodes;
-  float                   maxSpeed;
-  bool                    initialized;
+  float maxSpeed;
+  bool initialized;
 };
 
 #endif

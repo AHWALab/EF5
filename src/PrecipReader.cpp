@@ -90,7 +90,7 @@ bool PrecipReader::Read(char* file, SUPPORTED_PRECIP_TYPES type, std::vector<Gri
 // The grids are different, we must do some resampling fun.
 #pragma omp parallel for
     for (size_t i = 0; i < nodes->size(); i++) {
-      GridLoc   pt;
+      GridLoc pt;
       GridNode* node = &(nodes->at(i));
       if (precipGrid->GetGridLoc(node->refLoc.x, node->refLoc.y, &pt) &&
           precipGrid->data[pt.y][pt.x] != precipGrid->noData &&

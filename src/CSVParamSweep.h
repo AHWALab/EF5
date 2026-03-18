@@ -14,10 +14,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 struct ParamSweepRow {
   std::string runId;
-  float       crestParams[PARAM_CREST_QTY];
-  float       kwParams[PARAM_KINEMATIC_QTY];
-  bool        crestSet[PARAM_CREST_QTY];
-  bool        kwSet[PARAM_KINEMATIC_QTY];
+  float crestParams[PARAM_CREST_QTY];
+  float kwParams[PARAM_KINEMATIC_QTY];
+  bool crestSet[PARAM_CREST_QTY];
+  bool kwSet[PARAM_KINEMATIC_QTY];
 
   ParamSweepRow() {
     memset(crestParams, 0, sizeof(crestParams));
@@ -52,10 +52,10 @@ class CSVParamSweep {
       return false;
     }
 
-    int          numCrestParams = numModelParams[model];
-    int          numKWParams    = numRouteParams[route];
-    const char** crestNames     = modelParamStrings[model];
-    const char** kwNames        = routeParamStrings[route];
+    int numCrestParams = numModelParams[model];
+    int numKWParams = numRouteParams[route];
+    const char** crestNames = modelParamStrings[model];
+    const char** kwNames = routeParamStrings[route];
 
     // ── Read header line ──────────────────────────────────────────────────
     std::string headerLine;
@@ -78,7 +78,7 @@ class CSVParamSweep {
     }
 
     // ── Map column indices to param types ─────────────────────────────────
-    int              runIdCol = -1;
+    int runIdCol = -1;
     std::vector<int> modelColMap(headers.size(), -1);  // header col → model param idx
     std::vector<int> routeColMap(headers.size(), -1);  // header col → route param idx
 
@@ -95,7 +95,7 @@ class CSVParamSweep {
       for (int p = 0; p < numCrestParams; p++) {
         if (h == ToLower(std::string(crestNames[p]))) {
           modelColMap[col] = p;
-          found            = true;
+          found = true;
           break;
         }
       }
@@ -105,7 +105,7 @@ class CSVParamSweep {
       for (int p = 0; p < numKWParams; p++) {
         if (h == ToLower(std::string(kwNames[p]))) {
           routeColMap[col] = p;
-          found            = true;
+          found = true;
           break;
         }
       }
@@ -114,7 +114,7 @@ class CSVParamSweep {
 
     // ── Read data rows ───────────────────────────────────────────────────
     std::string line;
-    int         lineNum = 1;
+    int lineNum = 1;
     while (std::getline(file, line)) {
       lineNum++;
 
@@ -150,11 +150,11 @@ class CSVParamSweep {
 
         if (modelColMap[col] >= 0) {
           row.crestParams[modelColMap[col]] = std::stof(val);
-          row.crestSet[modelColMap[col]]    = true;
+          row.crestSet[modelColMap[col]] = true;
         }
         if (routeColMap[col] >= 0) {
           row.kwParams[routeColMap[col]] = std::stof(val);
-          row.kwSet[routeColMap[col]]    = true;
+          row.kwSet[routeColMap[col]] = true;
         }
       }
 
@@ -174,7 +174,7 @@ class CSVParamSweep {
   static void SplitCSVLine(const std::string& line, std::vector<std::string>& fields) {
     fields.clear();
     std::stringstream ss(line);
-    std::string       field;
+    std::string field;
     while (std::getline(ss, field, ',')) {
       fields.push_back(field);
     }

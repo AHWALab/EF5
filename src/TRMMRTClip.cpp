@@ -15,27 +15,27 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
-  char* filename   = argv[1];
+  char* filename = argv[1];
   char* outputfile = argv[2];
   float top = 60.0, bottom = -60.0, left = -180.0, right = 180.0;
 
   if (argc == 7) {
-    top    = atof(argv[3]);
+    top = atof(argv[3]);
     bottom = atof(argv[4]);
-    left   = atof(argv[5]);
-    right  = atof(argv[6]);
+    left = atof(argv[5]);
+    right = atof(argv[6]);
   }
 
   int part = top / 0.25;
-  top      = 0.25 * (float)(part);
+  top = 0.25 * (float)(part);
 
-  part   = bottom / 0.25;
+  part = bottom / 0.25;
   bottom = 0.25 * (float)(part);
 
   part = left / 0.25;
   left = 0.25 * (float)(part);
 
-  part  = right / 0.25;
+  part = right / 0.25;
   right = 0.25 * (float)(part);
 
   if (top > 60.0 || top < -60.0 || top <= bottom) {
@@ -58,19 +58,19 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
-  FloatGrid* outGrid     = new FloatGrid;
-  outGrid->cellSize      = 0.25;
-  outGrid->numCols       = (right - left) / outGrid->cellSize;
-  outGrid->numRows       = (top - bottom) / outGrid->cellSize;
+  FloatGrid* outGrid = new FloatGrid;
+  outGrid->cellSize = 0.25;
+  outGrid->numCols = (right - left) / outGrid->cellSize;
+  outGrid->numRows = (top - bottom) / outGrid->cellSize;
   outGrid->extent.bottom = bottom;
-  outGrid->extent.left   = left;
-  outGrid->noData        = -999.0;
-  outGrid->data          = new float*[outGrid->numRows];
+  outGrid->extent.left = left;
+  outGrid->noData = -999.0;
+  outGrid->data = new float*[outGrid->numRows];
   for (long i = 0; i < outGrid->numRows; i++) {
     outGrid->data[i] = new float[outGrid->numCols];
   }
   // Fill in the rest of the BoundingBox
-  outGrid->extent.top   = outGrid->extent.bottom + outGrid->numRows * outGrid->cellSize;
+  outGrid->extent.top = outGrid->extent.bottom + outGrid->numRows * outGrid->cellSize;
   outGrid->extent.right = outGrid->extent.left + outGrid->numCols * outGrid->cellSize;
 
   FloatGrid* precipGrid = ReadFloatTRMMRTGrid(filename);
@@ -80,7 +80,7 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
-  int realTop  = (precipGrid->extent.top - outGrid->extent.top) / outGrid->cellSize;
+  int realTop = (precipGrid->extent.top - outGrid->extent.top) / outGrid->cellSize;
   int realLeft = (outGrid->extent.left - precipGrid->extent.left) / outGrid->cellSize;
 
   printf("Real top is %i, left is %i\n", realTop, realLeft);

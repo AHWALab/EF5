@@ -13,7 +13,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  char* filename   = argv[1];
+  char* filename = argv[1];
   char* outputfile = argv[2];
 
   FloatGrid* precipGrid = ReadFloatMRMSGrid(filename);

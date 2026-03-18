@@ -25,8 +25,8 @@ class BasinConfigSection : public ConfigSection {
   static bool IsDuplicate(char* name);
 
  private:
-  bool                             IsDuplicateGauge(GaugeConfigSection* gauge);
-  char                             name[CONFIG_MAX_LEN];
+  bool IsDuplicateGauge(GaugeConfigSection* gauge);
+  char name[CONFIG_MAX_LEN];
   std::vector<GaugeConfigSection*> gauges;
 };
 

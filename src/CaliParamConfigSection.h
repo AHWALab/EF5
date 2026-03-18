@@ -53,28 +53,28 @@ class CaliParamConfigSection : public ConfigSection {
     return interpolateObs;
   }
 
-  char*          GetName();
+  char* GetName();
   CONFIG_SEC_RET ProcessKeyValue(char* name, char* value);
   CONFIG_SEC_RET ValidateSection();
 
   static bool IsDuplicate(char* name, MODELS modelVal);
 
  private:
-  char                name[CONFIG_MAX_LEN];
-  bool                objSet;
-  MODELS              model;
-  OBJECTIVES          objective;
+  char name[CONFIG_MAX_LEN];
+  bool objSet;
+  MODELS model;
+  OBJECTIVES objective;
   GaugeConfigSection* gauge;
-  float*              modelParamMins;
-  float*              modelParamMaxs;
-  float*              modelParamInits;
-  bool*               paramsSet;
-  int                 ars_topNum;
-  float               ars_critObjScore;
-  float               ars_convergenceCriteria;
-  int                 ars_burnInSets;
-  int                 dream_ndraw;
-  bool                interpolateObs;
+  float* modelParamMins;
+  float* modelParamMaxs;
+  float* modelParamInits;
+  bool* paramsSet;
+  int ars_topNum;
+  float ars_critObjScore;
+  float ars_convergenceCriteria;
+  int ars_burnInSets;
+  int dream_ndraw;
+  bool interpolateObs;
 };
 
 extern std::map<std::string, CaliParamConfigSection*> g_caliParamConfigs[];

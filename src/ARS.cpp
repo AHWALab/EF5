@@ -4,20 +4,20 @@
 #include <cstring>
 #include <stdlib.h>
 
-void ARS::Initialize(CaliParamConfigSection*        caliParamConfigNew,
+void ARS::Initialize(CaliParamConfigSection* caliParamConfigNew,
                      RoutingCaliParamConfigSection* routingCaliParamConfigNew,
                      SnowCaliParamConfigSection* snowCaliParamConfigNew, int numParamsWBNew,
                      int numParamsRNew, int numParamsSNew, Simulator* simNew) {
-  caliParamConfig        = caliParamConfigNew;
+  caliParamConfig = caliParamConfigNew;
   routingCaliParamConfig = routingCaliParamConfigNew;
-  numParamsWB            = numParamsWBNew;
-  numParamsR             = numParamsR;
-  numParams              = numParamsWBNew + numParamsRNew;
-  sim                    = simNew;
+  numParamsWB = numParamsWBNew;
+  numParamsR = numParamsR;
+  numParams = numParamsWBNew + numParamsRNew;
+  sim = simNew;
 
   // Create storage arrays
-  minParams     = new float[numParams];
-  maxParams     = new float[numParams];
+  minParams = new float[numParams];
+  maxParams = new float[numParams];
   currentParams = new float[numParams];
 
   // Stuff from CaliParamConfigSection
@@ -26,14 +26,14 @@ void ARS::Initialize(CaliParamConfigSection*        caliParamConfigNew,
   goal = objectiveGoals[caliParamConfig->GetObjFunc()];
 
   // Configurable Parameters
-  topNum              = caliParamConfig->ARSGetTopNum();
-  minObjScore         = caliParamConfig->ARSGetCritObjScore();
+  topNum = caliParamConfig->ARSGetTopNum();
+  minObjScore = caliParamConfig->ARSGetCritObjScore();
   convergenceCriteria = caliParamConfig->ARSGetConvCriteria();
-  burnInSets          = caliParamConfig->ARSGetBurnInSets();
+  burnInSets = caliParamConfig->ARSGetBurnInSets();
 
   // Initialize vars & RNG
   totalSets = 0;
-  goodSets  = 0;
+  goodSets = 0;
 #ifdef WIN32
   srand(time(NULL));
 #else
@@ -80,7 +80,7 @@ void ARS::CalibrateParams() {
       if (((goal == OBJECTIVE_GOAL_MAXIMIZE) && objScore > current->objScore) ||
           ((goal == OBJECTIVE_GOAL_MINIMIZE) && objScore < current->objScore)) {
         ARS_INFO* newInfo = new ARS_INFO;
-        newInfo->params   = new float[numParams];
+        newInfo->params = new float[numParams];
         memcpy(newInfo->params, currentParams, sizeof(float) * numParams);
         newInfo->objScore = objScore;
         topSets.insert(itr, newInfo);
@@ -93,7 +93,7 @@ void ARS::CalibrateParams() {
     // back
     if (!insertedParams && topSets.size() < topNum) {
       ARS_INFO* newInfo = new ARS_INFO;
-      newInfo->params   = new float[numParams];
+      newInfo->params = new float[numParams];
       memcpy(newInfo->params, currentParams, sizeof(float) * numParams);
       newInfo->objScore = objScore;
       topSets.push_back(newInfo);
@@ -128,7 +128,7 @@ void ARS::CalibrateParams() {
       }
     }
 
-    ARS_INFO* top    = topSets.front();
+    ARS_INFO* top = topSets.front();
     ARS_INFO* bottom = topSets.back();
     if (insertedParams) {
       scoreDiff = top->objScore - bottom->objScore;

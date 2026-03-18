@@ -8,10 +8,10 @@ std::map<std::string, RoutingParamSetConfigSection*> g_routingParamSetConfigs[RO
 
 RoutingParamSetConfigSection::RoutingParamSetConfigSection(char* nameVal, ROUTES routeVal) {
   strcpy(name, nameVal);
-  currentGauge     = NULL;
-  currentParams    = NULL;
+  currentGauge = NULL;
+  currentParams = NULL;
   currentParamsSet = NULL;
-  route            = routeVal;
+  route = routeVal;
   paramGrids.resize(numRouteParams[route]);
 }
 
@@ -52,8 +52,8 @@ CONFIG_SEC_RET RoutingParamSetConfigSection::ProcessKeyValue(char* name, char* v
       return INVALID_RESULT;
     }
 
-    currentGauge     = itr->second;
-    currentParams    = new float[numParams];
+    currentGauge = itr->second;
+    currentParams = new float[numParams];
     currentParamsSet = new bool[numParams];
     memset(currentParams, 0, sizeof(float) * numParams);
     memset(currentParamsSet, 0, sizeof(bool) * numParams);
@@ -80,7 +80,7 @@ CONFIG_SEC_RET RoutingParamSetConfigSection::ProcessKeyValue(char* name, char* v
           return INVALID_RESULT;
         }
 
-        currentParams[i]    = atof(value);
+        currentParams[i] = atof(value);
         currentParamsSet[i] = true;
 
         return VALID_RESULT;

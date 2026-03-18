@@ -11,8 +11,8 @@
 
 int main(int argc, char** argv) {
   static ef5::RuntimeStatsReporter runtime_stats_reporter_instance;
-  struct dirent*                   dp;
-  DIR*                             dfd;
+  struct dirent* dp;
+  DIR* dfd;
 
   char* dir;
   dir = argv[1];

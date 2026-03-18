@@ -7,18 +7,18 @@
 
 class Calibrate {
  public:
-  virtual void Initialize(CaliParamConfigSection*        caliParamConfigNew,
+  virtual void Initialize(CaliParamConfigSection* caliParamConfigNew,
                           RoutingCaliParamConfigSection* routingCaliParamConfigNew,
                           SnowCaliParamConfigSection* snowCaliParamConfigNew, int numParamsWBNew,
                           int numParamsRNew, int numParamsSNew, Simulator* simNew) = 0;
-  virtual void CalibrateParams()                                                   = 0;
+  virtual void CalibrateParams() = 0;
 
  protected:
-  Simulator*                     sim;
-  int                            numParams, numParamsWB, numParamsR, numParamsS;
-  CaliParamConfigSection*        caliParamConfig;
+  Simulator* sim;
+  int numParams, numParamsWB, numParamsR, numParamsS;
+  CaliParamConfigSection* caliParamConfig;
   RoutingCaliParamConfigSection* routingCaliParamConfig;
-  SnowCaliParamConfigSection*    snowCaliParamConfig;
+  SnowCaliParamConfigSection* snowCaliParamConfig;
 };
 
 #endif

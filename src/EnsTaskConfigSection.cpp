@@ -25,7 +25,7 @@ CONFIG_SEC_RET EnsTaskConfigSection::ProcessKeyValue(char* name, char* value) {
     for (int i = 0; i < STYLE_QTY; i++) {
       if (!strcasecmp(value, runStyleStrings[i])) {
         styleSet = true;
-        style    = (RUNSTYLE)i;
+        style = (RUNSTYLE)i;
         return VALID_RESULT;
       }
     }

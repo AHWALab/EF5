@@ -12,7 +12,7 @@ class EnsTaskConfigSection : public ConfigSection {
   EnsTaskConfigSection(const char* nameVal);
   ~EnsTaskConfigSection();
 
-  char*    GetName();
+  char* GetName();
   RUNSTYLE GetRunStyle();
 
   CONFIG_SEC_RET ProcessKeyValue(char* name, char* value);
@@ -23,9 +23,9 @@ class EnsTaskConfigSection : public ConfigSection {
   static bool IsDuplicate(char* name);
 
  private:
-  bool                            styleSet;
-  char                            name[CONFIG_MAX_LEN];
-  RUNSTYLE                        style;
+  bool styleSet;
+  char name[CONFIG_MAX_LEN];
+  RUNSTYLE style;
   std::vector<TaskConfigSection*> tasks;
 };
 

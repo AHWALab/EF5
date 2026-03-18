@@ -7,7 +7,7 @@
 std::map<std::string, PrecipConfigSection*> g_precipConfigs;
 
 PrecipConfigSection::PrecipConfigSection() {
-  locSet  = false;
+  locSet = false;
   freqSet = false;
   nameSet = false;
   typeSet = false;

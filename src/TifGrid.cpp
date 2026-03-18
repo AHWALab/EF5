@@ -15,8 +15,8 @@ static const TIFFFieldInfo xtiffFieldInfo[] = {
     {TIFFTAG_GDAL_NODATA, -1, -1, TIFF_ASCII, FIELD_CUSTOM, true, false, (char*)"GDALNoDataValue"}};
 
 static TIFFExtendProc TIFFParentExtender = NULL;
-static void           TIFFExtenderInit();
-static void           TIFFDefaultDirectory(TIFF* tif);
+static void TIFFExtenderInit();
+static void TIFFDefaultDirectory(TIFF* tif);
 
 static void TIFFExtenderInit() {
   static int first_time = 1;
@@ -55,8 +55,8 @@ FloatGrid* ReadFloatTifGrid(const char* file, FloatGrid* incGrid) {
   TIFFExtenderInit();
 
   FloatGrid* grid = incGrid;
-  TIFF*      tif  = NULL;
-  GTIF*      gtif = NULL;
+  TIFF* tif = NULL;
+  GTIF* gtif = NULL;
 
   tif = XTIFFOpen(file, "r");
   if (!tif) {
@@ -92,7 +92,7 @@ FloatGrid* ReadFloatTifGrid(const char* file, FloatGrid* incGrid) {
   TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width);
   TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
 
-  short   tiepointsize, pixscalesize;
+  short tiepointsize, pixscalesize;
   double* tiepoints;  //[6];
   double* pixscale;   //[3];
   TIFFGetField(tif, TIFFTAG_GEOTIEPOINTS, &tiepointsize, &tiepoints);
@@ -102,10 +102,10 @@ FloatGrid* ReadFloatTifGrid(const char* file, FloatGrid* incGrid) {
     if (grid) {
       delete grid;
     }
-    grid          = new FloatGrid();
+    grid = new FloatGrid();
     grid->numCols = width;
     grid->numRows = height;
-    grid->data    = new float*[grid->numRows]();
+    grid->data = new float*[grid->numRows]();
     if (!grid->data) {
       WARNING_LOGF("TIF file %s too large (out of memory) with %li rows", file, grid->numRows);
       delete grid;
@@ -131,11 +131,11 @@ FloatGrid* ReadFloatTifGrid(const char* file, FloatGrid* incGrid) {
   } else {
     grid->noData = std::numeric_limits<float>::quiet_NaN();
   }
-  grid->cellSize      = pixscale[0];
-  grid->extent.top    = tiepoints[4];
-  grid->extent.left   = tiepoints[3];
+  grid->cellSize = pixscale[0];
+  grid->extent.top = tiepoints[4];
+  grid->extent.left = tiepoints[3];
   grid->extent.bottom = tiepoints[4] - (pixscale[1] * float(height));
-  grid->extent.right  = tiepoints[3] + (pixscale[0] * float(width));
+  grid->extent.right = tiepoints[3] + (pixscale[0] * float(width));
 
   GTIFKeyGet(gtif, GTModelTypeGeoKey, &grid->modelType, 0, 1);
   GTIFKeyGet(gtif, GeographicTypeGeoKey, &grid->geographicType, 0, 1);
@@ -160,7 +160,7 @@ void WriteFloatTifGrid(const char* file, FloatGrid* grid, const char* artist, co
                        const char* copyright) {
   TIFFExtenderInit();
 
-  TIFF* tif  = NULL;
+  TIFF* tif = NULL;
   GTIF* gtif = NULL;
 
   tif = XTIFFOpen(file, "w");
@@ -201,9 +201,9 @@ void WriteFloatTifGrid(const char* file, FloatGrid* grid, const char* artist, co
   double tiepoints[6];
   double pixscale[3];
 
-  pixscale[0]  = grid->cellSize;
-  pixscale[1]  = grid->cellSize;
-  pixscale[2]  = 0.0;
+  pixscale[0] = grid->cellSize;
+  pixscale[1] = grid->cellSize;
+  pixscale[2] = 0.0;
   tiepoints[0] = 0;
   tiepoints[1] = 0;
   tiepoints[2] = 0;
@@ -243,8 +243,8 @@ void WriteFloatTifGrid(const char* file, FloatGrid* grid, const char* artist, co
 
 LongGrid* ReadLongTifGrid(const char* file) {
   LongGrid* grid = NULL;
-  TIFF*     tif  = NULL;
-  GTIF*     gtif = NULL;
+  TIFF* tif = NULL;
+  GTIF* gtif = NULL;
 
   TIFFSetErrorHandler(NULL);
 
@@ -275,7 +275,7 @@ LongGrid* ReadLongTifGrid(const char* file) {
   TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width);
   TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
 
-  short   tiepointsize, pixscalesize;
+  short tiepointsize, pixscalesize;
   double* tiepoints;  //[6];
   double* pixscale;   //[3];
   TIFFGetField(tif, TIFFTAG_GEOTIEPOINTS, &tiepointsize, &tiepoints);
@@ -283,13 +283,13 @@ LongGrid* ReadLongTifGrid(const char* file) {
 
   grid = new LongGrid();
 
-  grid->numCols       = width;
-  grid->numRows       = height;
-  grid->cellSize      = pixscale[0];
-  grid->extent.top    = tiepoints[4];
-  grid->extent.left   = tiepoints[3];
+  grid->numCols = width;
+  grid->numRows = height;
+  grid->cellSize = pixscale[0];
+  grid->extent.top = tiepoints[4];
+  grid->extent.left = tiepoints[3];
   grid->extent.bottom = tiepoints[4] - (pixscale[1] * float(height));
-  grid->extent.right  = tiepoints[3] + (pixscale[0] * float(width));
+  grid->extent.right = tiepoints[3] + (pixscale[0] * float(width));
 
   grid->data = new long*[grid->numRows];
   for (long i = 0; i < grid->numRows; i++) {

@@ -36,7 +36,7 @@ float CalcObjFunc(std::vector<float>* obs, std::vector<float>* sim, OBJECTIVES o
 }
 
 float CalcNSCE(std::vector<float>* obs, std::vector<float>* sim) {
-  float  obsMean = 0, obsAcc = 0, simAcc = 0, validQs = 0;
+  float obsMean = 0, obsAcc = 0, simAcc = 0, validQs = 0;
   size_t totalTimeSteps = obs->size();
   for (size_t tsIndex = 0; tsIndex < totalTimeSteps; tsIndex++) {
     if ((*obs)[tsIndex] == (*obs)[tsIndex] && (*sim)[tsIndex] == (*sim)[tsIndex]) {
@@ -64,7 +64,7 @@ float CalcNSCE(std::vector<float>* obs, std::vector<float>* sim) {
 }
 
 float CalcCC(std::vector<float>* obs, std::vector<float>* sim) {
-  float  obsMean = 0, simMean = 0, obsAcc2 = 0, obsAcc = 0, simAcc = 0;
+  float obsMean = 0, simMean = 0, obsAcc2 = 0, obsAcc = 0, simAcc = 0;
   size_t validQs = 0, totalTimeSteps = obs->size();
   for (size_t tsIndex = 0; tsIndex < totalTimeSteps; tsIndex++) {
     if ((*obs)[tsIndex] == (*obs)[tsIndex] && (*sim)[tsIndex] == (*sim)[tsIndex]) {
@@ -92,7 +92,7 @@ float CalcCC(std::vector<float>* obs, std::vector<float>* sim) {
 }
 
 float CalcSSE(std::vector<float>* obs, std::vector<float>* sim) {
-  float  sse            = 0;
+  float sse = 0;
   size_t totalTimeSteps = obs->size();
 
   for (size_t tsIndex = 0; tsIndex < totalTimeSteps; tsIndex++) {
@@ -106,7 +106,7 @@ float CalcSSE(std::vector<float>* obs, std::vector<float>* sim) {
 
 static float CalcMKGE(std::vector<float>* obs, std::vector<float>* sim) {
   size_t totalTimeSteps = obs->size();
-  float  sum_obs = 0, sum_sim = 0;
+  float sum_obs = 0, sum_sim = 0;
   size_t validQs = 0;
 
   // Calculate sums and count valid data points
@@ -140,14 +140,14 @@ static float CalcMKGE(std::vector<float>* obs, std::vector<float>* sim) {
   }
 
   // Compute final metrics
-  float denom   = sqrtf(sum_obs_sq) * sqrtf(sum_sim_sq);
-  float r       = (denom != 0.0f) ? (sum_cov / denom) : 0.0f;
+  float denom = sqrtf(sum_obs_sq) * sqrtf(sum_sim_sq);
+  float r = (denom != 0.0f) ? (sum_cov / denom) : 0.0f;
   float sigma_o = sqrtf(sum_obs_sq / (validQs - 1));
   float sigma_s = sqrtf(sum_sim_sq / (validQs - 1));
-  float beta    = (Y_obs != 0.0f) ? (Y_sim / Y_obs) : 0.0f;
-  float gamma   = (Y_sim != 0.0f && Y_obs != 0.0f && sigma_o != 0.0f)
-                      ? ((sigma_s / Y_sim) / (sigma_o / Y_obs))
-                      : 0.0f;
+  float beta = (Y_obs != 0.0f) ? (Y_sim / Y_obs) : 0.0f;
+  float gamma = (Y_sim != 0.0f && Y_obs != 0.0f && sigma_o != 0.0f)
+                    ? ((sigma_s / Y_sim) / (sigma_o / Y_obs))
+                    : 0.0f;
   float mkge = 1 - sqrtf((r - 1) * (r - 1) + (beta - 1) * (beta - 1) + (gamma - 1) * (gamma - 1));
 
   // Handle NaN or infinite case

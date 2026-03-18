@@ -9,22 +9,22 @@
 struct BasicGridNode {};
 
 struct GridNode {
-  long                x;
-  long                y;
-  RefLoc              refLoc;
-  float               slope;
-  long                fac;
-  float               area;
-  float               contribArea;
-  float               horLen;
-  float               riverLen;
-  float               relief;
-  bool                channelGridCell;
+  long x;
+  long y;
+  RefLoc refLoc;
+  float slope;
+  long fac;
+  float area;
+  float contribArea;
+  float horLen;
+  float riverLen;
+  float relief;
+  bool channelGridCell;
   GaugeConfigSection* gauge;
-  unsigned long       downStreamNode;
-  unsigned long       index;
-  unsigned long       modelIndex;
-  BasicGridNode*      modelNode;
+  unsigned long downStreamNode;
+  unsigned long index;
+  unsigned long modelIndex;
+  BasicGridNode* modelNode;
 };
 
 typedef std::vector<GridNode> GridNodeVec;

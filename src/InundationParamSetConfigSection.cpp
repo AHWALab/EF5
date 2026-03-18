@@ -6,13 +6,13 @@
 
 std::map<std::string, InundationParamSetConfigSection*> g_inundationParamSetConfigs[INUNDATION_QTY];
 
-InundationParamSetConfigSection::InundationParamSetConfigSection(char*       nameVal,
+InundationParamSetConfigSection::InundationParamSetConfigSection(char* nameVal,
                                                                  INUNDATIONS inundationVal) {
   strcpy(name, nameVal);
-  currentGauge     = NULL;
-  currentParams    = NULL;
+  currentGauge = NULL;
+  currentParams = NULL;
   currentParamsSet = NULL;
-  inundation       = inundationVal;
+  inundation = inundationVal;
   paramGrids.resize(numInundationParams[inundation]);
 }
 
@@ -53,8 +53,8 @@ CONFIG_SEC_RET InundationParamSetConfigSection::ProcessKeyValue(char* name, char
       return INVALID_RESULT;
     }
 
-    currentGauge     = itr->second;
-    currentParams    = new float[numParams];
+    currentGauge = itr->second;
+    currentParams = new float[numParams];
     currentParamsSet = new bool[numParams];
     memset(currentParams, 0, sizeof(float) * numParams);
     memset(currentParamsSet, 0, sizeof(bool) * numParams);
@@ -81,7 +81,7 @@ CONFIG_SEC_RET InundationParamSetConfigSection::ProcessKeyValue(char* name, char
           return INVALID_RESULT;
         }
 
-        currentParams[i]    = atof(value);
+        currentParams[i] = atof(value);
         currentParamsSet[i] = true;
 
         return VALID_RESULT;

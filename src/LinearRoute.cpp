@@ -13,9 +13,9 @@ float LRRoute::SetObsInflow(long index, float inflow) {
   return 0.0;
 }
 
-bool LRRoute::InitializeModel(std::vector<GridNode>*                 newNodes,
+bool LRRoute::InitializeModel(std::vector<GridNode>* newNodes,
                               std::map<GaugeConfigSection*, float*>* paramSettings,
-                              std::vector<FloatGrid*>*               paramGrids) {
+                              std::vector<FloatGrid*>* paramGrids) {
   nodes = newNodes;
   if (lrNodes.size() != nodes->size()) {
     lrNodes.resize(nodes->size());
@@ -24,15 +24,15 @@ bool LRRoute::InitializeModel(std::vector<GridNode>*                 newNodes,
   // Fill in modelIndex in the gridNodes
   size_t numNodes = nodes->size();
   for (size_t i = 0; i < numNodes; i++) {
-    GridNode* node    = &nodes->at(i);
-    node->modelIndex  = i;
+    GridNode* node = &nodes->at(i);
+    node->modelIndex = i;
     LRGridNode* cNode = &(lrNodes[i]);
-    cNode->slopeSqrt  = pow(node->slope, 0.5f);
+    cNode->slopeSqrt = pow(node->slope, 0.5f);
   }
 
   InitializeParameters(paramSettings, paramGrids);
   initialized = false;
-  maxSpeed    = 1.0;
+  maxSpeed = 1.0;
 
   return true;
 }
@@ -56,10 +56,10 @@ bool LRRoute::Route(float stepHours, std::vector<float>* fastFlow, std::vector<f
   }
 
   for (size_t i = 0; i < numNodes; i++) {
-    LRGridNode* cNode                        = &(lrNodes[i]);
-    fastFlow->at(i)                          = cNode->incomingWater[LR_LAYER_OVERLAND];
-    cNode->incomingWater[LR_LAYER_OVERLAND]  = 0.0;
-    slowFlow->at(i)                          = cNode->incomingWater[LR_LAYER_INTERFLOW];
+    LRGridNode* cNode = &(lrNodes[i]);
+    fastFlow->at(i) = cNode->incomingWater[LR_LAYER_OVERLAND];
+    cNode->incomingWater[LR_LAYER_OVERLAND] = 0.0;
+    slowFlow->at(i) = cNode->incomingWater[LR_LAYER_INTERFLOW];
     cNode->incomingWater[LR_LAYER_INTERFLOW] = 0.0;
   }
 
@@ -92,17 +92,17 @@ void LRRoute::RouteInt(GridNode* node, LRGridNode* cNode, float fastFlow, float 
   }
 
   if (cNode->routeCNode[0][LR_LAYER_OVERLAND]) {
-    double  overlandLeak0 = overlandLeak * cNode->routeAmount[0][LR_LAYER_OVERLAND] * node->area /
-                            cNode->routeNode[0][LR_LAYER_OVERLAND]->area;
-    double  leakAmount    = overlandLeak0;
+    double overlandLeak0 = overlandLeak * cNode->routeAmount[0][LR_LAYER_OVERLAND] * node->area /
+                           cNode->routeNode[0][LR_LAYER_OVERLAND]->area;
+    double leakAmount = overlandLeak0;
     double* res = &(cNode->routeCNode[0][LR_LAYER_OVERLAND]->incomingWater[LR_LAYER_OVERLAND]);
     *res += leakAmount;  // Make this an atomic add for parallelization
   }
 
   if (cNode->routeCNode[1][LR_LAYER_OVERLAND]) {
-    double  overlandLeak1 = overlandLeak * cNode->routeAmount[1][LR_LAYER_OVERLAND] * node->area /
-                            cNode->routeNode[1][LR_LAYER_OVERLAND]->area;
-    double  leakAmount    = overlandLeak1;
+    double overlandLeak1 = overlandLeak * cNode->routeAmount[1][LR_LAYER_OVERLAND] * node->area /
+                           cNode->routeNode[1][LR_LAYER_OVERLAND]->area;
+    double leakAmount = overlandLeak1;
     double* res = &(cNode->routeCNode[1][LR_LAYER_OVERLAND]->incomingWater[LR_LAYER_OVERLAND]);
     *res += leakAmount;  // Make this an atomic add for parallelization
   }
@@ -110,7 +110,7 @@ void LRRoute::RouteInt(GridNode* node, LRGridNode* cNode, float fastFlow, float 
   if (cNode->routeCNode[0][LR_LAYER_INTERFLOW]) {
     double interflowLeak0 = interflowLeak * cNode->routeAmount[0][LR_LAYER_INTERFLOW] * node->area /
                             cNode->routeNode[0][LR_LAYER_INTERFLOW]->area;
-    double leakAmount     = interflowLeak0;
+    double leakAmount = interflowLeak0;
     double* res = &(cNode->routeCNode[0][LR_LAYER_INTERFLOW]->incomingWater[LR_LAYER_INTERFLOW]);
     *res += leakAmount;  // Make this an atomic add for parallelization
   }
@@ -118,19 +118,19 @@ void LRRoute::RouteInt(GridNode* node, LRGridNode* cNode, float fastFlow, float 
   if (cNode->routeCNode[1][LR_LAYER_INTERFLOW]) {
     double interflowLeak1 = interflowLeak * cNode->routeAmount[1][LR_LAYER_INTERFLOW] * node->area /
                             cNode->routeNode[1][LR_LAYER_INTERFLOW]->area;
-    double leakAmount     = interflowLeak1;
+    double leakAmount = interflowLeak1;
     double* res = &(cNode->routeCNode[1][LR_LAYER_INTERFLOW]->incomingWater[LR_LAYER_INTERFLOW]);
     *res += leakAmount;  // Make this an atomic add for parallelization
   }
 }
 
 void LRRoute::InitializeParameters(std::map<GaugeConfigSection*, float*>* paramSettings,
-                                   std::vector<FloatGrid*>*               paramGrids) {
+                                   std::vector<FloatGrid*>* paramGrids) {
   // This pass distributes parameters
   size_t numNodes = nodes->size();
-  size_t unused   = 0;
+  size_t unused = 0;
   for (size_t i = 0; i < numNodes; i++) {
-    GridNode*   node  = &nodes->at(i);
+    GridNode* node = &nodes->at(i);
     LRGridNode* cNode = &(lrNodes[i]);
     if (!node->gauge) {
       unused++;
@@ -145,7 +145,7 @@ void LRRoute::InitializeParameters(std::map<GaugeConfigSection*, float*>* paramS
     if (!paramGrids->at(PARAM_LINEAR_ISU)) {
       cNode->reservoirs[LR_LAYER_INTERFLOW] = cNode->params[PARAM_LINEAR_ISU];
     }
-    cNode->incomingWater[LR_LAYER_OVERLAND]  = 0.0;
+    cNode->incomingWater[LR_LAYER_OVERLAND] = 0.0;
     cNode->incomingWater[LR_LAYER_INTERFLOW] = 0.0;
 
     // Deal with the distributed parameters here
@@ -202,7 +202,7 @@ void LRRoute::InitializeRouting(float timeSeconds) {
   // to cross the grid cell.
   size_t numNodes = nodes->size();
   for (size_t i = 0; i < numNodes; i++) {
-    GridNode*   node  = &nodes->at(i);
+    GridNode* node = &nodes->at(i);
     LRGridNode* cNode = &(lrNodes[i]);
 
     float waterDepth = (cNode->reservoirs[LR_LAYER_OVERLAND] * cNode->params[PARAM_LINEAR_LEAKO] +
@@ -235,28 +235,28 @@ void LRRoute::InitializeRouting(float timeSeconds) {
     // Calculate the water speed for interflow
     float speedUnder = cNode->params[PARAM_LINEAR_UNDER] * cNode->slopeSqrt;
 
-    float nexTime                      = node->horLen / speed;
-    float nexTimeUnder                 = node->horLen / speedUnder;
-    cNode->nexTime[LR_LAYER_OVERLAND]  = nexTime;
+    float nexTime = node->horLen / speed;
+    float nexTimeUnder = node->horLen / speedUnder;
+    cNode->nexTime[LR_LAYER_OVERLAND] = nexTime;
     cNode->nexTime[LR_LAYER_INTERFLOW] = nexTimeUnder;
   }
 
   // This pass figures out which cell water is routed to
   for (size_t i = 0; i < numNodes; i++) {
-    GridNode *  currentNode, *previousNode;
-    float       currentSeconds, previousSeconds;
-    GridNode*   node  = &nodes->at(i);
+    GridNode *currentNode, *previousNode;
+    float currentSeconds, previousSeconds;
+    GridNode* node = &nodes->at(i);
     LRGridNode* cNode = &(lrNodes[i]);
 
     // Overland routing
     previousSeconds = 0;
-    currentSeconds  = 0;
-    currentNode     = node;
-    previousNode    = NULL;
+    currentSeconds = 0;
+    currentNode = node;
+    previousNode = NULL;
     while (currentSeconds < timeSeconds) {
       if (currentNode) {
         previousSeconds = currentSeconds;
-        previousNode    = currentNode;
+        previousNode = currentNode;
         currentSeconds += lrNodes[currentNode->modelIndex].nexTime[LR_LAYER_OVERLAND];
         if (currentNode->downStreamNode != INVALID_DOWNSTREAM_NODE) {
           currentNode = &(nodes->at(currentNode->downStreamNode));
@@ -286,13 +286,13 @@ void LRRoute::InitializeRouting(float timeSeconds) {
 
     // Interflow routing
     previousSeconds = 0;
-    currentSeconds  = 0;
-    currentNode     = node;
-    previousNode    = NULL;
+    currentSeconds = 0;
+    currentNode = node;
+    previousNode = NULL;
     while (currentSeconds < timeSeconds) {
       if (currentNode) {
         previousSeconds = currentSeconds;
-        previousNode    = currentNode;
+        previousNode = currentNode;
         currentSeconds += lrNodes[currentNode->modelIndex].nexTime[LR_LAYER_INTERFLOW];
         if (currentNode->downStreamNode != INVALID_DOWNSTREAM_NODE) {
           currentNode = &(nodes->at(currentNode->downStreamNode));

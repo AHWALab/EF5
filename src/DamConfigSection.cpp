@@ -8,18 +8,18 @@
 std::map<std::string, DamConfigSection*> g_damConfigs;
 
 DamConfigSection::DamConfigSection(char* nameVal) {
-  obsSet          = false;
-  latSet          = false;
-  lonSet          = false;
-  xSet            = false;
-  ySet            = false;
+  obsSet = false;
+  latSet = false;
+  lonSet = false;
+  xSet = false;
+  ySet = false;
   obsFlowAccumSet = false;
-  volumeSet       = false;
+  volumeSet = false;
   strcpy(name, nameVal);
-  outputTS       = true;
+  outputTS = true;
   observation[0] = 0;
-  wantDA         = true;
-  wantCO         = false;
+  wantDA = true;
+  wantCO = false;
 }
 
 DamConfigSection::~DamConfigSection() {}
@@ -54,10 +54,10 @@ void DamConfigSection::SetObservedValue(char* timeBuffer, float dataValue) {
 
 CONFIG_SEC_RET DamConfigSection::ProcessKeyValue(char* name, char* value) {
   if (!strcasecmp(name, "lat")) {
-    lat    = strtod(value, NULL);
+    lat = strtod(value, NULL);
     latSet = true;
   } else if (!strcasecmp(name, "lon")) {
-    lon    = strtod(value, NULL);
+    lon = strtod(value, NULL);
     lonSet = true;
   } else if (!strcasecmp(name, "cellx")) {
     SetCellX(atoi(value));
@@ -66,10 +66,10 @@ CONFIG_SEC_RET DamConfigSection::ProcessKeyValue(char* name, char* value) {
     SetCellY(atoi(value));
     ySet = true;
   } else if (!strcasecmp(name, "basinarea")) {
-    obsFlowAccum    = atof(value);
+    obsFlowAccum = atof(value);
     obsFlowAccumSet = true;
   } else if (!strcasecmp(name, "volume")) {
-    volume    = atof(value);
+    volume = atof(value);
     volumeSet = true;
   } else if (!strcasecmp(name, "obs")) {
     strcpy(observation, value);

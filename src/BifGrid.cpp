@@ -4,9 +4,9 @@
 #include <fcntl.h>
 
 FloatGrid* ReadFloatBifGrid(char* file) {
-  BifHeader  header;
+  BifHeader header;
   FloatGrid* grid = NULL;
-  FILE*      fileH;
+  FILE* fileH;
 
   fileH = fopen(file, "rb");
   if (fileH == NULL) {
@@ -26,11 +26,11 @@ FloatGrid* ReadFloatBifGrid(char* file) {
     return NULL;
   }
 
-  grid->numCols       = header.ncols;
-  grid->numRows       = header.nrows;
-  grid->cellSize      = header.cellsize;
+  grid->numCols = header.ncols;
+  grid->numRows = header.nrows;
+  grid->cellSize = header.cellsize;
   grid->extent.bottom = header.yllcor;
-  grid->extent.left   = header.xllcor;
+  grid->extent.left = header.xllcor;
 
   grid->data = new float*[grid->numRows]();
   if (!grid->data) {
@@ -56,7 +56,7 @@ FloatGrid* ReadFloatBifGrid(char* file) {
   }
 
   // Fill in the rest of the BoundingBox
-  grid->extent.top   = grid->extent.bottom + grid->numRows * grid->cellSize;
+  grid->extent.top = grid->extent.bottom + grid->numRows * grid->cellSize;
   grid->extent.right = grid->extent.left + grid->numCols * grid->cellSize;
 
   fclose(fileH);

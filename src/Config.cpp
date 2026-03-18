@@ -40,9 +40,9 @@ Config::Config(const char* configName) {
 Config::~Config() {}
 
 CONFIG_PARSE_RESULTS Config::ParseConfig() {
-  FILE*  configFile;
+  FILE* configFile;
   size_t fileLen;
-  char*  buffer;
+  char* buffer;
 
   configFile = fopen(name, "rb");
   if (configFile == NULL) {
@@ -56,7 +56,7 @@ CONFIG_PARSE_RESULTS Config::ParseConfig() {
   fseek(configFile, 0, SEEK_SET);
 
   // Read the entire file into buffer, +4 to give us extra room to play with!
-  buffer         = new char[fileLen + 4];
+  buffer = new char[fileLen + 4];
   size_t readLen = fread(buffer, 1, fileLen, configFile);
   if (readLen != fileLen) {
     ERROR_LOGF("Failed to read configuration file %s\n", name);
@@ -66,7 +66,7 @@ CONFIG_PARSE_RESULTS Config::ParseConfig() {
   }
 
   // Fill the extra space with zeros
-  buffer[fileLen]     = 0;
+  buffer[fileLen] = 0;
   buffer[fileLen + 1] = 0;
   buffer[fileLen + 2] = 0;
   buffer[fileLen + 3] = 0;
@@ -75,12 +75,12 @@ CONFIG_PARSE_RESULTS Config::ParseConfig() {
   fclose(configFile);
 
   // Start the process of parsing all the information
-  int                line                    = 1;
-  char               nameBuf[CONFIG_MAX_LEN] = "";
-  char               valBuf[CONFIG_MAX_LEN]  = "";
-  size_t             i = 0, nameIdx = 0, valIdx = 0;
-  CONFIG_PARSE_STATE state          = PARSE_NORMAL;
-  ConfigSection*     currentSection = NULL;
+  int line = 1;
+  char nameBuf[CONFIG_MAX_LEN] = "";
+  char valBuf[CONFIG_MAX_LEN] = "";
+  size_t i = 0, nameIdx = 0, valIdx = 0;
+  CONFIG_PARSE_STATE state = PARSE_NORMAL;
+  ConfigSection* currentSection = NULL;
 
   // This is the meat of the parsing here
   for (i = 0; i < fileLen; i++) {
@@ -103,19 +103,19 @@ CONFIG_PARSE_RESULTS Config::ParseConfig() {
           line++;
           continue;
         } else if (buffer[i] == '[') {
-          state   = PARSE_SECTION_NAME;
+          state = PARSE_SECTION_NAME;
           nameIdx = 0;
-          valIdx  = 0;
+          valIdx = 0;
           continue;
         } else if (currentSection == NULL) {
           ERROR_LOGF("%s(%i): Invalid key-value outside of section", name, line);
           delete[] buffer;
           return CONFIG_INV_NAMEKEY;
         } else {
-          state      = PARSE_NAME;
+          state = PARSE_NAME;
           nameBuf[0] = buffer[i];
-          nameIdx    = 1;
-          valIdx     = 0;
+          nameIdx = 1;
+          valIdx = 0;
           continue;
         }
         break;
@@ -146,12 +146,12 @@ CONFIG_PARSE_RESULTS Config::ParseConfig() {
       }
       case PARSE_SECTION_NAME: {
         if (buffer[i] == ' ') {
-          state            = PARSE_SECTION_VALUE;
+          state = PARSE_SECTION_VALUE;
           nameBuf[nameIdx] = 0;  // Add the null terminator to the name string
           continue;
         } else if (buffer[i] == ']') {
-          state            = PARSE_NORMAL;
-          valBuf[0]        = 0;
+          state = PARSE_NORMAL;
+          valBuf[0] = 0;
           nameBuf[nameIdx] = 0;
           // Allow old section to throw errors
           if (currentSection != NULL && currentSection->ValidateSection()) {
@@ -185,7 +185,7 @@ CONFIG_PARSE_RESULTS Config::ParseConfig() {
       }
       case PARSE_SECTION_VALUE: {
         if (buffer[i] == ']') {
-          state          = PARSE_NORMAL;
+          state = PARSE_NORMAL;
           valBuf[valIdx] = 0;  // Add the null terminator
           // Allow old section to throw errors
           if (currentSection != NULL && currentSection->ValidateSection()) {
@@ -221,7 +221,7 @@ CONFIG_PARSE_RESULTS Config::ParseConfig() {
       }
       case PARSE_NAME: {
         if (buffer[i] == '=') {
-          state            = PARSE_VALUE;
+          state = PARSE_VALUE;
           nameBuf[nameIdx] = 0;  // Add null terminator
           continue;
         } else if (buffer[i] == '\n') {
@@ -243,7 +243,7 @@ CONFIG_PARSE_RESULTS Config::ParseConfig() {
       }
       case PARSE_VALUE: {
         if (buffer[i] == ' ' || buffer[i] == '\n' || buffer[i] == '\r') {
-          state          = PARSE_NORMAL;
+          state = PARSE_NORMAL;
           valBuf[valIdx] = 0;  // Add null terminator
           if (buffer[i] == '\n') {
             line++;
@@ -275,7 +275,7 @@ CONFIG_PARSE_RESULTS Config::ParseConfig() {
   }
 
   if (state == PARSE_VALUE) {
-    state          = PARSE_NORMAL;
+    state = PARSE_NORMAL;
     valBuf[valIdx] = 0;  // Add null terminator
     if (currentSection->ProcessKeyValue(nameBuf, valBuf)) {
       // ProcessKeyValue is responsible for printing error messages
@@ -300,7 +300,7 @@ ConfigSection* Config::GetConfigSection(char* sectionName, char* sectionVal) {
 
   if (strcasecmp(sectionName, "basic") == 0) {
     g_basicConfig = new BasicConfigSection();
-    newSec        = g_basicConfig;
+    newSec = g_basicConfig;
   } else if (strcasecmp(sectionName, "precipforcing") == 0) {
     TOLOWER(sectionVal);
     if (PrecipConfigSection::IsDuplicate(sectionVal)) {
@@ -366,7 +366,7 @@ ConfigSection* Config::GetConfigSection(char* sectionName, char* sectionVal) {
     newSec = taskSec;
   } else if (strcasecmp(sectionName, "execute") == 0) {
     g_executeConfig = new ExecuteConfigSection();
-    newSec          = g_executeConfig;
+    newSec = g_executeConfig;
   } else {
     TOLOWER(sectionVal);
 

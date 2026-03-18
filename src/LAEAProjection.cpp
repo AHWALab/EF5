@@ -7,7 +7,7 @@
 LAEAProjection::LAEAProjection() {
   stan_par = TORADIANS(45.0);
   cent_lon = TORADIANS(-100.0);
-  a        = 6370997.0;
+  a = 6370997.0;
 }
 
 LAEAProjection::~LAEAProjection() {}
@@ -60,8 +60,8 @@ void LAEAProjection::UnprojectPoint(float x, float y, float* lon, float* lat) {
   float projX = x / a;
   float projY = y / a;
 
-  float rho    = sqrt(pow(projX, 2) + pow(projY, 2));
-  float c      = 2 * asin(0.5 * rho);
+  float rho = sqrt(pow(projX, 2) + pow(projY, 2));
+  float c = 2 * asin(0.5 * rho);
   float geoLat = asin(cos(c) * sin(stan_par) + (projY * sin(c) * cos(stan_par)) / rho);
   float geoLon = cent_lon + atan((projX * sin(c)) /
                                  (rho * cos(stan_par) * cos(c) - projY * sin(stan_par) * sin(c)));
@@ -71,8 +71,8 @@ void LAEAProjection::UnprojectPoint(float x, float y, float* lon, float* lat) {
 }
 
 void LAEAProjection::SetCellSize(float newCellSize) {
-  cellSize          = newCellSize;
-  metersSNPerCell   = cellSize;
+  cellSize = newCellSize;
+  metersSNPerCell = cellSize;
   metersDiagPerCell = sqrt(pow(cellSize, 2) + pow(cellSize, 2));
-  area              = pow(cellSize, 2) / 1000000;  // Want km^2
+  area = pow(cellSize, 2) / 1000000;  // Want km^2
 }

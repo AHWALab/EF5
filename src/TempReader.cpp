@@ -86,9 +86,9 @@ bool TempReader::Read(char* file, SUPPORTED_TEMP_TYPES type, std::vector<GridNod
       if (tempGrid->GetGridLoc(node->refLoc.x, node->refLoc.y, &pt) &&
           tempGrid->data[pt.y][pt.x] != tempGrid->noData) {
         if (tempDEM && tempDEM->IsSpatialMatch(tempGrid)) {
-          float temp         = tempGrid->data[pt.y][pt.x];
-          float diffHeight   = g_DEM->data[node->y][node->x] - tempDEM->data[pt.y][pt.x];
-          float tempMod      = -0.0065 * diffHeight;
+          float temp = tempGrid->data[pt.y][pt.x];
+          float diffHeight = g_DEM->data[node->y][node->x] - tempDEM->data[pt.y][pt.x];
+          float tempMod = -0.0065 * diffHeight;
           currentTemp->at(i) = temp + tempMod;
         } else {
           currentTemp->at(i) = tempGrid->data[pt.y][pt.x];

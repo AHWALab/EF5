@@ -17,7 +17,7 @@ class PrecipType {
  public:
   SUPPORTED_PRECIP_TYPES GetType();
   SUPPORTED_PRECIP_TYPES ParseType(char* typeStr);
-  const char*            GetTypes();
+  const char* GetTypes();
 
  private:
   SUPPORTED_PRECIP_TYPES type;

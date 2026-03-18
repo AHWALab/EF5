@@ -26,12 +26,12 @@ SUPPORTED_TIME_UNITS TimeUnit::GetTimeUnit() {
 }
 
 SUPPORTED_TIME_UNITS TimeUnit::ParseUnit(char* unitText) {
-  size_t               len    = strlen(unitText);
+  size_t len = strlen(unitText);
   SUPPORTED_TIME_UNITS result = TIME_UNIT_QTY;
-  char                 modifier[CONFIG_MAX_LEN];
-  char*                unitStr     = unitText;
-  int                  intModifier = 0;
-  unsigned long        time        = 0;
+  char modifier[CONFIG_MAX_LEN];
+  char* unitStr = unitText;
+  int intModifier = 0;
+  unsigned long time = 0;
 
   for (size_t i = 0; i < len; i++) {
     if ((*unitStr >= '0' && *unitStr <= '9')) {
@@ -57,12 +57,12 @@ SUPPORTED_TIME_UNITS TimeUnit::ParseUnit(char* unitText) {
   }
 
   if (result != TIME_UNIT_QTY) {
-    time      = TimeUnitSeconds[result];
-    time      = (unsigned long)(intModifier * time);
+    time = TimeUnitSeconds[result];
+    time = (unsigned long)(intModifier * time);
     timeInSec = time;
   }
 
-  timeUnit     = result;
+  timeUnit = result;
   timeModifier = intModifier;
 
   return result;

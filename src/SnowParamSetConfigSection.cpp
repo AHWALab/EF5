@@ -8,10 +8,10 @@ std::map<std::string, SnowParamSetConfigSection*> g_snowParamSetConfigs[SNOW_QTY
 
 SnowParamSetConfigSection::SnowParamSetConfigSection(char* nameVal, SNOWS snowVal) {
   strcpy(name, nameVal);
-  currentGauge     = NULL;
-  currentParams    = NULL;
+  currentGauge = NULL;
+  currentParams = NULL;
   currentParamsSet = NULL;
-  snow             = snowVal;
+  snow = snowVal;
   paramGrids.resize(numSnowParams[snow]);
 }
 
@@ -52,8 +52,8 @@ CONFIG_SEC_RET SnowParamSetConfigSection::ProcessKeyValue(char* name, char* valu
       return INVALID_RESULT;
     }
 
-    currentGauge     = itr->second;
-    currentParams    = new float[numParams];
+    currentGauge = itr->second;
+    currentParams = new float[numParams];
     currentParamsSet = new bool[numParams];
     memset(currentParams, 0, sizeof(float) * numParams);
     memset(currentParamsSet, 0, sizeof(bool) * numParams);
@@ -80,7 +80,7 @@ CONFIG_SEC_RET SnowParamSetConfigSection::ProcessKeyValue(char* name, char* valu
           return INVALID_RESULT;
         }
 
-        currentParams[i]    = atof(value);
+        currentParams[i] = atof(value);
         currentParamsSet[i] = true;
 
         return VALID_RESULT;

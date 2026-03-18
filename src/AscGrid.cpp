@@ -5,7 +5,7 @@
 
 LongGrid* ReadLongAscGrid(char* file) {
   LongGrid* grid = NULL;
-  FILE*     fileH;
+  FILE* fileH;
 
   fileH = fopen(file, "r");
   if (fileH == NULL) {
@@ -62,7 +62,7 @@ LongGrid* ReadLongAscGrid(char* file) {
   }
 
   // Fill in the rest of the BoundingBox
-  grid->extent.top   = grid->extent.bottom + grid->numRows * grid->cellSize;
+  grid->extent.top = grid->extent.bottom + grid->numRows * grid->cellSize;
   grid->extent.right = grid->extent.left + grid->numCols * grid->cellSize;
 
   fclose(fileH);
@@ -72,7 +72,7 @@ LongGrid* ReadLongAscGrid(char* file) {
 
 FloatGrid* ReadFloatAscGrid(char* file) {
   FloatGrid* grid = NULL;
-  FILE*      fileH;
+  FILE* fileH;
 
   fileH = fopen(file, "r");
   if (fileH == NULL) {
@@ -148,7 +148,7 @@ FloatGrid* ReadFloatAscGrid(char* file) {
   }
 
   // Fill in the rest of the BoundingBox
-  grid->extent.top   = grid->extent.bottom + grid->numRows * grid->cellSize;
+  grid->extent.top = grid->extent.bottom + grid->numRows * grid->cellSize;
   grid->extent.right = grid->extent.left + grid->numCols * grid->cellSize;
 
   fclose(fileH);

@@ -6,7 +6,7 @@
 
 class DistancePerTimeUnits {
  public:
-  bool      ParseUnit(char* units);
+  bool ParseUnit(char* units);
   TimeUnit* GetTime() {
     return &time;
   }
@@ -16,7 +16,7 @@ class DistancePerTimeUnits {
 
  private:
   DistanceUnit dist;
-  TimeUnit     time;
+  TimeUnit time;
 };
 
 #endif

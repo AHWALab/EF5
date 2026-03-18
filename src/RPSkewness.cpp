@@ -144,47 +144,47 @@ void CalcLP3Vals(std::vector<float>* stdGrid, std::vector<float>* avgGrid,
     }
 
     // 1
-    float diff_cs    = (scGrid->at(i) - cs[index]) / (cs[index + 1] - cs[index]);
-    float diff_q     = lut1[index + 1] - lut1[index];
-    float lerp       = lut1[index] + diff_cs * diff_q;
-    float std        = stdGrid->at(i);
-    float avg        = avgGrid->at(i);
+    float diff_cs = (scGrid->at(i) - cs[index]) / (cs[index + 1] - cs[index]);
+    float diff_q = lut1[index + 1] - lut1[index];
+    float lerp = lut1[index] + diff_cs * diff_q;
+    float std = stdGrid->at(i);
+    float avg = avgGrid->at(i);
     rpData->at(i).q1 = powf(10.0, avg + lerp * std);
     // 2
-    diff_cs          = (scGrid->at(i) - cs[index]) / (cs[index + 1] - cs[index]);
-    diff_q           = lut2[index + 1] - lut2[index];
-    lerp             = lut2[index] + diff_cs * diff_q;
+    diff_cs = (scGrid->at(i) - cs[index]) / (cs[index + 1] - cs[index]);
+    diff_q = lut2[index + 1] - lut2[index];
+    lerp = lut2[index] + diff_cs * diff_q;
     rpData->at(i).q2 = powf(10.0, avg + lerp * std);
-    count2[i]        = rpData->at(i).q2;
+    count2[i] = rpData->at(i).q2;
     // 5
-    diff_cs          = (scGrid->at(i) - cs[index]) / (cs[index + 1] - cs[index]);
-    diff_q           = lut5[index + 1] - lut5[index];
-    lerp             = lut5[index] + diff_cs * diff_q;
+    diff_cs = (scGrid->at(i) - cs[index]) / (cs[index + 1] - cs[index]);
+    diff_q = lut5[index + 1] - lut5[index];
+    lerp = lut5[index] + diff_cs * diff_q;
     rpData->at(i).q5 = powf(10.0, avg + lerp * std);
     // 10
-    diff_cs           = (scGrid->at(i) - cs[index]) / (cs[index + 1] - cs[index]);
-    diff_q            = lut10[index + 1] - lut10[index];
-    lerp              = lut10[index] + diff_cs * diff_q;
+    diff_cs = (scGrid->at(i) - cs[index]) / (cs[index + 1] - cs[index]);
+    diff_q = lut10[index + 1] - lut10[index];
+    lerp = lut10[index] + diff_cs * diff_q;
     rpData->at(i).q10 = powf(10.0, avg + lerp * std);
     // 25
-    diff_cs           = (scGrid->at(i) - cs[index]) / (cs[index + 1] - cs[index]);
-    diff_q            = lut25[index + 1] - lut25[index];
-    lerp              = lut25[index] + diff_cs * diff_q;
+    diff_cs = (scGrid->at(i) - cs[index]) / (cs[index + 1] - cs[index]);
+    diff_q = lut25[index + 1] - lut25[index];
+    lerp = lut25[index] + diff_cs * diff_q;
     rpData->at(i).q25 = powf(10.0, avg + lerp * std);
     // 50
-    diff_cs           = (scGrid->at(i) - cs[index]) / (cs[index + 1] - cs[index]);
-    diff_q            = lut50[index + 1] - lut50[index];
-    lerp              = lut50[index] + diff_cs * diff_q;
+    diff_cs = (scGrid->at(i) - cs[index]) / (cs[index + 1] - cs[index]);
+    diff_q = lut50[index + 1] - lut50[index];
+    lerp = lut50[index] + diff_cs * diff_q;
     rpData->at(i).q50 = powf(10.0, avg + lerp * std);
     // 100
-    diff_cs            = (scGrid->at(i) - cs[index]) / (cs[index + 1] - cs[index]);
-    diff_q             = lut100[index + 1] - lut100[index];
-    lerp               = lut100[index] + diff_cs * diff_q;
+    diff_cs = (scGrid->at(i) - cs[index]) / (cs[index + 1] - cs[index]);
+    diff_q = lut100[index + 1] - lut100[index];
+    lerp = lut100[index] + diff_cs * diff_q;
     rpData->at(i).q100 = powf(10.0, avg + lerp * std);
     // 200
-    diff_cs            = (scGrid->at(i) - cs[index]) / (cs[index + 1] - cs[index]);
-    diff_q             = lut200[index + 1] - lut200[index];
-    lerp               = lut200[index] + diff_cs * diff_q;
+    diff_cs = (scGrid->at(i) - cs[index]) / (cs[index + 1] - cs[index]);
+    diff_q = lut200[index + 1] - lut200[index];
+    lerp = lut200[index] + diff_cs * diff_q;
     rpData->at(i).q200 = powf(10.0, avg + lerp * std);
   }
   // GridWriter gridWriter;
@@ -198,29 +198,29 @@ void CalcLP3Vals(std::vector<float>* stdGrid, std::vector<float>* avgGrid,
   std::vector<float> count2;
   count2.resize(rpData->size());
   for (size_t i = 0; i < rpData->size(); i++) {
-    float lerp       = -2.326;
+    float lerp = -2.326;
     rpData->at(i).q1 = powf(10.0, avgGrid->at(i) + lerp * stdGrid->at(i));
     // 2
-    lerp             = 0.000;
+    lerp = 0.000;
     rpData->at(i).q2 = powf(10.0, avgGrid->at(i) + lerp * stdGrid->at(i));
-    count2[i]        = rpData->at(i).q2;
+    count2[i] = rpData->at(i).q2;
     // 5
-    lerp             = 0.842;
+    lerp = 0.842;
     rpData->at(i).q5 = powf(10.0, avgGrid->at(i) + lerp * stdGrid->at(i));
     // 10
-    lerp              = 1.282;
+    lerp = 1.282;
     rpData->at(i).q10 = powf(10.0, avgGrid->at(i) + lerp * stdGrid->at(i));
     // 25
-    lerp              = 1.751;
+    lerp = 1.751;
     rpData->at(i).q25 = powf(10.0, avgGrid->at(i) + lerp * stdGrid->at(i));
     // 50
-    lerp              = 2.054;
+    lerp = 2.054;
     rpData->at(i).q50 = powf(10.0, avgGrid->at(i) + lerp * stdGrid->at(i));
     // 100
-    lerp               = 2.326;
+    lerp = 2.326;
     rpData->at(i).q100 = powf(10.0, avgGrid->at(i) + lerp * stdGrid->at(i));
     // 200
-    lerp               = 2.576;
+    lerp = 2.576;
     rpData->at(i).q200 = powf(10.0, avgGrid->at(i) + lerp * stdGrid->at(i));
   }
   GridWriter gridWriter;
@@ -240,44 +240,44 @@ float GetReturnPeriod(float q, RPData* rpData) {
   float diff_q, diff_rp;
 
   if (q > rpData->q100) {
-    diff_q  = (q - rpData->q100) / (rpData->q200 - rpData->q100);
+    diff_q = (q - rpData->q100) / (rpData->q200 - rpData->q100);
     diff_rp = 200.0 - 100.0;
     return 100.0 + diff_q * diff_rp;
   }
 
   if (q > rpData->q50) {
-    diff_q  = (q - rpData->q50) / (rpData->q100 - rpData->q50);
+    diff_q = (q - rpData->q50) / (rpData->q100 - rpData->q50);
     diff_rp = 100.0 - 50.0;
     return 50.0 + diff_q * diff_rp;
   }
 
   if (q > rpData->q25) {
-    diff_q  = (q - rpData->q25) / (rpData->q50 - rpData->q25);
+    diff_q = (q - rpData->q25) / (rpData->q50 - rpData->q25);
     diff_rp = 50.0 - 25.0;
     return 25.0 + diff_q * diff_rp;
   }
 
   if (q > rpData->q10) {
-    diff_q  = (q - rpData->q10) / (rpData->q25 - rpData->q10);
+    diff_q = (q - rpData->q10) / (rpData->q25 - rpData->q10);
     diff_rp = 25.0 - 10.0;
     return 10.0 + diff_q * diff_rp;
   }
 
   if (q > rpData->q5) {
-    diff_q  = (q - rpData->q5) / (rpData->q10 - rpData->q5);
+    diff_q = (q - rpData->q5) / (rpData->q10 - rpData->q5);
     diff_rp = 10.0 - 5.0;
     return 5.0 + diff_q * diff_rp;
   }
 
   if (q > rpData->q2) {
-    diff_q  = (q - rpData->q2) / (rpData->q5 - rpData->q2);
+    diff_q = (q - rpData->q2) / (rpData->q5 - rpData->q2);
     diff_rp = 5.0 - 2.0;
     return 2.0 + diff_q * diff_rp;
   }
 
   if (q > rpData->q1) {
-    diff_q       = (q - rpData->q1) / (rpData->q2 - rpData->q1);
-    diff_rp      = 2.0 - 1.0;
+    diff_q = (q - rpData->q1) / (rpData->q2 - rpData->q1);
+    diff_rp = 2.0 - 1.0;
     float retVal = 1.0 + diff_q * diff_rp;
     if (retVal >= 2.0) {
       retVal = 1.99;

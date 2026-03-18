@@ -20,7 +20,7 @@ void allocate2D(float*** array, int nrows, int ncols) {
   // Source: http://www.dreamincode.net/code/snippet1328.htm
   /*  allocate array of pointers  */
   int i;
-  *array       = (float**)malloc(nrows * sizeof(float*));
+  *array = (float**)malloc(nrows * sizeof(float*));
   float** vals = *array;
   if (*array == NULL) {
     printf("ERROR in misc_functions.c/allocate2D at line 13: No Memory\n");
@@ -60,7 +60,7 @@ void deallocate2D(float*** array, int nrows) {
 }
 
 void randperm(int** array, int n) {
-  int   i, j, rnum, key = 1;
+  int i, j, rnum, key = 1;
   float nf = (float)(n);
   for (i = 0; i < n; i++) {
     rnum = rintf(UNIFORM_RAND * nf);
@@ -75,7 +75,7 @@ void randperm(int** array, int n) {
       key = 0;
       for (j = 0; j < i; j++) {
         if (rnum == (*array)[j] || rnum == 0) {
-          key  = key + 1;
+          key = key + 1;
           rnum = ceilf(UNIFORM_RAND * nf);
         }
       }
@@ -88,24 +88,24 @@ void nrandn(float** pArray, int nrows, int ncols) {
   // Based on algorithm by Dr. Everett (Skip) Carter, Jr.
   // from http://www.taygeta.com/random/gaussian.html
 
-  int   i, j;
+  int i, j;
   float x1, x2, w, y1;
   for (i = 0; i < nrows; i++) {
     for (j = 0; j < ncols; j++) {
       do {
         x1 = 2.0 * UNIFORM_RAND - 1.0;
         x2 = 2.0 * UNIFORM_RAND - 1.0;
-        w  = x1 * x1 + x2 * x2;
+        w = x1 * x1 + x2 * x2;
       } while (w >= 1.0);
-      w            = sqrt((-2.0 * log(w)) / w);
-      y1           = x1 * w;
+      w = sqrt((-2.0 * log(w)) / w);
+      y1 = x1 * w;
       pArray[i][j] = y1;
     }
   }
 }
 
 float sumarray(float* array, int nrows, int ncols) {
-  int   i, idx, cont;
+  int i, idx, cont;
   float suma;
   suma = 0;
   cont = 0;
@@ -170,7 +170,7 @@ void reshape(float** oldarray, int m0, int n0, float*** newarray, int m, int n) 
 }
 
 float meanvar(float* arr, int no, MVOPS option) {
-  int   i;
+  int i;
   float var, max = arr[0], min = arr[0];
   float sum = 0.0, sum2 = 0.0, tavg;
   float numArray = (float)no;
@@ -229,8 +229,8 @@ void transp(float** oldarray, int m0, int n0, float*** newarray, bool preallocat
 
 void sortarray(float* array, int n, const char* option) {
   float temp;
-  int   key = 1;
-  int   i, j;
+  int key = 1;
+  int i, j;
 
   // ASCENDING SORTING
   if (strcmp(option, "asc") == 0) {
@@ -239,10 +239,10 @@ void sortarray(float* array, int n, const char* option) {
       for (i = 0; i < n; i++) {
         for (j = i + 1; j < n; j++) {
           if (array[i] > array[j]) {
-            temp     = array[j];
+            temp = array[j];
             array[j] = array[i];
             array[i] = temp;
-            key      = key + 1;
+            key = key + 1;
             break;
           }
         }
@@ -257,10 +257,10 @@ void sortarray(float* array, int n, const char* option) {
       for (i = 0; i < n; i++) {
         for (j = i + 1; j < n; j++) {
           if (array[i] < array[j]) {
-            temp     = array[j];
+            temp = array[j];
             array[j] = array[i];
             array[i] = temp;
-            key      = key + 1;
+            key = key + 1;
             break;
           }
         }
@@ -272,7 +272,7 @@ void sortarray(float* array, int n, const char* option) {
 float percentile(float* array, int nelem, float pctile) {
   // Method to calculate percentiles, alternative by NIST. Source: Wikipedia.
   float n, d, vp, v[nelem];
-  int   i, k;
+  int i, k;
 
   n = ((float)(nelem) / 100) * pctile + 0.5;
   k = (int)(n);
@@ -292,7 +292,7 @@ float percentile(float* array, int nelem, float pctile) {
 }
 
 void sortrows(float** array1, int nr, int nc, int sort_col, float** array2) {
-  int   i, j, ii;
+  int i, j, ii;
   float temp;
 
   for (i = 0; i < nr; i++) {
@@ -307,7 +307,7 @@ void sortrows(float** array1, int nr, int nc, int sort_col, float** array2) {
 
   for (i = nr - 1; i >= 1; i--) {
     for (ii = 0; ii < nc; ii++) {
-      temp          = array2[0][ii];
+      temp = array2[0][ii];
       array2[0][ii] = array2[i][ii];
       array2[i][ii] = temp;
     }
@@ -316,7 +316,7 @@ void sortrows(float** array1, int nr, int nc, int sort_col, float** array2) {
 }
 
 void siftDown(float** numbers, int sort_col, int nc, int root, int bottom) {
-  int   done, maxChild, ii;
+  int done, maxChild, ii;
   float temp;
 
   done = 0;
@@ -330,8 +330,8 @@ void siftDown(float** numbers, int sort_col, int nc, int root, int bottom) {
 
     if (numbers[root][sort_col] < numbers[maxChild][sort_col]) {
       for (ii = 0; ii < nc; ii++) {
-        temp                  = numbers[root][ii];
-        numbers[root][ii]     = numbers[maxChild][ii];
+        temp = numbers[root][ii];
+        numbers[root][ii] = numbers[maxChild][ii];
         numbers[maxChild][ii] = temp;
       }
       root = maxChild;

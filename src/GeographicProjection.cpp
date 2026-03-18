@@ -50,6 +50,6 @@ void GeographicProjection::UnprojectPoint(float x, float y, float* lon, float* l
 }
 
 void GeographicProjection::SetCellSize(float newCellSize) {
-  cellSize        = newCellSize;
+  cellSize = newCellSize;
   metersSNPerCell = cellSize * 110574;  // 110574m per degree of latitude!
 }

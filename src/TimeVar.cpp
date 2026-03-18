@@ -8,23 +8,23 @@
 #include <stdlib.h>
 
 #ifdef _WIN32
-int    is_leap(int year);
-int    days_from_0(int year);
-int    days_from_1970(int year);
-int    days_from_1jan(int year, int month, int day);
+int is_leap(int year);
+int days_from_0(int year);
+int days_from_1970(int year);
+int days_from_1jan(int year, int month, int day);
 time_t internal_timegm(struct tm* t);
 #endif
 
 bool TimeVar::LoadTime(char* time) {
-  int year   = 0;
-  int month  = 0;
-  int day    = 0;
-  int hour   = 0;
+  int year = 0;
+  int month = 0;
+  int day = 0;
+  int hour = 0;
   int minute = 0;
   int second = 0;
 
   memset(&currentTime, 0, sizeof(tm));
-  currentTime.tm_mday  = 1;
+  currentTime.tm_mday = 1;
   currentTime.tm_isdst = -1;
 
   int num = sscanf(time, "%04d%02d%02d%02d%02d%02d", &year, &month, &day, &hour, &minute, &second);
@@ -57,15 +57,15 @@ bool TimeVar::LoadTime(char* time) {
 }
 
 bool TimeVar::LoadTimeExcel(char* time) {
-  int    year   = 0;
-  int    month  = 0;
-  int    day    = 0;
-  int    hour   = 0;
-  int    minute = 0;
-  int    second = 0;
-  size_t len    = strlen(time);
+  int year = 0;
+  int month = 0;
+  int day = 0;
+  int hour = 0;
+  int minute = 0;
+  int second = 0;
+  size_t len = strlen(time);
   memset(&currentTime, 0, sizeof(tm));
-  currentTime.tm_mday  = 1;
+  currentTime.tm_mday = 1;
   currentTime.tm_isdst = -1;
 
   bool yearMonthDay = false;
@@ -73,7 +73,7 @@ bool TimeVar::LoadTimeExcel(char* time) {
     yearMonthDay = true;
   }
 
-  int   num = 1;
+  int num = 1;
   char* end;
   if (!yearMonthDay) {
     if (len > 2) {
@@ -388,18 +388,18 @@ bool operator<=(const TimeVar& lhs, const TimeVar& rhs) {
 
 time_t TimeVar::port_timegm(struct tm* tm) {
 #ifdef _WIN32
-  time_t     result = mktime(tm);
-  struct tm* newtm  = gmtime(&result);
+  time_t result = mktime(tm);
+  struct tm* newtm = gmtime(&result);
   // if (!newtm) {
   //	ERROR_LOGF("Got null from gmtime! %i, %i %i %i %i %i %i", result,
   // tm->tm_year, tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
   // } else {
   tm->tm_year = newtm->tm_year;
-  tm->tm_mon  = newtm->tm_mon;
+  tm->tm_mon = newtm->tm_mon;
   tm->tm_mday = newtm->tm_mday;
   tm->tm_hour = newtm->tm_hour;
-  tm->tm_min  = newtm->tm_min;
-  tm->tm_sec  = newtm->tm_sec;
+  tm->tm_min = newtm->tm_min;
+  tm->tm_sec = newtm->tm_sec;
   //	}
   return result;  // internal_timegm(tm);
 #else
@@ -429,7 +429,7 @@ inline int days_from_1jan(int year, int month, int day) {
 }
 
 inline time_t internal_timegm(struct tm* t) {
-  int year  = t->tm_year + 1900;
+  int year = t->tm_year + 1900;
   int month = t->tm_mon;
   if (month > 11) {
     year += month / 12;
@@ -440,8 +440,8 @@ inline time_t internal_timegm(struct tm* t) {
     month += 12 * years_diff;
   }
   month++;
-  int day              = t->tm_mday;
-  int day_of_year      = days_from_1jan(year, month, day);
+  int day = t->tm_mday;
+  int day_of_year = days_from_1jan(year, month, day);
   int days_since_epoch = days_from_1970(year) + day_of_year;
 
   time_t seconds_in_day = 3600 * 24;

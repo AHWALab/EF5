@@ -17,12 +17,12 @@ struct RefLoc {
 
 class Grid {
  public:
-  long           numCols;
-  long           numRows;
-  BoundingBox    extent;
-  double         cellSize;
+  long numCols;
+  long numRows;
+  BoundingBox extent;
+  double cellSize;
   unsigned short modelType, geographicType, geodeticDatum;
-  bool           geoSet;
+  bool geoSet;
 
   // Default constructor to initialize members
   Grid()
@@ -53,10 +53,10 @@ class Grid {
   bool GetGridLoc(float lon, float lat, GridLoc* pt) {
     float xDiff = lon - extent.left;
     float yDiff = extent.top - lat;
-    float xLoc  = xDiff / cellSize;
-    float yLoc  = yDiff / cellSize;
-    pt->x       = (long)xLoc;
-    pt->y       = (long)yLoc;
+    float xLoc = xDiff / cellSize;
+    float yLoc = yDiff / cellSize;
+    pt->x = (long)xLoc;
+    pt->y = (long)yLoc;
 
     if (pt->x < 0) {
       pt->x = 0;
@@ -103,9 +103,9 @@ class FloatGrid : public Grid {
       delete[] data;
     }
   }
-  float   noData;
+  float noData;
   float** data;
-  float*  backingStore;
+  float* backingStore;
 };
 
 class LongGrid : public Grid {
@@ -123,7 +123,7 @@ class LongGrid : public Grid {
       delete[] data;
     }
   }
-  long   noData;
+  long noData;
   long** data;
 };
 

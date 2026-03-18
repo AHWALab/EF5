@@ -24,7 +24,7 @@ void TimeSeries::LoadTimeSeries(char* file) {
 
   for (int i = 0; i < fileLines; i++) {*/
   while (!feof(tsFile)) {
-    char  buffer[CONFIG_MAX_LEN];
+    char buffer[CONFIG_MAX_LEN];
     float dataValue;
     if (fscanf(tsFile, "%[^,],%f ", &(buffer[0]), &dataValue) == 2) {
       TSDataPoint* pt = new TSDataPoint;

@@ -16,11 +16,11 @@ class ExecuteConfigSection : public ConfigSection {
   CONFIG_SEC_RET ProcessKeyValue(char* name, char* value);
   CONFIG_SEC_RET ValidateSection();
 
-  std::vector<TaskConfigSection*>*    GetTasks();
+  std::vector<TaskConfigSection*>* GetTasks();
   std::vector<EnsTaskConfigSection*>* GetEnsTasks();
 
  private:
-  std::vector<TaskConfigSection*>    tasks;
+  std::vector<TaskConfigSection*> tasks;
   std::vector<EnsTaskConfigSection*> ensTasks;
 };
 

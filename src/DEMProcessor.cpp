@@ -10,12 +10,12 @@
 #include "TifGrid.h"
 
 struct DEMNode {
-  long  x;
-  long  y;
+  long x;
+  long y;
   float dem;
 };
 
-static int  ComputeFlowAcc(char* flowAccFile);
+static int ComputeFlowAcc(char* flowAccFile);
 static bool SortByHeight(DEMNode* d1, DEMNode* d2);
 static bool GetDownstreamNode(long x, long y, long* downX, long* downY);
 static bool FlowsInto(DEMNode* d1, DEMNode* d2);
@@ -79,15 +79,15 @@ int ProcessDEM(int mode, char* demFile, char* flowDirFile, char* flowAccFile) {
 int ComputeFlowAcc(char* flowAccFile) {
   std::vector<DEMNode*> nodes;
 
-  g_FAM                = new FloatGrid;
-  g_FAM->extent.left   = g_DEM->extent.left;
+  g_FAM = new FloatGrid;
+  g_FAM->extent.left = g_DEM->extent.left;
   g_FAM->extent.bottom = g_DEM->extent.bottom;
-  g_FAM->extent.right  = g_DEM->extent.right;
-  g_FAM->extent.top    = g_DEM->extent.top;
-  g_FAM->numCols       = g_DEM->numCols;
-  g_FAM->numRows       = g_DEM->numRows;
-  g_FAM->cellSize      = g_DEM->cellSize;
-  g_FAM->noData        = g_DEM->noData;
+  g_FAM->extent.right = g_DEM->extent.right;
+  g_FAM->extent.top = g_DEM->extent.top;
+  g_FAM->numCols = g_DEM->numCols;
+  g_FAM->numRows = g_DEM->numRows;
+  g_FAM->cellSize = g_DEM->cellSize;
+  g_FAM->noData = g_DEM->noData;
 
   g_FAM->data = new float*[g_FAM->numRows];
   for (long i = 0; i < g_FAM->numRows; i++) {
@@ -105,9 +105,9 @@ int ComputeFlowAcc(char* flowAccFile) {
     for (long col = 0; col < g_DEM->numCols; col++) {
       if (g_DEM->data[row][col] != g_DEM->noData) {
         DEMNode* node = new DEMNode;
-        node->x       = col;
-        node->y       = row;
-        node->dem     = g_DEM->data[row][col];
+        node->x = col;
+        node->y = row;
+        node->dem = g_DEM->data[row][col];
         nodes.push_back(node);
       }
     }

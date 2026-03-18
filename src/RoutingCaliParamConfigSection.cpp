@@ -8,13 +8,13 @@ std::map<std::string, RoutingCaliParamConfigSection*> g_routingCaliParamConfigs[
 
 RoutingCaliParamConfigSection::RoutingCaliParamConfigSection(char* nameVal, ROUTES routeVal) {
   strcpy(name, nameVal);
-  gauge           = NULL;
-  route           = routeVal;
-  int numParams   = numRouteParams[route];
-  modelParamMins  = new float[numParams];
-  modelParamMaxs  = new float[numParams];
+  gauge = NULL;
+  route = routeVal;
+  int numParams = numRouteParams[route];
+  modelParamMins = new float[numParams];
+  modelParamMaxs = new float[numParams];
   modelParamInits = new float[numParams];
-  paramsSet       = new bool[numParams];
+  paramsSet = new bool[numParams];
   memset(modelParamMins, 0, sizeof(float) * numParams);
   memset(modelParamMins, 0, sizeof(float) * numParams);
   memset(modelParamInits, 0, sizeof(float) * numParams);
@@ -57,17 +57,17 @@ CONFIG_SEC_RET RoutingCaliParamConfigSection::ProcessKeyValue(char* name, char* 
         }
 
         float minVal = 0, maxVal = 0, initVal = 0;
-        int   count = sscanf(value, "%f,%f,%f", &minVal, &maxVal, &initVal);
+        int count = sscanf(value, "%f,%f,%f", &minVal, &maxVal, &initVal);
 
         if (count < 2) {
           ERROR_LOGF("Parameter \"%s\" has invalid calibration values!", name);
           return INVALID_RESULT;
         }
 
-        modelParamMins[i]  = minVal;
-        modelParamMaxs[i]  = maxVal;
+        modelParamMins[i] = minVal;
+        modelParamMaxs[i] = maxVal;
         modelParamInits[i] = initVal;
-        paramsSet[i]       = true;
+        paramsSet[i] = true;
 
         return VALID_RESULT;
       }

@@ -25,8 +25,8 @@ int main(int argc, char* argv[]) {
 
     ExecuteTasks();
   } else {
-    int   opt     = 0;
-    int   mode    = 0;
+    int opt = 0;
+    int mode = 0;
     char *demFile = NULL, *flowDirFile = NULL, *flowAccFile = NULL;
     while ((opt = getopt(argc, argv, "z:d:a:ps")) != -1) {
       switch (opt) {

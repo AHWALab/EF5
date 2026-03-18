@@ -364,7 +364,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
     for (int i = 0; i < STYLE_QTY; i++) {
       if (!strcasecmp(value, runStyleStrings[i])) {
         styleSet = true;
-        style    = (RUNSTYLE)i;
+        style = (RUNSTYLE)i;
         return VALID_RESULT;
       }
     }
@@ -378,7 +378,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
     for (int i = 0; i < MODEL_QTY; i++) {
       if (!strcasecmp(value, modelStrings[i])) {
         modelSet = true;
-        model    = (MODELS)i;
+        model = (MODELS)i;
         return VALID_RESULT;
       }
     }
@@ -389,7 +389,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
     for (int i = 0; i < ROUTE_QTY; i++) {
       if (!strcasecmp(value, routeStrings[i])) {
         routeSet = true;
-        routing  = (ROUTES)i;
+        routing = (ROUTES)i;
         return VALID_RESULT;
       }
     }
@@ -400,7 +400,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
     for (int i = 0; i < SNOW_QTY; i++) {
       if (!strcasecmp(value, snowStrings[i])) {
         snowSet = true;
-        snow    = (SNOWS)i;
+        snow = (SNOWS)i;
         return VALID_RESULT;
       }
     }
@@ -411,7 +411,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
     for (int i = 0; i < INUNDATION_QTY; i++) {
       if (!strcasecmp(value, inundationStrings[i])) {
         inundationSet = true;
-        inundation    = (INUNDATIONS)i;
+        inundation = (INUNDATIONS)i;
         return VALID_RESULT;
       }
     }
@@ -425,7 +425,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
       ERROR_LOGF("Unknown basin \"%s\"!", value);
       return INVALID_RESULT;
     }
-    basin    = itr->second;
+    basin = itr->second;
     basinSet = true;
   } else if (!strcasecmp(name, "defaultparamsgauge")) {
     TOLOWER(value);
@@ -434,7 +434,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
       ERROR_LOGF("Unknown default parameter gauge \"%s\"!", value);
       return INVALID_RESULT;
     }
-    defaultGauge     = itr->second;
+    defaultGauge = itr->second;
     defaultParamsSet = true;
   } else if (!strcasecmp(name, "precip")) {
     TOLOWER(value);
@@ -443,7 +443,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
       ERROR_LOGF("Unknown precip setting \"%s\"!", value);
       return INVALID_RESULT;
     }
-    precip    = itr->second;
+    precip = itr->second;
     precipSet = true;
   } else if (!strcasecmp(name, "precipforecast")) {
     TOLOWER(value);
@@ -452,7 +452,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
       ERROR_LOGF("Unknown precip forecast setting \"%s\"!", value);
       return INVALID_RESULT;
     }
-    qpf    = itr->second;
+    qpf = itr->second;
     qpfSet = true;
   } else if (!strcasecmp(name, "pet")) {
     TOLOWER(value);
@@ -461,7 +461,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
       ERROR_LOGF("Unknown PET setting \"%s\"!", value);
       return INVALID_RESULT;
     }
-    pet    = itr->second;
+    pet = itr->second;
     petSet = true;
   } else if (!strcasecmp(name, "temp")) {
     TOLOWER(value);
@@ -470,7 +470,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
       ERROR_LOGF("Unknown temp setting \"%s\"!", value);
       return INVALID_RESULT;
     }
-    temp    = itr->second;
+    temp = itr->second;
     tempSet = true;
   } else if (!strcasecmp(name, "tempforecast")) {
     TOLOWER(value);
@@ -479,7 +479,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
       ERROR_LOGF("Unknown temp forecast setting \"%s\"!", value);
       return INVALID_RESULT;
     }
-    tempf    = itr->second;
+    tempf = itr->second;
     tempFSet = true;
   } else if (!strcasecmp(name, "param_set")) {
     if (!modelSet) {
@@ -495,7 +495,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
       ERROR_LOGF("Unknown parameter set \"%s\"!", value);
       return INVALID_RESULT;
     }
-    params    = itr->second;
+    params = itr->second;
     paramsSet = true;
   } else if (!strcasecmp(name, "routing_param_set")) {
     if (!routeSet) {
@@ -511,7 +511,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
       ERROR_LOGF("Unknown routing parameter set \"%s\"!", value);
       return INVALID_RESULT;
     }
-    paramsRouting    = itr->second;
+    paramsRouting = itr->second;
     routingParamsSet = true;
   } else if (!strcasecmp(name, "snow_param_set")) {
     if (!snowSet) {
@@ -527,7 +527,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
       ERROR_LOGF("Unknown snow parameter set \"%s\"!", value);
       return INVALID_RESULT;
     }
-    paramsSnow    = itr->second;
+    paramsSnow = itr->second;
     snowParamsSet = true;
   } else if (!strcasecmp(name, "inundation_param_set")) {
     if (!inundationSet) {
@@ -543,7 +543,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
       ERROR_LOGF("Unknown inundation parameter set \"%s\"!", value);
       return INVALID_RESULT;
     }
-    paramsInundation    = itr->second;
+    paramsInundation = itr->second;
     inundationParamsSet = true;
   } else if (!strcasecmp(name, "output")) {
     strcpy(output, value);
@@ -641,7 +641,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
       ERROR_LOGF("Unknown calibration parameter set \"%s\"!", value);
       return INVALID_RESULT;
     }
-    caliParam    = itr->second;
+    caliParam = itr->second;
     caliParamSet = true;
   } else if (!strcasecmp(name, "routing_cali_param")) {
     if (!routeSet) {
@@ -657,7 +657,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
       ERROR_LOGF("Unknown routing calibration parameter set \"%s\"!", value);
       return INVALID_RESULT;
     }
-    caliParamRouting    = itr->second;
+    caliParamRouting = itr->second;
     routingCaliParamSet = true;
   } else if (!strcasecmp(name, "snow_cali_param")) {
     if (!snowSet) {
@@ -673,7 +673,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
       ERROR_LOGF("Unknown snow calibration parameter set \"%s\"!", value);
       return INVALID_RESULT;
     }
-    caliParamSnow    = itr->second;
+    caliParamSnow = itr->second;
     snowCaliParamSet = true;
   } else if (!strcasecmp(name, "inundation_cali_param")) {
     if (!inundationSet) {
@@ -689,7 +689,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char* name, char* value) {
       ERROR_LOGF("Unknown inundation calibration parameter set \"%s\"!", value);
       return INVALID_RESULT;
     }
-    caliParamInundation    = itr->second;
+    caliParamInundation = itr->second;
     inundationCaliParamSet = true;
   } else if (!strcasecmp(name, "basin_avg_input")) {
     strncpy(basinAvgInput, value, CONFIG_MAX_LEN - 1);
@@ -788,12 +788,12 @@ CONFIG_SEC_RET TaskConfigSection::ValidateSection() {
     }
 
     char* gaugeWB = caliParam->GetGauge()->GetName();
-    char* gaugeR  = caliParamRouting->GetGauge()->GetName();
-    char* gaugeS  = NULL;
+    char* gaugeR = caliParamRouting->GetGauge()->GetName();
+    char* gaugeS = NULL;
     if (snowSet) {
       gaugeS = caliParamSnow->GetGauge()->GetName();
     }
-    bool                              foundWB = false, foundR = false, foundS = false;
+    bool foundWB = false, foundR = false, foundS = false;
     std::vector<GaugeConfigSection*>* bGauges = basin->GetGauges();
     for (size_t i = 0; i < bGauges->size(); i++) {
       if (!strcasecmp(gaugeWB, bGauges->at(i)->GetName())) {

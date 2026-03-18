@@ -14,9 +14,9 @@
 #include <stack>
 #include <stdlib.h>
 
-FloatGrid*  g_DEM;
-FloatGrid*  g_DDM;
-FloatGrid*  g_FAM;
+FloatGrid* g_DEM;
+FloatGrid* g_DDM;
+FloatGrid* g_FAM;
 Projection* g_Projection;
 
 struct FAMSearch {
@@ -33,14 +33,14 @@ static bool TestUpstream(long nextX, long nextY, FLOW_DIR dir, GridLoc* loc);
 // static bool TestUpstreamBroken(long nextX, long nextY, FLOW_DIR dir, GridLoc
 // *loc);
 static GaugeConfigSection* FindGauge(std::map<unsigned long, GaugeConfigSection*>* gauges,
-                                     GridNode*                                     node);
+                                     GridNode* node);
 static GaugeConfigSection* NextUnusedGauge(std::vector<GaugeConfigSection*>* gauges);
-static bool                SortByFlowAccumFS(FAMSearch* fs1, FAMSearch* fs2);
-static bool                SortByFlowAccum(GaugeConfigSection* d1, GaugeConfigSection* d2);
-static void                FixFAM();
-static int                 FlowsOut(long nextX, long nextY, FLOW_DIR dir, long currentHeight);
-static int  FlowsIn(long nextX, long nextY, FLOW_DIR dir, long currentHeight, GridLoc* locIn,
-                    long maxSearch, GridLoc* locOut);
+static bool SortByFlowAccumFS(FAMSearch* fs1, FAMSearch* fs2);
+static bool SortByFlowAccum(GaugeConfigSection* d1, GaugeConfigSection* d2);
+static void FixFAM();
+static int FlowsOut(long nextX, long nextY, FLOW_DIR dir, long currentHeight);
+static int FlowsIn(long nextX, long nextY, FLOW_DIR dir, long currentHeight, GridLoc* locIn,
+                   long maxSearch, GridLoc* locOut);
 static void FixFlowDir(BasinConfigSection* basin, std::vector<GridNode>* nodes);
 /*FLOW_DIR reverseDir[] = {
   FLOW_SOUTH,
@@ -152,22 +152,22 @@ void FreeBasicGridsData() {
 }
 
 void FindIndBasins(float left, float right, float top, float bottom, const char* output) {
-  long maxX        = 0;
-  long minX        = LONG_MAX;
-  long maxY        = 0;
-  long minY        = LONG_MAX;
-  int  totalGauges = 0;
+  long maxX = 0;
+  long minX = LONG_MAX;
+  long maxY = 0;
+  long minY = LONG_MAX;
+  int totalGauges = 0;
 
   FloatGrid maskGrid;
-  maskGrid.numCols       = g_DEM->numCols;
-  maskGrid.numRows       = g_DEM->numRows;
-  maskGrid.extent.top    = g_DEM->extent.top;
+  maskGrid.numCols = g_DEM->numCols;
+  maskGrid.numRows = g_DEM->numRows;
+  maskGrid.extent.top = g_DEM->extent.top;
   maskGrid.extent.bottom = g_DEM->extent.bottom;
-  maskGrid.extent.left   = g_DEM->extent.left;
-  maskGrid.extent.right  = g_DEM->extent.right;
-  maskGrid.cellSize      = g_DEM->cellSize;
-  maskGrid.noData        = -9999.0;
-  maskGrid.data          = new float*[maskGrid.numRows];
+  maskGrid.extent.left = g_DEM->extent.left;
+  maskGrid.extent.right = g_DEM->extent.right;
+  maskGrid.cellSize = g_DEM->cellSize;
+  maskGrid.noData = -9999.0;
+  maskGrid.data = new float*[maskGrid.numRows];
   for (long i = 0; i < maskGrid.numRows; i++) {
     maskGrid.data[i] = new float[maskGrid.numCols];
     for (long j = 0; j < maskGrid.numCols; j++) {
@@ -197,8 +197,8 @@ void FindIndBasins(float left, float right, float top, float bottom, const char*
 
   printf("Min x %li, max x %li, min y %li, max y %li\n", minX, maxX, minY, maxY);
 
-  std::list<FAMSearch*>                        gridCells;
-  std::stack<GridLoc*>                         walkNodes;
+  std::list<FAMSearch*> gridCells;
+  std::stack<GridLoc*> walkNodes;
   std::vector<std::list<FAMSearch*>::iterator> gcItrs;
 
   long totalElements = g_DEM->numCols * g_DEM->numRows;
@@ -216,10 +216,10 @@ void FindIndBasins(float left, float right, float top, float bottom, const char*
         continue;
       }
       FAMSearch* fs = new FAMSearch;
-      fs->x         = col;
-      fs->y         = row;
-      fs->fa        = g_FAM->data[row][col];
-      fs->used      = false;
+      fs->x = col;
+      fs->y = row;
+      fs->fa = g_FAM->data[row][col];
+      fs->used = false;
       gridCells.push_front(fs);
       gcItrs[index] = gridCells.begin();
     }
@@ -228,7 +228,7 @@ void FindIndBasins(float left, float right, float top, float bottom, const char*
   gridCells.sort(SortByFlowAccumFS);
   char basinFile[512];
   snprintf(basinFile, sizeof(basinFile), "%s/basin_new.txt", output);
-  FILE*             test = fopen(basinFile, "w");
+  FILE* test = fopen(basinFile, "w");
   std::vector<long> gridIndices;
 
   for (FAMSearch* currentFS = gridCells.front(); currentFS != NULL; currentFS = gridCells.front()) {
@@ -236,9 +236,9 @@ void FindIndBasins(float left, float right, float top, float bottom, const char*
       break;
     }
 
-    GridLoc* cCell                    = new GridLoc;
-    cCell->x                          = currentFS->x;
-    cCell->y                          = currentFS->y;
+    GridLoc* cCell = new GridLoc;
+    cCell->x = currentFS->x;
+    cCell->y = currentFS->y;
     maskGrid.data[cCell->y][cCell->x] = totalGauges;
     fprintf(test, "[Gauge %i] cellx=%li celly=%li outputts=false #Num Cells = %f\n", totalGauges,
             cCell->x, cCell->y, g_FAM->data[cCell->y][cCell->x]);
@@ -264,9 +264,9 @@ void FindIndBasins(float left, float right, float top, float bottom, const char*
       for (int i = 0; i < FLOW_QTY; i++) {
         if (TestUpstream(cCell->x, cCell->y, (FLOW_DIR)i, &locN)) {
           GridLoc* nextN = new GridLoc;
-          nextN->x       = locN.x;
-          nextN->y       = locN.y;
-          size_t index   = nextN->y * g_DEM->numCols + nextN->x;
+          nextN->x = locN.x;
+          nextN->y = locN.y;
+          size_t index = nextN->y * g_DEM->numCols + nextN->x;
           if (index < gcItrs.size() && g_DEM->data[nextN->y][nextN->x] != g_DEM->noData &&
               g_FAM->data[nextN->y][nextN->x] != g_FAM->noData) {
             // printf("%i %i %i %i %i %i %i\n", index, nextN->y, nextN->x,
@@ -325,20 +325,20 @@ void ClipBasicGrids(long x, long y, long search, const char* output) {
   long nrows = maxY - minY;
 
   LongGrid grid;
-  RefLoc   ll, ur;
+  RefLoc ll, ur;
 
   // Initialize everything in the new grid
   g_DEM->GetRefLoc(minX, maxY, &ll);
   g_DEM->GetRefLoc(maxX, minY, &ur);
 
-  grid.extent.left   = ll.x;
+  grid.extent.left = ll.x;
   grid.extent.bottom = ll.y;
-  grid.extent.right  = ur.x;
-  grid.extent.top    = ur.y;
-  grid.numCols       = ncols;
-  grid.numRows       = nrows;
-  grid.cellSize      = g_DEM->cellSize;
-  grid.noData        = -9999;  // g_DEM->noData;
+  grid.extent.right = ur.x;
+  grid.extent.top = ur.y;
+  grid.numCols = ncols;
+  grid.numRows = nrows;
+  grid.cellSize = g_DEM->cellSize;
+  grid.noData = -9999;  // g_DEM->noData;
 
   grid.data = new long*[grid.numRows];
   for (long i = 0; i < grid.numRows; i++) {
@@ -400,20 +400,20 @@ void ClipBasicGrids(BasinConfigSection* basin, std::vector<GridNode>* nodes, con
   long nrows = maxY - minY;
 
   FloatGrid grid;
-  RefLoc    ll, ur;
+  RefLoc ll, ur;
 
   // Initialize everything in the new grid
   g_DEM->GetRefLoc(minX, maxY, &ll);
   g_DEM->GetRefLoc(maxX, minY, &ur);
 
-  grid.extent.left   = ll.x;
+  grid.extent.left = ll.x;
   grid.extent.bottom = ll.y;
-  grid.extent.right  = ur.x;
-  grid.extent.top    = ur.y;
-  grid.numCols       = ncols;
-  grid.numRows       = nrows;
-  grid.cellSize      = g_DEM->cellSize;
-  grid.noData        = -9999;  // g_DEM->noData;
+  grid.extent.right = ur.x;
+  grid.extent.top = ur.y;
+  grid.numCols = ncols;
+  grid.numRows = nrows;
+  grid.cellSize = g_DEM->cellSize;
+  grid.noData = -9999;  // g_DEM->noData;
 
   grid.data = new float*[grid.numRows];
   for (long i = 0; i < grid.numRows; i++) {
@@ -472,7 +472,7 @@ void ClipBasicGrids(BasinConfigSection* basin, std::vector<GridNode>* nodes, con
 
 void FixFlowDir(BasinConfigSection* basin, std::vector<GridNode>* nodes) {
   std::vector<GaugeConfigSection*>* gauges = basin->GetGauges();
-  GaugeConfigSection*               gauge  = gauges->at(0);
+  GaugeConfigSection* gauge = gauges->at(0);
   int maxDist = 20000.0 / g_Projection->GetLen(gauge->GetLon(), gauge->GetLat(),
                                                FLOW_NORTH);  // 3000;
   if (maxDist < 2) {
@@ -488,10 +488,10 @@ void FixFlowDir(BasinConfigSection* basin, std::vector<GridNode>* nodes) {
     if (g_DEM->data[node->y][node->x] != g_DEM->data[dsNode->y][dsNode->x]) {
       continue;
     }
-    long     maxFlow = g_FAM->data[dsNode->y][dsNode->x] * 10000;  // maxDist;
+    long maxFlow = g_FAM->data[dsNode->y][dsNode->x] * 10000;  // maxDist;
     FLOW_DIR flowDir = (FLOW_DIR)g_DDM->data[node->y][node->x];
-    long     testX, testY;
-    float    minDist = powf(maxDist, 2.0) + powf(maxDist, 2.0);
+    long testX, testY;
+    float minDist = powf(maxDist, 2.0) + powf(maxDist, 2.0);
     for (int dist = 1; dist < maxDist; dist++) {
       testX = node->x + 1 * dist;
       testY = node->y;
@@ -609,24 +609,24 @@ void CarveBasin(BasinConfigSection* basin, std::vector<GridNode>* nodes,
                 std::map<GaugeConfigSection*, float*>* outParamSettings, GaugeMap* gaugeMap,
                 float* defaultParams, std::map<GaugeConfigSection*, float*>* inRouteParamSettings,
                 std::map<GaugeConfigSection*, float*>* outRouteParamSettings,
-                float*                                 defaultRouteParams,
+                float* defaultRouteParams,
                 std::map<GaugeConfigSection*, float*>* inSnowParamSettings,
                 std::map<GaugeConfigSection*, float*>* outSnowParamSettings,
-                float*                                 defaultSnowParams,
+                float* defaultSnowParams,
                 std::map<GaugeConfigSection*, float*>* inInundationParamSettings,
                 std::map<GaugeConfigSection*, float*>* outInundationParamSettings,
-                float*                                 defaultInundationParams) {
+                float* defaultInundationParams) {
   std::vector<GaugeConfigSection*>* gauges = basin->GetGauges();
-  std::stack<GridNode*>             walkNodes;
-  size_t                            currentNode = 0;
-  size_t                            totalAccum  = 0;
-  GridLoc                           nextNode;
+  std::stack<GridNode*> walkNodes;
+  size_t currentNode = 0;
+  size_t totalAccum = 0;
+  GridLoc nextNode;
 
   // Figure out where each gauge is at and get the flow accumulation from the
   // grid for it. Also resets the used flag to false
   for (std::vector<GaugeConfigSection*>::iterator itr = gauges->begin(); itr != gauges->end();) {
     GaugeConfigSection* gauge = *(itr);
-    GridLoc*            loc   = gauge->GetGridLoc();
+    GridLoc* loc = gauge->GetGridLoc();
     if (gauge->NeedsProjecting()) {
       if (!g_FAM->GetGridLoc(gauge->GetLon(), gauge->GetLat(), loc)) {
         WARNING_LOGF("Gauge %s is outside the basic grid domain!\n", gauge->GetName());
@@ -640,15 +640,15 @@ void CarveBasin(BasinConfigSection* basin, std::vector<GridNode>* nodes,
       gauge->SetLon(ref.x);
     }
     float areaFactor = 1.0 / g_Projection->GetArea(gauge->GetLon(), gauge->GetLat());
-    int   maxDist    = 20000.0 / g_Projection->GetLen(gauge->GetLon(), gauge->GetLat(),
-                                                      FLOW_NORTH);  // 3000;
+    int maxDist = 20000.0 / g_Projection->GetLen(gauge->GetLon(), gauge->GetLat(),
+                                                 FLOW_NORTH);  // 3000;
     if (maxDist < 2) {
       maxDist = 2;
     }
     INFO_LOGF("Max gauge search distance is %i", maxDist);
     if (gauge->HasObsFlowAccum()) {
       GridLoc minLoc;
-      float   testError,
+      float testError,
           minError = pow(
               (float)(g_FAM->data[loc->y][loc->x]) - gauge->GetObsFlowAccum() * areaFactor, 2.0);
       minLoc.x = loc->x;
@@ -778,10 +778,10 @@ void CarveBasin(BasinConfigSection* basin, std::vector<GridNode>* nodes,
 
   std::map<unsigned long, GaugeConfigSection*> gaugeCMap;
   for (std::vector<GaugeConfigSection*>::iterator itr = gauges->begin(); itr != gauges->end();) {
-    GaugeConfigSection*                                    gauge = *(itr);
-    GridLoc*                                               loc   = gauge->GetGridLoc();
-    unsigned long                                          index = loc->y * g_DEM->numCols + loc->x;
-    std::map<unsigned long, GaugeConfigSection*>::iterator itrM  = gaugeCMap.find(index);
+    GaugeConfigSection* gauge = *(itr);
+    GridLoc* loc = gauge->GetGridLoc();
+    unsigned long index = loc->y * g_DEM->numCols + loc->x;
+    std::map<unsigned long, GaugeConfigSection*>::iterator itrM = gaugeCMap.find(index);
     if (itrM == gaugeCMap.end()) {
       gaugeCMap.insert(std::pair<unsigned long, GaugeConfigSection*>(index, gauge));
       itr++;
@@ -796,7 +796,7 @@ void CarveBasin(BasinConfigSection* basin, std::vector<GridNode>* nodes,
   // Here we compute which grid cells & gauges are upstream of our independent
   // gauges
   for (GaugeConfigSection* currentGauge = (*gauges)[0]; currentGauge != NULL;
-       currentGauge                     = NextUnusedGauge(gauges)) {
+       currentGauge = NextUnusedGauge(gauges)) {
     std::map<GaugeConfigSection*, float*>::iterator pitr = inParamSettings->find(currentGauge);
     if (pitr == inParamSettings->end() && !defaultParams) {
       ERROR_LOGF("Independent basin \"%s\" lacks a water balance parameter set!",
@@ -881,12 +881,12 @@ void CarveBasin(BasinConfigSection* basin, std::vector<GridNode>* nodes,
       return;
     }
     currentN->downStreamNode = INVALID_DOWNSTREAM_NODE;
-    long outsideHeight       = 0;
+    long outsideHeight = 0;
     if (GetDownstreamHeight(currentN->x, currentN->y, &outsideHeight)) {
       currentN->horLen = g_Projection->GetLen(currentN->refLoc.x, currentN->refLoc.y,
                                               (FLOW_DIR)g_DDM->data[currentN->y][currentN->x]);
-      float DEMDiff    = g_DEM->data[currentN->y][currentN->x] - outsideHeight;
-      currentN->slope  = ((DEMDiff < 1.0) ? 1.0 : DEMDiff) / currentN->horLen;
+      float DEMDiff = g_DEM->data[currentN->y][currentN->x] - outsideHeight;
+      currentN->slope = ((DEMDiff < 1.0) ? 1.0 : DEMDiff) / currentN->horLen;
     } else {
       currentN->horLen = g_Projection->GetLen(currentN->refLoc.x, currentN->refLoc.y,
                                               FLOW_NORTH);  // We assume a horizontal length
@@ -895,11 +895,11 @@ void CarveBasin(BasinConfigSection* basin, std::vector<GridNode>* nodes,
                                                             // height of 1 meter because we
                                                             // know nothing else
     }
-    currentN->area        = g_Projection->GetArea(currentN->refLoc.x, currentN->refLoc.y);
+    currentN->area = g_Projection->GetArea(currentN->refLoc.x, currentN->refLoc.y);
     currentN->contribArea = currentN->area;
-    currentN->relief      = g_DEM->data[currentN->y][currentN->x];  // relief Fix
-    currentN->riverLen    = currentN->horLen;
-    currentN->fac         = g_FAM->data[currentN->y][currentN->x];
+    currentN->relief = g_DEM->data[currentN->y][currentN->x];  // relief Fix
+    currentN->riverLen = currentN->horLen;
+    currentN->fac = g_FAM->data[currentN->y][currentN->x];
     walkNodes.push(currentN);
 
     while (!walkNodes.empty()) {
@@ -912,7 +912,7 @@ void CarveBasin(BasinConfigSection* basin, std::vector<GridNode>* nodes,
 
       // Is this node actually a gauge?
       GaugeConfigSection* nodeGauge = FindGauge(&gaugeCMap, currentN);
-      bool                keepGoing = true;
+      bool keepGoing = true;
       if (nodeGauge) {
         nodeGauge->SetGridNodeIndex(currentN->index);
         currentN->gauge = nodeGauge;
@@ -980,26 +980,26 @@ void CarveBasin(BasinConfigSection* basin, std::vector<GridNode>* nodes,
         for (int i = 1; i < FLOW_QTY; i++) {
           if (TestUpstream(currentN, (FLOW_DIR)i, &nextNode) && currentNode < totalAccum) {
             GridNode* nextN = &(*nodes)[currentNode];
-            nextN->index    = currentNode;
+            nextN->index = currentNode;
             currentNode++;
-            nextN->x              = nextNode.x;
-            nextN->y              = nextNode.y;
+            nextN->x = nextNode.x;
+            nextN->y = nextNode.y;
             nextN->downStreamNode = currentN->index;
-            nextN->gauge          = currentN->gauge;
-            nextN->fac            = g_FAM->data[nextN->y][nextN->x];
+            nextN->gauge = currentN->gauge;
+            nextN->fac = g_FAM->data[nextN->y][nextN->x];
 
             // Calculate slope!
-            long  nextNDEM = g_DEM->data[nextN->y][nextN->x];
-            float DEMDiff  = (float)(nextNDEM - currentNDEM);  // Upstream (higher elevation)
-                                                               // minus downstream (lower
-                                                               // elevation)
+            long nextNDEM = g_DEM->data[nextN->y][nextN->x];
+            float DEMDiff = (float)(nextNDEM - currentNDEM);  // Upstream (higher elevation)
+                                                              // minus downstream (lower
+                                                              // elevation)
             g_DEM->GetRefLoc(nextN->x, nextN->y, &nextN->refLoc);
             nextN->horLen = g_Projection->GetLen(nextN->refLoc.x, nextN->refLoc.y, (FLOW_DIR)i);
-            nextN->slope  = ((DEMDiff < 1.0) ? 1.0 : DEMDiff) / nextN->horLen;
-            nextN->area   = g_Projection->GetArea(nextN->refLoc.x, nextN->refLoc.y);
+            nextN->slope = ((DEMDiff < 1.0) ? 1.0 : DEMDiff) / nextN->horLen;
+            nextN->area = g_Projection->GetArea(nextN->refLoc.x, nextN->refLoc.y);
             nextN->contribArea = nextN->area;
-            nextN->relief      = g_DEM->data[nextN->y][nextN->x];
-            nextN->riverLen    = nextN->horLen;
+            nextN->relief = g_DEM->data[nextN->y][nextN->x];
+            nextN->riverLen = nextN->horLen;
             // printf("Pushing node %i %i (%i, %i) from %i %i (%i, %i) %i %i\n",
             // nextN->x, nextN->y, g_DDM->data[nextN->y][nextN->x],
             // g_FAM->data[nextN->y][nextN->x], currentN->x, currentN->y,
@@ -1057,8 +1057,8 @@ void AssignBasinParams(
     std::map<GaugeConfigSection*, float*>* outSnowParamSettings, float* defaultSnowParams,
     std::map<GaugeConfigSection*, float*>* inInundationParamSettings,
     std::map<GaugeConfigSection*, float*>* outInundationParamSettings,
-    float*                                 defaultInundationParams) {
-  std::vector<GaugeConfigSection*>*               gauges = basin->GetGauges();
+    float* defaultInundationParams) {
+  std::vector<GaugeConfigSection*>* gauges = basin->GetGauges();
   std::map<GaugeConfigSection*, float*>::iterator pitr;
 
   // Walk gauges in the same order as CarveBasin (sorted by flow accumulation).
@@ -1295,7 +1295,7 @@ bool TestUpstreamBroken(long nextX, long nextY, FLOW_DIR dir, GridLoc *loc) {
 #endif
 
 GaugeConfigSection* FindGauge(std::map<unsigned long, GaugeConfigSection*>* gauges,
-                              GridNode*                                     node) {
+                              GridNode* node) {
   unsigned long index = node->y * g_DEM->numCols + node->x;
 
   std::map<unsigned long, GaugeConfigSection*>::iterator itr = gauges->find(index);
@@ -1580,7 +1580,7 @@ void MakeBasic() {
       if (g_DEM->data[row][col] == g_DEM->noData) {
         continue;
       }
-      bool flowsIn  = false;
+      bool flowsIn = false;
       bool flowsOut = false;
       for (int i = 1; i < FLOW_QTY; i++) {
         int result = FlowsOut(col, row, (FLOW_DIR)i, g_DEM->data[row][col]);
@@ -1593,14 +1593,14 @@ void MakeBasic() {
       }
       if (!flowsOut && flowsIn) {
         totalSinks++;
-        std::stack<GridNode*>  walkNodes;
+        std::stack<GridNode*> walkNodes;
         std::vector<GridNode*> sinkNodes;
-        GridNode*              currentN = new GridNode;
-        GridLoc                locIn, locOut;
-        locIn.x       = col;
-        locIn.y       = row;
-        currentN->x   = col;
-        currentN->y   = row;
+        GridNode* currentN = new GridNode;
+        GridLoc locIn, locOut;
+        locIn.x = col;
+        locIn.y = row;
+        currentN->x = col;
+        currentN->y = row;
         currentN->fac = -1;
         walkNodes.push(currentN);
         while (!walkNodes.empty()) {
@@ -1615,9 +1615,9 @@ void MakeBasic() {
             if (FlowsIn(currentN->x, currentN->y, (FLOW_DIR)i,
                         g_DEM->data[currentN->y][currentN->x], &locIn, 5, &locOut)) {
               GridNode* newN = new GridNode;
-              newN->x        = locOut.x;
-              newN->y        = locOut.y;
-              newN->fac      = reverseDir[i];
+              newN->x = locOut.x;
+              newN->y = locOut.y;
+              newN->fac = reverseDir[i];
             }
           }
         }

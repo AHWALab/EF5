@@ -8,24 +8,24 @@ std::map<std::string, CaliParamConfigSection*> g_caliParamConfigs[MODEL_QTY];
 
 CaliParamConfigSection::CaliParamConfigSection(char* nameVal, MODELS modelVal) {
   strcpy(name, nameVal);
-  gauge           = NULL;
-  objSet          = false;
-  model           = modelVal;
-  int numParams   = numModelParams[model];
-  modelParamMins  = new float[numParams];
-  modelParamMaxs  = new float[numParams];
+  gauge = NULL;
+  objSet = false;
+  model = modelVal;
+  int numParams = numModelParams[model];
+  modelParamMins = new float[numParams];
+  modelParamMaxs = new float[numParams];
   modelParamInits = new float[numParams];
-  paramsSet       = new bool[numParams];
+  paramsSet = new bool[numParams];
   memset(modelParamMins, 0, sizeof(float) * numParams);
   memset(modelParamMins, 0, sizeof(float) * numParams);
   memset(modelParamInits, 0, sizeof(float) * numParams);
   memset(paramsSet, 0, sizeof(bool) * numParams);
 
   // ARS Defaults
-  ars_topNum              = 10;
-  ars_critObjScore        = 0.0;
+  ars_topNum = 10;
+  ars_critObjScore = 0.0;
   ars_convergenceCriteria = 0.005;
-  ars_burnInSets          = 100;
+  ars_burnInSets = 100;
 
   // DREAM defaults
   dream_ndraw = 10000;
@@ -59,7 +59,7 @@ CONFIG_SEC_RET CaliParamConfigSection::ProcessKeyValue(char* name, char* value) 
   } else if (!strcasecmp(name, "objective")) {
     for (int i = 0; i < OBJECTIVE_QTY; i++) {
       if (!strcasecmp(value, objectiveStrings[i])) {
-        objSet    = true;
+        objSet = true;
         objective = (OBJECTIVES)i;
         return VALID_RESULT;
       }
@@ -107,17 +107,17 @@ CONFIG_SEC_RET CaliParamConfigSection::ProcessKeyValue(char* name, char* value) 
         }
 
         float minVal = 0, maxVal = 0, initVal = 0;
-        int   count = sscanf(value, "%f,%f,%f", &minVal, &maxVal, &initVal);
+        int count = sscanf(value, "%f,%f,%f", &minVal, &maxVal, &initVal);
 
         if (count < 2) {
           ERROR_LOGF("Parameter \"%s\" has invalid calibration values!", name);
           return INVALID_RESULT;
         }
 
-        modelParamMins[i]  = minVal;
-        modelParamMaxs[i]  = maxVal;
+        modelParamMins[i] = minVal;
+        modelParamMaxs[i] = maxVal;
         modelParamInits[i] = initVal;
-        paramsSet[i]       = true;
+        paramsSet[i] = true;
 
         return VALID_RESULT;
       }

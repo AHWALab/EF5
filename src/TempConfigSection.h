@@ -16,7 +16,7 @@ class TempConfigSection : public ConfigSection {
   ~TempConfigSection();
 
   DatedName* GetFileName();
-  TimeUnit*  GetFreq() {
+  TimeUnit* GetFreq() {
     return &freq;
   }
   char* GetLoc() {
@@ -37,13 +37,13 @@ class TempConfigSection : public ConfigSection {
   static bool IsDuplicate(char* name);
 
  private:
-  bool                 locSet, freqSet, nameSet, unitSet, typeSet, demSet;
-  char                 loc[CONFIG_MAX_LEN];
-  char                 dem[CONFIG_MAX_LEN];
-  DatedName            fileName;
-  TimeUnit             freq;
+  bool locSet, freqSet, nameSet, unitSet, typeSet, demSet;
+  char loc[CONFIG_MAX_LEN];
+  char dem[CONFIG_MAX_LEN];
+  DatedName fileName;
+  TimeUnit freq;
   DistancePerTimeUnits unit;
-  TempType             type;
+  TempType type;
 };
 
 extern std::map<std::string, TempConfigSection*> g_tempConfigs;

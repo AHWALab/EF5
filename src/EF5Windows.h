@@ -4,10 +4,10 @@
 enum PROGRAM_RESULTS { EF5_ERROR_SUCCESS = 0, EF5_ERROR_INVALIDCONF };
 
 enum CONSOLEMESSAGETYPE {
-  NORMAL      = 0,
+  NORMAL = 0,
   INFORMATION = 1,
-  WARNING     = 2,
-  FATAL       = 3,
+  WARNING = 2,
+  FATAL = 3,
 };
 
 void addConsoleText(CONSOLEMESSAGETYPE type, const char* szFmt, ...);

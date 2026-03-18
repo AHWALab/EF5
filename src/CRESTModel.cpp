@@ -18,9 +18,9 @@ CRESTModel::CRESTModel() {}
 
 CRESTModel::~CRESTModel() {}
 
-bool CRESTModel::InitializeModel(std::vector<GridNode>*                 newNodes,
+bool CRESTModel::InitializeModel(std::vector<GridNode>* newNodes,
                                  std::map<GaugeConfigSection*, float*>* paramSettings,
-                                 std::vector<FloatGrid*>*               paramGrids) {
+                                 std::vector<FloatGrid*>* paramGrids) {
   nodes = newNodes;
   if (crestNodes.size() != nodes->size()) {
     crestNodes.resize(nodes->size());
@@ -29,7 +29,7 @@ bool CRESTModel::InitializeModel(std::vector<GridNode>*                 newNodes
   // Fill in modelIndex in the gridNodes
   size_t numNodes = nodes->size();
   for (size_t i = 0; i < numNodes; i++) {
-    GridNode* node   = &nodes->at(i);
+    GridNode* node = &nodes->at(i);
     node->modelIndex = i;
   }
 
@@ -53,7 +53,7 @@ void CRESTModel::InitializeStates(TimeVar* beginTime, char* statePath) {
       printf("Using CREST %s State Grid %s\n", stateStrings[p], buffer);
       if (g_DEM->IsSpatialMatch(sGrid)) {
         for (size_t i = 0; i < nodes->size(); i++) {
-          GridNode*      node  = &nodes->at(i);
+          GridNode* node = &nodes->at(i);
           CRESTGridNode* cNode = &(crestNodes[i]);
           if (sGrid->data[node->y][node->x] != sGrid->noData) {
             cNode->states[p] = sGrid->data[node->y][node->x];
@@ -62,7 +62,7 @@ void CRESTModel::InitializeStates(TimeVar* beginTime, char* statePath) {
       } else {
         GridLoc pt;
         for (size_t i = 0; i < nodes->size(); i++) {
-          GridNode*      node  = &(nodes->at(i));
+          GridNode* node = &(nodes->at(i));
           CRESTGridNode* cNode = &(crestNodes[i]);
           if (sGrid->GetGridLoc(node->refLoc.x, node->refLoc.y, &pt) &&
               sGrid->data[pt.y][pt.x] != sGrid->noData) {
@@ -91,7 +91,7 @@ void CRESTModel::SaveStates(TimeVar* currentTime, char* statePath, GridWriterFul
     sprintf(buffer, "%s/crest_%s_%s.tif", statePath, stateStrings[p], timeStr.GetName());
     for (size_t i = 0; i < nodes->size(); i++) {
       CRESTGridNode* cNode = &(crestNodes[i]);
-      dataVals[i]          = cNode->states[p];
+      dataVals[i] = cNode->states[p];
     }
     gridWriter->WriteGrid(nodes, &dataVals, buffer, false);
   }
@@ -106,7 +106,7 @@ bool CRESTModel::WaterBalance(float stepHours, std::vector<float>* precip, std::
   // #pragma omp parallel for
 #endif
   for (size_t i = 0; i < numNodes; i++) {
-    GridNode*      node  = &nodes->at(i);
+    GridNode* node = &nodes->at(i);
     CRESTGridNode* cNode = &(crestNodes[i]);
     WaterBalanceInt(node, cNode, stepHours, precip->at(i), pet->at(i), &(fastFlow->at(i)),
                     &(slowFlow->at(i)));
@@ -119,11 +119,11 @@ bool CRESTModel::WaterBalance(float stepHours, std::vector<float>* precip, std::
 void CRESTModel::WaterBalanceInt(GridNode* node, CRESTGridNode* cNode, float stepHours,
                                  float precipIn, float petIn, float* fastFlow, float* slowFlow) {
   double precip = precipIn * stepHours;  // precipIn is mm/hr, precip is mm
-  double pet    = petIn * stepHours;     // petIn in mm/hr, pet is mm
+  double pet = petIn * stepHours;        // petIn in mm/hr, pet is mm
   double R = 0.0, Wo = 0.0;
 
   double adjPET = pet * cNode->params[PARAM_CREST_KE];
-  double temX   = 0.0;
+  double temX = 0.0;
 
   // If we aren't a channel cell, add routed in overland to precip
   /*if (!node->channelGridCell) {
@@ -189,7 +189,7 @@ void CRESTModel::WaterBalanceInt(GridNode* node, CRESTGridNode* cNode, float ste
         Wo = cNode->states[STATE_CREST_SM] + infiltration;
       }
     } else {
-      R  = precipSoil;
+      R = precipSoil;
       Wo = cNode->params[PARAM_CREST_WM];
     }
 
@@ -229,7 +229,7 @@ void CRESTModel::WaterBalanceInt(GridNode* node, CRESTGridNode* cNode, float ste
     if (ExcessET < cNode->states[STATE_CREST_SM]) {
       Wo = cNode->states[STATE_CREST_SM] - ExcessET;  // We can evaporate away ExcessET too.
     } else {
-      Wo       = 0.0;  // We don't have enough to evaporate ExcessET.
+      Wo = 0.0;  // We don't have enough to evaporate ExcessET.
       ExcessET = cNode->states[STATE_CREST_SM];
     }
     cNode->actET = ExcessET + precip;
@@ -248,12 +248,12 @@ void CRESTModel::WaterBalanceInt(GridNode* node, CRESTGridNode* cNode, float ste
 }
 
 void CRESTModel::InitializeParameters(std::map<GaugeConfigSection*, float*>* paramSettings,
-                                      std::vector<FloatGrid*>*               paramGrids) {
+                                      std::vector<FloatGrid*>* paramGrids) {
   // This pass distributes parameters
   size_t numNodes = nodes->size();
-  size_t unused   = 0;
+  size_t unused = 0;
   for (size_t i = 0; i < numNodes; i++) {
-    GridNode*      node  = &nodes->at(i);
+    GridNode* node = &nodes->at(i);
     CRESTGridNode* cNode = &(crestNodes[i]);
     if (!node->gauge) {
       unused++;
@@ -302,7 +302,7 @@ void CRESTModel::InitializeParameters(std::map<GaugeConfigSection*, float*>* par
 
     if (cNode->states[STATE_CREST_SM] < 0.0) {
       static std::set<float> printed_sm_below_zero;
-      float                  val = cNode->states[STATE_CREST_SM];
+      float val = cNode->states[STATE_CREST_SM];
       // Round to 3 decimal places for uniqueness
       float rounded_val = std::round(val * 1000.0f) / 1000.0f;
       if (printed_sm_below_zero.find(rounded_val) == printed_sm_below_zero.end()) {
@@ -312,7 +312,7 @@ void CRESTModel::InitializeParameters(std::map<GaugeConfigSection*, float*>* par
       cNode->states[STATE_CREST_SM] = 0.0;
     } else if (cNode->states[STATE_CREST_SM] > cNode->params[PARAM_CREST_WM]) {
       static std::set<float> printed_sm_above_wm;
-      float                  val = cNode->states[STATE_CREST_SM];
+      float val = cNode->states[STATE_CREST_SM];
       // Round to 3 decimal places for uniqueness
       float rounded_val = std::round(val * 1000.0f) / 1000.0f;
       if (printed_sm_above_wm.find(rounded_val) == printed_sm_above_wm.end()) {

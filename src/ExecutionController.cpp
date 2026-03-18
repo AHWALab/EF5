@@ -27,7 +27,7 @@
 #endif
 
 // Global ensemble mode state
-bool             g_ensembleMode      = false;
+bool g_ensembleMode = false;
 thread_local int g_ensembleTaskIndex = -1;
 
 static void LoadProjection();
@@ -59,10 +59,10 @@ void ExecuteTasks() {
     return;
   }
 
-  std::vector<TaskConfigSection*>*          tasks = g_executeConfig->GetTasks();
+  std::vector<TaskConfigSection*>* tasks = g_executeConfig->GetTasks();
   std::vector<TaskConfigSection*>::iterator taskItr;
 
-  std::vector<EnsTaskConfigSection*>*          ensTasks = g_executeConfig->GetEnsTasks();
+  std::vector<EnsTaskConfigSection*>* ensTasks = g_executeConfig->GetEnsTasks();
   std::vector<EnsTaskConfigSection*>::iterator ensTaskItr;
 
   if (!LoadBasicGrids()) {
@@ -91,8 +91,8 @@ void ExecuteTasks() {
 
   // Loop through all of the tasks and execute them
   for (taskItr = tasks->begin(); taskItr != tasks->end(); taskItr++) {
-    TaskConfigSection* task   = (*taskItr);
-    const char*        outDir = task->GetOutput();
+    TaskConfigSection* task = (*taskItr);
+    const char* outDir = task->GetOutput();
     if (!IsDirWritable(outDir)) {
       ERROR_LOGF("Output directory '%s' does not exist or is not writable. Aborting task %s.",
                  outDir, task->GetName());
@@ -158,7 +158,7 @@ void LoadProjection() {
   for (std::map<std::string, GaugeConfigSection*>::iterator itr = g_gaugeConfigs.begin();
        itr != g_gaugeConfigs.end(); itr++) {
     GaugeConfigSection* gauge = itr->second;
-    float               newX, newY;
+    float newX, newY;
     g_Projection->ReprojectPoint(gauge->GetLon(), gauge->GetLat(), &newX, &newY);
     gauge->SetLon(newX);
     gauge->SetLat(newY);
@@ -184,7 +184,7 @@ void ExecuteSimulationRP(TaskConfigSection* task) {
 
 void ExecuteCalibrationARS(TaskConfigSection* task) {
   Simulator sim;
-  char      buffer[CONFIG_MAX_LEN * 2];
+  char buffer[CONFIG_MAX_LEN * 2];
 
   sim.Initialize(task);
   sprintf(buffer, "%s/%s", task->GetOutput(), "califorcings.bin");
@@ -204,7 +204,7 @@ void ExecuteCalibrationARS(TaskConfigSection* task) {
 
 void ExecuteCalibrationDREAM(TaskConfigSection* task) {
   Simulator sim;
-  char      buffer[CONFIG_MAX_LEN * 2];
+  char buffer[CONFIG_MAX_LEN * 2];
 
   sim.Initialize(task);
   sprintf(buffer, "%s/%s", task->GetOutput(), "califorcings.bin");
@@ -213,7 +213,7 @@ void ExecuteCalibrationDREAM(TaskConfigSection* task) {
   INFO_LOGF("%s", "Precip loaded!");
 
   DREAM dream;
-  int   numSnow = 0;
+  int numSnow = 0;
   if (task->GetSnow() != SNOW_QTY) {
     numSnow = numSnowParams[task->GetSnow()];
   }
@@ -228,18 +228,18 @@ void ExecuteCalibrationDREAM(TaskConfigSection* task) {
 }
 
 void ExecuteCalibrationDREAMEns(EnsTaskConfigSection* task) {
-  char                             buffer[CONFIG_MAX_LEN * 2];
-  std::vector<TaskConfigSection*>* tasks      = task->GetTasks();
-  int                              numMembers = (int)tasks->size();
-  int                              numParams  = 0;
+  char buffer[CONFIG_MAX_LEN * 2];
+  std::vector<TaskConfigSection*>* tasks = task->GetTasks();
+  int numMembers = (int)tasks->size();
+  int numParams = 0;
 
   std::vector<Simulator> sims;
-  std::vector<int>       paramsPerSim;
+  std::vector<int> paramsPerSim;
   paramsPerSim.resize(numMembers);
   sims.resize(numMembers);
 
   for (int i = 0; i < numMembers; i++) {
-    Simulator*         sim      = &(sims[i]);
+    Simulator* sim = &(sims[i]);
     TaskConfigSection* thisTask = tasks->at(i);
     sim->Initialize(thisTask);
     sprintf(buffer, "%s/%s", thisTask->GetOutput(), "califorcings.bin");
@@ -248,13 +248,13 @@ void ExecuteCalibrationDREAMEns(EnsTaskConfigSection* task) {
     paramsPerSim[i] = numModelParams[thisTask->GetModel()];
   }
 
-  float* minParams  = new float[numParams];
-  float* maxParams  = new float[numParams];
-  int    paramIndex = 0;
+  float* minParams = new float[numParams];
+  float* maxParams = new float[numParams];
+  int paramIndex = 0;
 
   for (int i = 0; i < numMembers; i++) {
     TaskConfigSection* thisTask = tasks->at(i);
-    int                cParams  = numModelParams[thisTask->GetModel()];
+    int cParams = numModelParams[thisTask->GetModel()];
     memcpy(&(minParams[paramIndex]), thisTask->GetCaliParamSec()->GetParamMins(),
            sizeof(float) * cParams);
     memcpy(&(maxParams[paramIndex]), thisTask->GetCaliParamSec()->GetParamMaxs(),
@@ -279,8 +279,8 @@ void ExecuteCalibrationDREAMEns(EnsTaskConfigSection* task) {
 // ExecuteSimulationEns — Run multiple simulation tasks in parallel
 // ─────────────────────────────────────────────────────────────────────────────
 void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
-  std::vector<TaskConfigSection*>* tasks      = ensTask->GetTasks();
-  int                              numMembers = (int)tasks->size();
+  std::vector<TaskConfigSection*>* tasks = ensTask->GetTasks();
+  int numMembers = (int)tasks->size();
 
   if (numMembers == 0) {
     ERROR_LOGF("%s", "Ensemble task has no member tasks!");
@@ -311,7 +311,7 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
   }
 
   std::vector<Simulator*> sims(numMembers);
-  int                     firstValidIdx = -1;  // Index of first successfully initialized simulator
+  int firstValidIdx = -1;  // Index of first successfully initialized simulator
 
   for (int i = 0; i < numMembers; i++) {
     TaskConfigSection* t = tasks->at(i);
@@ -329,7 +329,7 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
       continue;
     }
 
-    sims[i]     = new Simulator();
+    sims[i] = new Simulator();
     bool initOk = false;
 
     if (firstValidIdx < 0) {
@@ -359,10 +359,10 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
     }
 
     // Count total time steps for progress tracking
-    TimeVar   tempTime   = *(t->GetTimeBegin());
-    TimeVar   endTime    = *(t->GetTimeEnd());
-    TimeUnit* ts         = t->GetTimeStep();
-    int       totalSteps = 0;
+    TimeVar tempTime = *(t->GetTimeBegin());
+    TimeVar endTime = *(t->GetTimeEnd());
+    TimeUnit* ts = t->GetTimeStep();
+    int totalSteps = 0;
     for (tempTime.Increment(ts); tempTime <= endTime; tempTime.Increment(ts)) {
       totalSteps++;
     }
@@ -409,7 +409,7 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
 
   // Start progress bar thread (only in TTY mode)
   std::atomic<bool> progressDone(false);
-  std::thread       progressThread;
+  std::thread progressThread;
 
   if (logger.IsTTY()) {
     progressThread = std::thread([&logger, &progressDone]() {
@@ -459,7 +459,7 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
   }
 
   // ── Phase 3: Cleanup & summary ────────────────────────────────────────────
-  g_ensembleMode      = false;
+  g_ensembleMode = false;
   g_ensembleTaskIndex = -1;
 
   // Print summary
@@ -495,7 +495,7 @@ void ExecuteParamSweep(TaskConfigSection* baseTask) {
 
   // ── Step 1: Parse CSV ──────────────────────────────────────────────────
   std::vector<ParamSweepRow> sweepRows;
-  std::string                csvError;
+  std::string csvError;
 
   MODELS model = baseTask->GetModel();
   ROUTES route = baseTask->GetRouting();
@@ -510,11 +510,11 @@ void ExecuteParamSweep(TaskConfigSection* baseTask) {
 
   // ── Step 2: Get base parameter values ──────────────────────────────────
   // These are the "default" values — CSV rows override them selectively.
-  ParamSetConfigSection*        baseParams      = baseTask->GetParamsSec();
+  ParamSetConfigSection* baseParams = baseTask->GetParamsSec();
   RoutingParamSetConfigSection* baseRouteParams = baseTask->GetRoutingParamsSec();
-  GaugeConfigSection*           defaultGauge    = baseTask->GetDefaultGauge();
-  int                           numModelP       = numModelParams[model];
-  int                           numRouteP       = numRouteParams[route];
+  GaugeConfigSection* defaultGauge = baseTask->GetDefaultGauge();
+  int numModelP = numModelParams[model];
+  int numRouteP = numRouteParams[route];
 
   // Get base parameter values for the default gauge
   float* baseModelVals = nullptr;
@@ -522,14 +522,14 @@ void ExecuteParamSweep(TaskConfigSection* baseTask) {
 
   if (baseParams && defaultGauge) {
     auto* settings = baseParams->GetParamSettings();
-    auto  it       = settings->find(defaultGauge);
+    auto it = settings->find(defaultGauge);
     if (it != settings->end()) {
       baseModelVals = it->second;
     }
   }
   if (baseRouteParams && defaultGauge) {
     auto* settings = baseRouteParams->GetParamSettings();
-    auto  it       = settings->find(defaultGauge);
+    auto it = settings->find(defaultGauge);
     if (it != settings->end()) {
       baseRouteVals = it->second;
     }
@@ -539,8 +539,8 @@ void ExecuteParamSweep(TaskConfigSection* baseTask) {
   // We'll create temporary in-memory TaskConfigSections, one per CSV row.
   // These are managed by us and freed after the ensemble run.
 
-  std::vector<TaskConfigSection*>            sweepTasks;
-  std::vector<ParamSetConfigSection*>        sweepParamSets;
+  std::vector<TaskConfigSection*> sweepTasks;
+  std::vector<ParamSetConfigSection*> sweepParamSets;
   std::vector<RoutingParamSetConfigSection*> sweepRouteParamSets;
 
   std::string baseOutput = baseTask->GetOutput();
@@ -594,8 +594,8 @@ void ExecuteParamSweep(TaskConfigSection* baseTask) {
     // Copy param grids from base
     if (baseParams) {
       std::vector<std::string>* baseGrids = baseParams->GetParamGrids();
-      std::vector<std::string>* newGrids  = psc->GetParamGrids();
-      *newGrids                           = *baseGrids;
+      std::vector<std::string>* newGrids = psc->GetParamGrids();
+      *newGrids = *baseGrids;
     }
 
     sweepParamSets.push_back(psc);
@@ -625,8 +625,8 @@ void ExecuteParamSweep(TaskConfigSection* baseTask) {
     // Copy route param grids from base
     if (baseRouteParams) {
       std::vector<std::string>* baseGrids = baseRouteParams->GetParamGrids();
-      std::vector<std::string>* newGrids  = rpsc->GetParamGrids();
-      *newGrids                           = *baseGrids;
+      std::vector<std::string>* newGrids = rpsc->GetParamGrids();
+      *newGrids = *baseGrids;
     }
 
     sweepRouteParamSets.push_back(rpsc);
@@ -685,18 +685,18 @@ void ExecuteClipBasin(TaskConfigSection* task) {
   std::map<GaugeConfigSection*, float*> fullParamSettings, *paramSettings, fullRouteParamSettings,
       *routeParamSettings;
   std::vector<GridNode> nodes;
-  GaugeMap              gaugeMap;
+  GaugeMap gaugeMap;
 
   // Get the parameter settings for this task
   paramSettings = task->GetParamsSec()->GetParamSettings();
-  float *                                         defaultParams = NULL, *defaultRouteParams = NULL;
-  GaugeConfigSection*                             gs   = task->GetDefaultGauge();
+  float *defaultParams = NULL, *defaultRouteParams = NULL;
+  GaugeConfigSection* gs = task->GetDefaultGauge();
   std::map<GaugeConfigSection*, float*>::iterator pitr = paramSettings->find(gs);
   if (pitr != paramSettings->end()) {
     defaultParams = pitr->second;
   }
   routeParamSettings = task->GetRoutingParamsSec()->GetParamSettings();
-  pitr               = routeParamSettings->find(gs);
+  pitr = routeParamSettings->find(gs);
   if (pitr != routeParamSettings->end()) {
     defaultRouteParams = pitr->second;
   }
@@ -712,18 +712,18 @@ void ExecuteClipGauge(TaskConfigSection* task) {
   std::map<GaugeConfigSection*, float*> fullParamSettings, *paramSettings, fullRouteParamSettings,
       *routeParamSettings;
   std::vector<GridNode> nodes;
-  GaugeMap              gaugeMap;
+  GaugeMap gaugeMap;
 
   // Get the parameter settings for this task
   paramSettings = task->GetParamsSec()->GetParamSettings();
-  float *                                         defaultParams = NULL, *defaultRouteParams = NULL;
-  GaugeConfigSection*                             gs   = task->GetDefaultGauge();
+  float *defaultParams = NULL, *defaultRouteParams = NULL;
+  GaugeConfigSection* gs = task->GetDefaultGauge();
   std::map<GaugeConfigSection*, float*>::iterator pitr = paramSettings->find(gs);
   if (pitr != paramSettings->end()) {
     defaultParams = pitr->second;
   }
   routeParamSettings = task->GetRoutingParamsSec()->GetParamSettings();
-  pitr               = routeParamSettings->find(gs);
+  pitr = routeParamSettings->find(gs);
   if (pitr != routeParamSettings->end()) {
     defaultRouteParams = pitr->second;
   }

@@ -31,7 +31,7 @@
 #define COLOR_DARKPURPLE 0x73264D
 #define COLOR_LIGHTBLUE 0xC48A4F
 
-int  CreateWindows(HINSTANCE hInstance);
+int CreateWindows(HINSTANCE hInstance);
 void DestroyWindows();
 void AddText(const char* szFmt, ...);
 void SetColor(COLORREF Color);
@@ -41,22 +41,22 @@ extern Config* g_config;
 
 static LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 static LRESULT CALLBACK InfoSubclass(HWND Edit, UINT uMsg, WPARAM wParam, LPARAM lParam);
-static void             PrintStartupMessage();
-static void             threadProc(PVOID params);
-static DWORD CALLBACK   editStreamCallback(DWORD_PTR dwCookie, LPBYTE pbBuff, LONG cb, LONG* pcb);
+static void PrintStartupMessage();
+static void threadProc(PVOID params);
+static DWORD CALLBACK editStreamCallback(DWORD_PTR dwCookie, LPBYTE pbBuff, LONG cb, LONG* pcb);
 
-HANDLE        hThread     = NULL;
-HWND          hMainWindow = NULL, hInfo = NULL, hTime = NULL;
-WNDCLASSEX    wcex;
-WNDPROC       wpInfo              = NULL;
-HINSTANCE     hREDLL              = NULL;
-COLORREF      CColor              = 0;
-HINSTANCE     hProgram            = NULL;
-char          szTxtToAppend[4096] = "";
-size_t        textToAppendSize    = 0;
-unsigned long sizeOfTextToAppend  = 0;
-static void   MsgLoop();
-int           g_iStopLoop = 0;
+HANDLE hThread = NULL;
+HWND hMainWindow = NULL, hInfo = NULL, hTime = NULL;
+WNDCLASSEX wcex;
+WNDPROC wpInfo = NULL;
+HINSTANCE hREDLL = NULL;
+COLORREF CColor = 0;
+HINSTANCE hProgram = NULL;
+char szTxtToAppend[4096] = "";
+size_t textToAppendSize = 0;
+unsigned long sizeOfTextToAppend = 0;
+static void MsgLoop();
+int g_iStopLoop = 0;
 extern HANDLE hWaitObject;
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszArgument,
@@ -97,22 +97,22 @@ static void MsgLoop() {
 
 int CreateWindows(HINSTANCE hInstance) {
   PARAFORMAT2 pf;
-  CHARFORMAT  cfFormat;
+  CHARFORMAT cfFormat;
   hREDLL = LoadLibrary("RichEd32.dll");
   if (!hREDLL) return 0;
-  hProgram           = hInstance;
-  wcex.cbSize        = sizeof(WNDCLASSEX);
-  wcex.style         = CS_HREDRAW | CS_VREDRAW;
-  wcex.lpfnWndProc   = (WNDPROC)MainWndProc;
-  wcex.cbClsExtra    = 0;
-  wcex.cbWndExtra    = 0;
-  wcex.hInstance     = hInstance;
-  wcex.hIcon         = NULL;  // LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON));
-  wcex.hCursor       = LoadCursor(NULL, IDC_ARROW);
+  hProgram = hInstance;
+  wcex.cbSize = sizeof(WNDCLASSEX);
+  wcex.style = CS_HREDRAW | CS_VREDRAW;
+  wcex.lpfnWndProc = (WNDPROC)MainWndProc;
+  wcex.cbClsExtra = 0;
+  wcex.cbWndExtra = 0;
+  wcex.hInstance = hInstance;
+  wcex.hIcon = NULL;  // LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON));
+  wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
   wcex.hbrBackground = (HBRUSH)COLOR_BACKGROUND;
-  wcex.lpszMenuName  = NULL;
+  wcex.lpszMenuName = NULL;
   wcex.lpszClassName = "EF5Class";
-  wcex.hIconSm       = NULL;  // LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON));
+  wcex.hIconSm = NULL;  // LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON));
   if (!RegisterClassEx(&wcex)) {
     FreeLibrary(hREDLL);
     return 0;
@@ -152,20 +152,20 @@ int CreateWindows(HINSTANCE hInstance) {
   //	}
   pf.cbSize = sizeof(PARAFORMAT2);
   SendMessage(hInfo, EM_GETPARAFORMAT, 0, (LPARAM)&pf);
-  pf.dwMask   = PFM_OFFSET;
+  pf.dwMask = PFM_OFFSET;
   pf.dxOffset = 1120;
   SendMessage(hInfo, EM_SETPARAFORMAT, 0, (LPARAM)&pf);
   SendMessage(hInfo, EM_AUTOURLDETECT, TRUE, 0);
   SendMessage(hInfo, EM_SETEVENTMASK, 0, ENM_LINK);
   SendMessage(hInfo, EM_SETBKGNDCOLOR, FALSE, 0x00000000);
   //	SendMessage(hSend, EM_SETBKGNDCOLOR, FALSE, 0x00000000);
-  cfFormat.cbSize          = sizeof(CHARFORMAT);
-  cfFormat.dwMask          = CFM_COLOR | CFM_FACE | CFM_SIZE;
-  cfFormat.dwEffects       = CFE_PROTECTED;
-  cfFormat.yHeight         = 190;
-  cfFormat.yOffset         = 0;
-  cfFormat.crTextColor     = COLOR_WHITE;
-  cfFormat.bCharSet        = DEFAULT_CHARSET;
+  cfFormat.cbSize = sizeof(CHARFORMAT);
+  cfFormat.dwMask = CFM_COLOR | CFM_FACE | CFM_SIZE;
+  cfFormat.dwEffects = CFE_PROTECTED;
+  cfFormat.yHeight = 190;
+  cfFormat.yOffset = 0;
+  cfFormat.crTextColor = COLOR_WHITE;
+  cfFormat.bCharSet = DEFAULT_CHARSET;
   cfFormat.bPitchAndFamily = DEFAULT_PITCH;
   strncpy(cfFormat.szFaceName, "Tahoma", 31);
   cfFormat.szFaceName[31] = 0;
@@ -226,30 +226,30 @@ static LRESULT CALLBACK InfoSubclass(HWND Edit, UINT uMsg, WPARAM wParam, LPARAM
 }
 
 void AddText(const char* szFmt, ...) {
-  LONG       linecount2 = 0;  //, linecount2 = 0;
+  LONG linecount2 = 0;  //, linecount2 = 0;
   SCROLLINFO SI;
   CHARFORMAT cfFormat;
-  POINT      p;
-  CHARRANGE  Range = {-1, -1}, Range2 = {-1, -1}, Range3 = {-1, -1};
+  POINT p;
+  CHARRANGE Range = {-1, -1}, Range2 = {-1, -1}, Range3 = {-1, -1};
   EDITSTREAM editStream;
-  va_list    vaArg;
+  va_list vaArg;
   va_start(vaArg, szFmt);
   _vsnprintf(szTxtToAppend, 4096, szFmt, vaArg);
   va_end(vaArg);
   szTxtToAppend[4095] = 0;
-  textToAppendSize    = strlen(szTxtToAppend);
+  textToAppendSize = strlen(szTxtToAppend);
   // if (nStopLoop == 1)
   //	return;
   ZeroMemory(&SI, sizeof(SI));
-  SI.cbSize                = sizeof(SI);
-  SI.fMask                 = 7;
-  cfFormat.cbSize          = sizeof(CHARFORMAT);
-  cfFormat.dwMask          = CFM_COLOR | CFM_FACE | CFM_SIZE | CFM_BOLD;
-  cfFormat.dwEffects       = CFE_PROTECTED;
-  cfFormat.yHeight         = 190;
-  cfFormat.yOffset         = 0;
-  cfFormat.crTextColor     = CColor;
-  cfFormat.bCharSet        = DEFAULT_CHARSET;
+  SI.cbSize = sizeof(SI);
+  SI.fMask = 7;
+  cfFormat.cbSize = sizeof(CHARFORMAT);
+  cfFormat.dwMask = CFM_COLOR | CFM_FACE | CFM_SIZE | CFM_BOLD;
+  cfFormat.dwEffects = CFE_PROTECTED;
+  cfFormat.yHeight = 190;
+  cfFormat.yOffset = 0;
+  cfFormat.crTextColor = CColor;
+  cfFormat.bCharSet = DEFAULT_CHARSET;
   cfFormat.bPitchAndFamily = DEFAULT_PITCH;
   strncpy(cfFormat.szFaceName, "Tahoma", 32);
   cfFormat.szFaceName[31] = 0;
@@ -261,8 +261,8 @@ void AddText(const char* szFmt, ...) {
   SendMessage(hInfo, EM_EXSETSEL, 0, (LPARAM)&Range2);
   SendMessage(hInfo, EM_EXGETSEL, 0, (LPARAM)&Range3);
   SendMessage(hInfo, EM_SETCHARFORMAT, SCF_SELECTION, (LPARAM)&cfFormat);
-  editStream.dwCookie    = 0;
-  editStream.dwError     = 0;
+  editStream.dwCookie = 0;
+  editStream.dwError = 0;
   editStream.pfnCallback = editStreamCallback;
   SendMessage(hInfo, EM_STREAMIN, SF_TEXT | SFF_SELECTION, (LPARAM)&editStream);
   linecount2 = (LONG)SendMessage(hInfo, EM_GETLINECOUNT, 0, 0);
@@ -311,7 +311,7 @@ void TimeStamp() {
 }
 
 void addConsoleText(CONSOLEMESSAGETYPE type, const char* szFmt, ...) {
-  char    txtToAppend[4096] = "";
+  char txtToAppend[4096] = "";
   va_list vaArg;
   va_start(vaArg, szFmt);
   _vsnprintf(txtToAppend, 4096, szFmt, vaArg);

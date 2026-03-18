@@ -12,9 +12,9 @@ class InundationParamSetConfigSection : public ConfigSection {
   InundationParamSetConfigSection(char* nameVal, INUNDATIONS inundationVal);
   ~InundationParamSetConfigSection();
 
-  char*                                  GetName();
-  CONFIG_SEC_RET                         ProcessKeyValue(char* name, char* value);
-  CONFIG_SEC_RET                         ValidateSection();
+  char* GetName();
+  CONFIG_SEC_RET ProcessKeyValue(char* name, char* value);
+  CONFIG_SEC_RET ValidateSection();
   std::map<GaugeConfigSection*, float*>* GetParamSettings() {
     return &paramSettings;
   }
@@ -27,13 +27,13 @@ class InundationParamSetConfigSection : public ConfigSection {
  private:
   bool IsDuplicateGauge(GaugeConfigSection*);
 
-  char                                  name[CONFIG_MAX_LEN];
-  INUNDATIONS                           inundation;
-  GaugeConfigSection*                   currentGauge;
-  float*                                currentParams;
-  bool*                                 currentParamsSet;
+  char name[CONFIG_MAX_LEN];
+  INUNDATIONS inundation;
+  GaugeConfigSection* currentGauge;
+  float* currentParams;
+  bool* currentParamsSet;
   std::map<GaugeConfigSection*, float*> paramSettings;
-  std::vector<std::string>              paramGrids;
+  std::vector<std::string> paramGrids;
 };
 
 extern std::map<std::string, InundationParamSetConfigSection*> g_inundationParamSetConfigs[];

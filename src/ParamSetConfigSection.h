@@ -12,9 +12,9 @@ class ParamSetConfigSection : public ConfigSection {
   ParamSetConfigSection(char* nameVal, MODELS modelVal);
   ~ParamSetConfigSection();
 
-  char*                                  GetName();
-  CONFIG_SEC_RET                         ProcessKeyValue(char* name, char* value);
-  CONFIG_SEC_RET                         ValidateSection();
+  char* GetName();
+  CONFIG_SEC_RET ProcessKeyValue(char* name, char* value);
+  CONFIG_SEC_RET ValidateSection();
   std::map<GaugeConfigSection*, float*>* GetParamSettings() {
     return &paramSettings;
   }
@@ -27,13 +27,13 @@ class ParamSetConfigSection : public ConfigSection {
  private:
   bool IsDuplicateGauge(GaugeConfigSection*);
 
-  char                                  name[CONFIG_MAX_LEN];
-  MODELS                                model;
-  GaugeConfigSection*                   currentGauge;
-  float*                                currentParams;
-  bool*                                 currentParamsSet;
+  char name[CONFIG_MAX_LEN];
+  MODELS model;
+  GaugeConfigSection* currentGauge;
+  float* currentParams;
+  bool* currentParamsSet;
   std::map<GaugeConfigSection*, float*> paramSettings;
-  std::vector<std::string>              paramGrids;
+  std::vector<std::string> paramGrids;
 };
 
 extern std::map<std::string, ParamSetConfigSection*> g_paramSetConfigs[];

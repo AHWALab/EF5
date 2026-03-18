@@ -17,7 +17,7 @@ class RuntimeStatsReporter {
   }
 
   ~RuntimeStatsReporter() {
-    const auto   endWall = std::chrono::steady_clock::now();
+    const auto endWall = std::chrono::steady_clock::now();
     const double wallSeconds =
         std::chrono::duration_cast<std::chrono::duration<double>>(endWall - startWall).count();
 
@@ -25,20 +25,20 @@ class RuntimeStatsReporter {
     std::memset(&usage, 0, sizeof(usage));
     getrusage(RUSAGE_SELF, &usage);
 
-    const double cpuUser    = usage.ru_utime.tv_sec + usage.ru_utime.tv_usec / 1e6;
-    const double cpuSys     = usage.ru_stime.tv_sec + usage.ru_stime.tv_usec / 1e6;
+    const double cpuUser = usage.ru_utime.tv_sec + usage.ru_utime.tv_usec / 1e6;
+    const double cpuSys = usage.ru_stime.tv_sec + usage.ru_stime.tv_usec / 1e6;
     const double cpuSeconds = cpuUser + cpuSys;
 
-    const double minReliableWall     = 0.05;  // seconds
-    const bool   utilizationReliable = wallSeconds >= minReliableWall;
+    const double minReliableWall = 0.05;  // seconds
+    const bool utilizationReliable = wallSeconds >= minReliableWall;
     const double cpuToWall =
         utilizationReliable && wallSeconds > 0.0 ? (cpuSeconds / wallSeconds) : 0.0;
-    const double approxCoresUsed  = cpuToWall;
-    const int    recommendedVcpus = utilizationReliable && approxCoresUsed > 0.0
-                                        ? static_cast<int>(std::ceil(approxCoresUsed))
-                                        : -1;
+    const double approxCoresUsed = cpuToWall;
+    const int recommendedVcpus = utilizationReliable && approxCoresUsed > 0.0
+                                     ? static_cast<int>(std::ceil(approxCoresUsed))
+                                     : -1;
 
-    const double maxRssMiB     = usage.ru_maxrss / 1024.0;  // ru_maxrss in KiB on Linux
+    const double maxRssMiB = usage.ru_maxrss / 1024.0;  // ru_maxrss in KiB on Linux
     const double currentRssMiB = readCurrentRssMiB();
 
     std::printf("\n===== Runtime resource summary =====\n");
@@ -74,7 +74,7 @@ class RuntimeStatsReporter {
   static long long readCurrentRssKiBFromProcStatus() {
     FILE* f = std::fopen("/proc/self/status", "r");
     if (!f) return -1;
-    char      line[256];
+    char line[256];
     long long kib = -1;
     while (std::fgets(line, sizeof(line), f)) {
       if (std::strncmp(line, "VmRSS:", 6) == 0) {
@@ -97,9 +97,9 @@ class RuntimeStatsReporter {
   static long long readCurrentRssKiBFromProcStatm() {
     FILE* f = std::fopen("/proc/self/statm", "r");
     if (!f) return -1;
-    long long sizePages     = 0;
+    long long sizePages = 0;
     long long residentPages = 0;
-    long      pageSize      = sysconf(_SC_PAGESIZE);
+    long pageSize = sysconf(_SC_PAGESIZE);
     if (std::fscanf(f, "%lld %lld", &sizePages, &residentPages) == 2) {
       std::fclose(f);
       long long bytes = residentPages * static_cast<long long>(pageSize);

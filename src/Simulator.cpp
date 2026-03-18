@@ -34,7 +34,7 @@
 #include <string>
 
 // Global flag to indicate if interpolation was used in observed data
-bool g_interpolationUsed     = false;
+bool g_interpolationUsed = false;
 bool g_mismatchedFrequencies = false;
 
 // Function to handle NaN values in observed discharge data
@@ -93,17 +93,17 @@ bool Simulator::InitializeShared(TaskConfigSection* taskN, const std::vector<Gri
 
 bool Simulator::InitializeBasic(TaskConfigSection* task) {
   sharedPrecipCali = NULL;
-  sharedPETCali    = NULL;
-  sharedTempCali   = NULL;
+  sharedPETCali = NULL;
+  sharedTempCali = NULL;
 
   // Initialize time step information
-  inLR           = false;
-  timeStep       = task->GetTimeStep();
-  timeStepSR     = task->GetTimeStep();
-  timeStepLR     = task->GetTimeStepLR();
+  inLR = false;
+  timeStep = task->GetTimeStep();
+  timeStepSR = task->GetTimeStep();
+  timeStepLR = task->GetTimeStepLR();
   timeStepPrecip = task->GetPrecipSec()->GetFreq();
   if (task->GetQPFSec()) {
-    hasQPF      = true;
+    hasQPF = true;
     timeStepQPF = task->GetQPFSec()->GetFreq();
   } else {
     hasQPF = false;
@@ -113,7 +113,7 @@ bool Simulator::InitializeBasic(TaskConfigSection* task) {
   if (task->GetSnow() != SNOW_QTY) {
     timeStepTemp = task->GetTempSec()->GetFreq();
     if (task->GetTempFSec()) {
-      hasTempF      = true;
+      hasTempF = true;
       timeStepTempF = task->GetTempFSec()->GetFreq();
     } else {
       hasTempF = false;
@@ -146,19 +146,19 @@ bool Simulator::InitializeBasic(TaskConfigSection* task) {
 
   if (timeStepLR) {
     timeStepHoursLR = timeStepLR->GetTimeInSec() / 3600.0;
-    beginLRTime     = *(task->GetTimeBeginLR());
+    beginLRTime = *(task->GetTimeBeginLR());
   }
 
   // Initialize time information
-  currentTime       = *(task->GetTimeBegin());
+  currentTime = *(task->GetTimeBegin());
   currentTimePrecip = *(task->GetTimeBegin());
-  currentTimeQPF    = *(task->GetTimeBegin());
-  currentTimePET    = *(task->GetTimeBegin());
-  currentTimeTemp   = *(task->GetTimeBegin());
-  currentTimeTempF  = *(task->GetTimeBegin());
-  beginTime         = *(task->GetTimeBegin());
-  endTime           = *(task->GetTimeEnd());
-  warmEndTime       = *(task->GetTimeWarmEnd());
+  currentTimeQPF = *(task->GetTimeBegin());
+  currentTimePET = *(task->GetTimeBegin());
+  currentTimeTemp = *(task->GetTimeBegin());
+  currentTimeTempF = *(task->GetTimeBegin());
+  beginTime = *(task->GetTimeBegin());
+  endTime = *(task->GetTimeEnd());
+  warmEndTime = *(task->GetTimeWarmEnd());
 
   // Initialize file name information
   precipFile = task->GetPrecipSec()->GetFileName();
@@ -179,10 +179,10 @@ bool Simulator::InitializeBasic(TaskConfigSection* task) {
 
   // Set forcing info
   precipSec = task->GetPrecipSec();
-  petSec    = task->GetPETSec();
-  qpfSec    = task->GetQPFSec();
-  tempSec   = task->GetTempSec();
-  tempFSec  = task->GetTempFSec();
+  petSec = task->GetPETSec();
+  qpfSec = task->GetQPFSec();
+  tempSec = task->GetTempSec();
+  tempFSec = task->GetTempFSec();
 
   // Initialize our gauges
   gauges = task->GetBasinSec()->GetGauges();
@@ -212,8 +212,8 @@ bool Simulator::InitializeBasic(TaskConfigSection* task) {
   }
 
   float *defaultParams = NULL, *defaultParamsRoute = NULL, *defaultParamsSnow = NULL,
-        *defaultParamsInundation                       = NULL;
-  GaugeConfigSection*                             gs   = task->GetDefaultGauge();
+        *defaultParamsInundation = NULL;
+  GaugeConfigSection* gs = task->GetDefaultGauge();
   std::map<GaugeConfigSection*, float*>::iterator pitr = paramSettings->find(gs);
   if (pitr != paramSettings->end()) {
     defaultParams = pitr->second;
@@ -347,18 +347,18 @@ bool Simulator::InitializeBasic(TaskConfigSection* task) {
 // InitializeBasicFromShared — Same as InitializeBasic but uses pre-carved nodes
 // instead of calling CarveBasin. Only parameter mapping is redone per-task.
 // ─────────────────────────────────────────────────────────────────────────────
-bool Simulator::InitializeBasicFromShared(TaskConfigSection*           task,
+bool Simulator::InitializeBasicFromShared(TaskConfigSection* task,
                                           const std::vector<GridNode>& sharedNodes,
-                                          const GaugeMap&              sharedGaugeMap) {
+                                          const GaugeMap& sharedGaugeMap) {
   // Everything up to CarveBasin is identical to InitializeBasic
   // Initialize time step information
-  inLR           = false;
-  timeStep       = task->GetTimeStep();
-  timeStepSR     = task->GetTimeStep();
-  timeStepLR     = task->GetTimeStepLR();
+  inLR = false;
+  timeStep = task->GetTimeStep();
+  timeStepSR = task->GetTimeStep();
+  timeStepLR = task->GetTimeStepLR();
   timeStepPrecip = task->GetPrecipSec()->GetFreq();
   if (task->GetQPFSec()) {
-    hasQPF      = true;
+    hasQPF = true;
     timeStepQPF = task->GetQPFSec()->GetFreq();
   } else {
     hasQPF = false;
@@ -368,7 +368,7 @@ bool Simulator::InitializeBasicFromShared(TaskConfigSection*           task,
   if (task->GetSnow() != SNOW_QTY) {
     timeStepTemp = task->GetTempSec()->GetFreq();
     if (task->GetTempFSec()) {
-      hasTempF      = true;
+      hasTempF = true;
       timeStepTempF = task->GetTempFSec()->GetFreq();
     } else {
       hasTempF = false;
@@ -401,19 +401,19 @@ bool Simulator::InitializeBasicFromShared(TaskConfigSection*           task,
 
   if (timeStepLR) {
     timeStepHoursLR = timeStepLR->GetTimeInSec() / 3600.0;
-    beginLRTime     = *(task->GetTimeBeginLR());
+    beginLRTime = *(task->GetTimeBeginLR());
   }
 
   // Initialize time information
-  currentTime       = *(task->GetTimeBegin());
+  currentTime = *(task->GetTimeBegin());
   currentTimePrecip = *(task->GetTimeBegin());
-  currentTimeQPF    = *(task->GetTimeBegin());
-  currentTimePET    = *(task->GetTimeBegin());
-  currentTimeTemp   = *(task->GetTimeBegin());
-  currentTimeTempF  = *(task->GetTimeBegin());
-  beginTime         = *(task->GetTimeBegin());
-  endTime           = *(task->GetTimeEnd());
-  warmEndTime       = *(task->GetTimeWarmEnd());
+  currentTimeQPF = *(task->GetTimeBegin());
+  currentTimePET = *(task->GetTimeBegin());
+  currentTimeTemp = *(task->GetTimeBegin());
+  currentTimeTempF = *(task->GetTimeBegin());
+  beginTime = *(task->GetTimeBegin());
+  endTime = *(task->GetTimeEnd());
+  warmEndTime = *(task->GetTimeWarmEnd());
 
   // Initialize file name information
   precipFile = task->GetPrecipSec()->GetFileName();
@@ -434,10 +434,10 @@ bool Simulator::InitializeBasicFromShared(TaskConfigSection*           task,
 
   // Set forcing info
   precipSec = task->GetPrecipSec();
-  petSec    = task->GetPETSec();
-  qpfSec    = task->GetQPFSec();
-  tempSec   = task->GetTempSec();
-  tempFSec  = task->GetTempFSec();
+  petSec = task->GetPETSec();
+  qpfSec = task->GetQPFSec();
+  tempSec = task->GetTempSec();
+  tempFSec = task->GetTempFSec();
 
   // Initialize our gauges
   gauges = task->GetBasinSec()->GetGauges();
@@ -467,8 +467,8 @@ bool Simulator::InitializeBasicFromShared(TaskConfigSection*           task,
   }
 
   float *defaultParams = NULL, *defaultParamsRoute = NULL, *defaultParamsSnow = NULL,
-        *defaultParamsInundation                       = NULL;
-  GaugeConfigSection*                             gs   = task->GetDefaultGauge();
+        *defaultParamsInundation = NULL;
+  GaugeConfigSection* gs = task->GetDefaultGauge();
   std::map<GaugeConfigSection*, float*>::iterator pitr = paramSettings->find(gs);
   if (pitr != paramSettings->end()) {
     defaultParams = pitr->second;
@@ -498,7 +498,7 @@ bool Simulator::InitializeBasicFromShared(TaskConfigSection*           task,
   // ──────────────────────────────────────────────────────────────────────────
   // KEY DIFFERENCE: Copy shared nodes + gaugeMap instead of calling CarveBasin
   // ──────────────────────────────────────────────────────────────────────────
-  nodes    = sharedNodes;     // Deep copy of the nodes vector
+  nodes = sharedNodes;        // Deep copy of the nodes vector
   gaugeMap = sharedGaugeMap;  // Copy gauge relationships
 
   // Do parameter assignment only (the cheap part of CarveBasin)
@@ -605,8 +605,8 @@ bool Simulator::InitializeSimu(TaskConfigSection* task) {
   missingQPF = 0;
 
   griddedOutputs = task->GetGriddedOutputs();
-  useStates      = task->UseStates();
-  saveStates     = task->SaveStates();
+  useStates = task->UseStates();
+  saveStates = task->SaveStates();
 
   // Initialize the storage of contributing precip & PET
   avgPrecip.resize(gauges->size());
@@ -696,12 +696,12 @@ bool Simulator::InitializeSimu(TaskConfigSection* task) {
     totalTimeSteps = 0;
     for (currentTime.Increment(timeStep); currentTime <= endTime; currentTime.Increment(timeStep)) {
       if (timeStepLR && !inLR && beginLRTime <= currentTime) {
-        inLR     = true;
+        inLR = true;
         timeStep = timeStepLR;
       }
       totalTimeSteps++;
     }
-    inLR     = false;
+    inLR = false;
     timeStep = timeStepSR;
     currentPrecipCali.resize(totalTimeSteps);
     currentPETCali.resize(totalTimeSteps);
@@ -709,7 +709,7 @@ bool Simulator::InitializeSimu(TaskConfigSection* task) {
     sprintf(buffer, "%s/%s", task->GetOutput(), task->GetPreloadForcings());
     INFO_LOGF("Preloading forcing from file %s", buffer);
     PreloadForcings(buffer, false);
-    currentTime       = beginTime;
+    currentTime = beginTime;
     preloadedForcings = true;
   } else {
     preloadedForcings = false;
@@ -720,12 +720,12 @@ bool Simulator::InitializeSimu(TaskConfigSection* task) {
 
 bool Simulator::InitializeCali(TaskConfigSection* task) {
   // Set calibration param info
-  caliParamSec        = task->GetCaliParamSec();
+  caliParamSec = task->GetCaliParamSec();
   routingCaliParamSec = task->GetRoutingCaliParamSec();
-  snowCaliParamSec    = task->GetSnowCaliParamSec();
-  objectiveFunc       = caliParamSec->GetObjFunc();
-  caliGauge           = caliParamSec->GetGauge();
-  numWBParams         = numModelParams[task->GetModel()];
+  snowCaliParamSec = task->GetSnowCaliParamSec();
+  objectiveFunc = caliParamSec->GetObjFunc();
+  caliGauge = caliParamSec->GetGauge();
+  numWBParams = numModelParams[task->GetModel()];
   if (task->GetRouting() != ROUTE_QTY) {
     numRParams = numRouteParams[task->GetRouting()];
   } else {
@@ -784,7 +784,7 @@ bool Simulator::InitializeCali(TaskConfigSection* task) {
   caliGauge->LoadTS();
 
   // Figure out how many time steps there are going to be
-  totalTimeSteps            = 0;
+  totalTimeSteps = 0;
   totalTimeStepsOutsideWarm = 0;
   for (currentTime.Increment(timeStep); currentTime <= endTime; currentTime.Increment(timeStep)) {
     totalTimeSteps++;
@@ -934,15 +934,15 @@ void Simulator::CleanUp() {
 }
 
 void Simulator::BasinAvg(const char* inputDir) {
-  char               buffer[CONFIG_MAX_LEN * 2];
+  char buffer[CONFIG_MAX_LEN * 2];
   std::vector<float> avgVals, areaVals, fileVals;
-  long               numNodes = nodes.size();
+  long numNodes = nodes.size();
   avgVals.resize(numNodes);
   areaVals.resize(numNodes);
   fileVals.resize(numNodes);
   gridWriter.Initialize();
 
-  DIR*           dir;
+  DIR* dir;
   struct dirent* ent;
 
   INFO_LOGF("Running basin averaging over files in input folder %s", inputDir);
@@ -998,7 +998,7 @@ void Simulator::BasinAvg(const char* inputDir) {
 // The grids are different, we must do some resampling fun.
 #pragma omp parallel for
       for (size_t i = 0; i < nodes.size(); i++) {
-        GridLoc   pt;
+        GridLoc pt;
         GridNode* node = &(nodes[i]);
         if (fileGrid->GetGridLoc(node->refLoc.x, node->refLoc.y, &pt) &&
             fileGrid->data[pt.y][pt.x] != fileGrid->noData) {
@@ -1012,11 +1012,11 @@ void Simulator::BasinAvg(const char* inputDir) {
     delete fileGrid;
 
     for (long i = numNodes - 1; i >= 0; i--) {
-      GridNode* node    = &(nodes[i]);
-      float     addVal  = avgVals[i] + (fileVals[i] * nodes[i].area);
-      float     areaAdd = areaVals[i] + nodes[i].area;
-      avgVals[i]        = addVal;
-      areaVals[i]       = areaAdd;
+      GridNode* node = &(nodes[i]);
+      float addVal = avgVals[i] + (fileVals[i] * nodes[i].area);
+      float areaAdd = areaVals[i] + nodes[i].area;
+      avgVals[i] = addVal;
+      areaVals[i] = areaAdd;
       if (node->downStreamNode != INVALID_DOWNSTREAM_NODE) {
         avgVals[node->downStreamNode] += addVal;
         areaVals[node->downStreamNode] += areaAdd;
@@ -1024,7 +1024,7 @@ void Simulator::BasinAvg(const char* inputDir) {
     }
 
     for (long i = numNodes - 1; i >= 0; i--) {
-      avgVals[i]  = avgVals[i] / areaVals[i];
+      avgVals[i] = avgVals[i] / areaVals[i];
       areaVals[i] = 0.0;
     }
 
@@ -1052,13 +1052,13 @@ void Simulator::BasinAvg(const char* inputDir) {
 
 void Simulator::BasinAvgPrecip() {
   PrecipReader precipReader;
-  char         buffer[CONFIG_MAX_LEN * 2];
+  char buffer[CONFIG_MAX_LEN * 2];
 #if _OPENMP
   double timeTotal = 0.0, timeCount = 0.0;
 #endif
 
   std::vector<float> avgVals;
-  long               numNodes = nodes.size();
+  long numNodes = nodes.size();
   avgVals.resize(numNodes);
 
   gridWriter.Initialize();
@@ -1083,9 +1083,9 @@ void Simulator::BasinAvgPrecip() {
     LoadForcings(&precipReader, NULL, NULL);
 
     for (long i = numNodes - 1; i >= 0; i--) {
-      GridNode* node   = &(nodes[i]);
-      float     addVal = avgVals[i] + currentPrecipSimu[i];
-      avgVals[i]       = addVal / nodes[i].contribArea;
+      GridNode* node = &(nodes[i]);
+      float addVal = avgVals[i] + currentPrecipSimu[i];
+      avgVals[i] = addVal / nodes[i].contribArea;
       if (node->downStreamNode != INVALID_DOWNSTREAM_NODE) {
         avgVals[node->downStreamNode] += addVal;
       }
@@ -1100,7 +1100,7 @@ void Simulator::BasinAvgPrecip() {
 
 #if _OPENMP
 #ifndef _WIN32
-    double endTime  = omp_get_wtime();
+    double endTime = omp_get_wtime();
     double timeDiff = endTime - beginTime;
     NORMAL_LOGF(" %f sec", endTime - beginTime);
     timeTotal += timeDiff;
@@ -1121,10 +1121,10 @@ void Simulator::BasinAvgPrecip() {
 
   for (long i = numNodes - 1; i >= 0; i--) {
     float areaUsed = (nodes[i].contribArea > 100000.0) ? 100000.0 : nodes[i].contribArea;
-    areaUsed       = (areaUsed < 3.0) ? 3.0 : areaUsed;
-    avgVals[i]     = 0.000503442 * powf(areaUsed, -0.47) * powf(currentPrecipSimu[i], 1.25) *
-                     nodes[i].contribArea;
-    avgVals[i]     = 0.3012 * powf(avgVals[i], 1.1894);
+    areaUsed = (areaUsed < 3.0) ? 3.0 : areaUsed;
+    avgVals[i] = 0.000503442 * powf(areaUsed, -0.47) * powf(currentPrecipSimu[i], 1.25) *
+                 nodes[i].contribArea;
+    avgVals[i] = 0.3012 * powf(avgVals[i], 1.1894);
     // avgVals[i] = 8.24*powf(areaUsed, -0.57)*nodes[i].contribArea;
   }
   sprintf(buffer, "%s/actionFloodThresPrecip.tif", outputPath);
@@ -1132,10 +1132,10 @@ void Simulator::BasinAvgPrecip() {
 
   for (long i = numNodes - 1; i >= 0; i--) {
     float areaUsed = (nodes[i].contribArea > 100000.0) ? 100000.0 : nodes[i].contribArea;
-    areaUsed       = (areaUsed < 3.0) ? 3.0 : areaUsed;
-    avgVals[i]     = 0.00078398 * powf(areaUsed, -0.47) * powf(currentPrecipSimu[i], 1.25) *
-                     nodes[i].contribArea;
-    avgVals[i]     = 0.3012 * powf(avgVals[i], 1.1894);
+    areaUsed = (areaUsed < 3.0) ? 3.0 : areaUsed;
+    avgVals[i] = 0.00078398 * powf(areaUsed, -0.47) * powf(currentPrecipSimu[i], 1.25) *
+                 nodes[i].contribArea;
+    avgVals[i] = 0.3012 * powf(avgVals[i], 1.1894);
     // avgVals[i] = 8.24*powf(areaUsed, -0.57)*nodes[i].contribArea;
   }
   sprintf(buffer, "%s/minorFloodThresPrecip.tif", outputPath);
@@ -1143,10 +1143,10 @@ void Simulator::BasinAvgPrecip() {
 
   for (long i = numNodes - 1; i >= 0; i--) {
     float areaUsed = (nodes[i].contribArea > 100000.0) ? 100000.0 : nodes[i].contribArea;
-    areaUsed       = (areaUsed < 3.0) ? 3.0 : areaUsed;
-    avgVals[i]     = 0.001308855 * powf(areaUsed, -0.47) * powf(currentPrecipSimu[i], 1.25) *
-                     nodes[i].contribArea;
-    avgVals[i]     = 0.3012 * powf(avgVals[i], 1.1894);
+    areaUsed = (areaUsed < 3.0) ? 3.0 : areaUsed;
+    avgVals[i] = 0.001308855 * powf(areaUsed, -0.47) * powf(currentPrecipSimu[i], 1.25) *
+                 nodes[i].contribArea;
+    avgVals[i] = 0.3012 * powf(avgVals[i], 1.1894);
     // avgVals[i] = 8.24*powf(areaUsed, -0.57)*nodes[i].contribArea;
   }
   sprintf(buffer, "%s/moderateFloodThresPrecip.tif", outputPath);
@@ -1154,10 +1154,10 @@ void Simulator::BasinAvgPrecip() {
 
   for (long i = numNodes - 1; i >= 0; i--) {
     float areaUsed = (nodes[i].contribArea > 100000.0) ? 100000.0 : nodes[i].contribArea;
-    areaUsed       = (areaUsed < 3.0) ? 3.0 : areaUsed;
-    avgVals[i]     = 0.001995269 * powf(areaUsed, -0.47) * powf(currentPrecipSimu[i], 1.25) *
-                     nodes[i].contribArea;
-    avgVals[i]     = 0.3012 * powf(avgVals[i], 1.1894);
+    areaUsed = (areaUsed < 3.0) ? 3.0 : areaUsed;
+    avgVals[i] = 0.001995269 * powf(areaUsed, -0.47) * powf(currentPrecipSimu[i], 1.25) *
+                 nodes[i].contribArea;
+    avgVals[i] = 0.3012 * powf(avgVals[i], 1.1894);
     // avgVals[i] = 8.24*powf(areaUsed, -0.57)*nodes[i].contribArea;
   }
   sprintf(buffer, "%s/majorFloodThresPrecip.tif", outputPath);
@@ -1165,8 +1165,8 @@ void Simulator::BasinAvgPrecip() {
 
   for (long i = numNodes - 1; i >= 0; i--) {
     float areaUsed = (nodes[i].contribArea > 100000.0) ? 100000.0 : nodes[i].contribArea;
-    areaUsed       = (areaUsed < 3.0) ? 3.0 : areaUsed;
-    avgVals[i]     = 8.502339237 * powf(areaUsed, -0.57) * nodes[i].contribArea;
+    areaUsed = (areaUsed < 3.0) ? 3.0 : areaUsed;
+    avgVals[i] = 8.502339237 * powf(areaUsed, -0.57) * nodes[i].contribArea;
   }
   sprintf(buffer, "%s/minorFloodThres.tif", outputPath);
   gridWriter.WriteGrid(&nodes, &avgVals, buffer, false);
@@ -1195,9 +1195,9 @@ void Simulator::Simulate(bool trackPeaks) {
 }
 
 float Simulator::GetNumSimulatedYears() {
-  int     currentYear = -1;
-  float   numYears    = 0;
-  TimeVar tempTime    = warmEndTime;
+  int currentYear = -1;
+  float numYears = 0;
+  TimeVar tempTime = warmEndTime;
   for (tempTime.Increment(timeStep); tempTime <= endTime; tempTime.Increment(timeStep)) {
     if (tempTime.GetTM()->tm_year != currentYear) {
       numYears++;
@@ -1210,7 +1210,7 @@ float Simulator::GetNumSimulatedYears() {
 int Simulator::LoadForcings(PrecipReader* precipReader, PETReader* petReader,
                             TempReader* tempReader) {
   char buffer[CONFIG_MAX_LEN * 2], qpfBuffer[CONFIG_MAX_LEN * 2];
-  int  retVal = 0;
+  int retVal = 0;
 #ifdef _WIN32
   bool outputError = false;
 #endif
@@ -1326,7 +1326,7 @@ int Simulator::LoadForcings(PrecipReader* precipReader, PETReader* petReader,
 }
 
 void Simulator::SaveLP3Params() {
-  char               buffer[CONFIG_MAX_LEN * 2];
+  char buffer[CONFIG_MAX_LEN * 2];
   std::vector<float> avgGrid, stdGrid, csGrid;
   avgGrid.resize(currentFF.size());
   stdGrid.resize(currentFF.size());
@@ -1366,7 +1366,7 @@ void Simulator::SaveLP3Params() {
     }
     float csNum = numYears * total;
     float csDom = (numYears - 1.0) * (numYears - 2.0) * powf(stdGrid[i], 3.0);
-    csGrid[i]   = csNum / csDom;
+    csGrid[i] = csNum / csDom;
   }
 
   sprintf(buffer, "%s/avgq.%s.tif", outputPath, wbModel->GetName());
@@ -1436,7 +1436,7 @@ void Simulator::LoadDAFile(TaskConfigSection* task) {
     fseek(tsFile, 0, SEEK_SET);
 
     for (int i = 0; i < fileLines; i++) {
-      char  bufferGauge[CONFIG_MAX_LEN], bufferTime[CONFIG_MAX_LEN];
+      char bufferGauge[CONFIG_MAX_LEN], bufferTime[CONFIG_MAX_LEN];
       float dataValue;
       if (fscanf(tsFile, "%[^,],%[^,],%f%*c", &(bufferGauge[0]), &(bufferTime[0]), &dataValue) ==
           3) {
@@ -1564,7 +1564,7 @@ float Simulator::ComputeThresValueP(float discharge, float action, float actionS
                                     float minorSD, float moderate, float moderateSD, float major,
                                     float majorSD) {
   float result = g_DEM->noData;
-  float thres  = 0.8;
+  float thres = 0.8;
   if (major == major && CalcProb(discharge, major, majorSD) > thres) {
     result = CalcProb(discharge, major, majorSD) + 4.0;
   } else if (major == major && moderate == moderate &&
@@ -1591,19 +1591,19 @@ float Simulator::CalcProb(float discharge, float mean, float sd) {
 }
 
 void Simulator::SimulateDistributed(bool trackPeaks) {
-  PrecipReader        precipReader;
-  PETReader           petReader;
-  TempReader          tempReader;
-  std::vector<float>  currentPrecipSnow;
+  PrecipReader precipReader;
+  PETReader petReader;
+  TempReader tempReader;
+  std::vector<float> currentPrecipSnow;
   std::vector<float>* currentPrecip = &currentPrecipSimu;
-  char                buffer[CONFIG_MAX_LEN * 2];
-  size_t              tsIndex  = 0;
-  bool                outputTS = IsOutputTS();
+  char buffer[CONFIG_MAX_LEN * 2];
+  size_t tsIndex = 0;
+  bool outputTS = IsOutputTS();
   // NORMAL_LOGF("%s\n", "Got here!3");
   // Peak tracking variables
-  numYears        = 0;
+  numYears = 0;
   int currentYear = -1;
-  int indexYear   = -1;
+  int indexYear = -1;
 
   // Initialize TempReader
   if (sModel) {
@@ -1614,7 +1614,7 @@ void Simulator::SimulateDistributed(bool trackPeaks) {
 
   std::vector<float> actionVals, minorVals, moderateVals, majorVals;
   std::vector<float> actionSDVals, minorSDVals, moderateSDVals, majorSDVals;
-  bool               outputThres = false, outputThresP = false;
+  bool outputThres = false, outputThresP = false;
 
   if (((griddedOutputs & OG_THRES) == OG_THRES || (griddedOutputs & OG_MAXTHRES) == OG_MAXTHRES) &&
       (task->GetActionGrid())[0] && (task->GetMinorGrid())[0] && (task->GetModerateGrid())[0] &&
@@ -1642,17 +1642,17 @@ void Simulator::SimulateDistributed(bool trackPeaks) {
             ReadThresFile(task->GetMajorSDGrid(), &nodes, &majorSDVals)) {
           outputThresP = true;
           for (size_t i = 0; i < currentFF.size(); i++) {
-            actionSDVals[i]   = 3.67 * nodes[i].contribArea;
-            minorSDVals[i]    = 3.67 * nodes[i].contribArea;
+            actionSDVals[i] = 3.67 * nodes[i].contribArea;
+            minorSDVals[i] = 3.67 * nodes[i].contribArea;
             moderateSDVals[i] = 3.67 * nodes[i].contribArea;
-            majorSDVals[i]    = 3.67 * nodes[i].contribArea;
+            majorSDVals[i] = 3.67 * nodes[i].contribArea;
           }
         }
       }
     }
   }
 
-  bool               savePrecip = false;
+  bool savePrecip = false;
   std::vector<float> qpeAccum, qpfAccum;
   if ((griddedOutputs & OG_PRECIPACCUM) == OG_PRECIPACCUM) {
     qpeAccum.resize(nodes.size());
@@ -1688,8 +1688,8 @@ void Simulator::SimulateDistributed(bool trackPeaks) {
     }
   } else {
     for (size_t i = 0; i < currentFF.size(); i++) {
-      currentFF[i]  = 0.0;
-      currentSF[i]  = 0.0;
+      currentFF[i] = 0.0;
+      currentSF[i] = 0.0;
       currentSWE[i] = 0.0;
     }
   }
@@ -1718,14 +1718,14 @@ void Simulator::SimulateDistributed(bool trackPeaks) {
   SM.resize(currentFF.size());
 
   for (size_t i = 0; i < currentFF.size(); i++) {
-    count2[i]       = 0.0;
-    rpGrid[i]       = 0.0;
-    rpMaxGrid[i]    = 0.0;
-    maxGrid[i]      = 0.0;
+    count2[i] = 0.0;
+    rpGrid[i] = 0.0;
+    rpMaxGrid[i] = 0.0;
+    maxGrid[i] = 0.0;
     maxDepthGrid[i] = 0.0;
-    currentFF[i]    = 0.0;
-    currentSF[i]    = 0.0;
-    currentQ[i]     = 0.0;
+    currentFF[i] = 0.0;
+    currentSF[i] = 0.0;
+    currentQ[i] = 0.0;
   }
 
 #if _OPENMP
@@ -1756,14 +1756,14 @@ void Simulator::SimulateDistributed(bool trackPeaks) {
 
     int qpf = 0;
     if (!preloadedForcings) {
-      qpf           = LoadForcings(&precipReader, &petReader, &tempReader);
+      qpf = LoadForcings(&precipReader, &petReader, &tempReader);
       currentPrecip = &currentPrecipSimu;
     }
 
     float stepHoursReal = timeStep->GetTimeInSec() / 3600.0f;
 
     std::vector<float>* precipPtr = currentPrecip;
-    std::vector<float>* petPtr    = &currentPETSimu;
+    std::vector<float>* petPtr = &currentPETSimu;
     if (preloadedForcings) {
       precipPtr =
           sharedPrecipCali ? &((*sharedPrecipCali)[tsIndex]) : &(currentPrecipCali[tsIndex]);
@@ -1916,7 +1916,7 @@ void Simulator::SimulateDistributed(bool trackPeaks) {
         sprintf(buffer, "%s/q.%s.%s.tif", outputPath, currentTimeTextOutput.GetName(),
                 wbModel->GetName());
         for (size_t i = 0; i < currentQ.size(); i++) {
-          float val       = floorf(currentQ[i] * 10.0f + 0.5f) / 10.0f;
+          float val = floorf(currentQ[i] * 10.0f + 0.5f) / 10.0f;
           currentDepth[i] = val;
         }
         gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
@@ -1972,7 +1972,7 @@ void Simulator::SimulateDistributed(bool trackPeaks) {
       if ((griddedOutputs & OG_UNITQ) == OG_UNITQ) {
         for (size_t i = 0; i < currentQ.size(); i++) {
           currentDepth[i] = currentQ[i] / nodes[i].contribArea;
-          float val       = floorf(currentDepth[i] * 10.0f + 0.5f) / 10.0f;
+          float val = floorf(currentDepth[i] * 10.0f + 0.5f) / 10.0f;
           currentDepth[i] = val;
         }
         sprintf(buffer, "%s/unitq.%s.%s.tif", outputPath, currentTimeTextOutput.GetName(),
@@ -1996,7 +1996,7 @@ void Simulator::SimulateDistributed(bool trackPeaks) {
     if (!g_ensembleMode) {
 #if _OPENMP
 #ifndef _WIN32
-      double endTime  = omp_get_wtime();
+      double endTime = omp_get_wtime();
       double timeDiff = endTime - beginTime;
       NORMAL_LOGF(" %f sec", endTime - beginTime);
       timeTotal += timeDiff;
@@ -2010,7 +2010,7 @@ void Simulator::SimulateDistributed(bool trackPeaks) {
 #endif
 
       if (timeStepLR && !inLR && beginLRTime <= currentTime) {
-        inLR     = true;
+        inLR = true;
         timeStep = timeStepLR;
         NORMAL_LOGF(" Switching to long range timestep %f hours", timeStepHoursLR);
       }
@@ -2022,7 +2022,7 @@ void Simulator::SimulateDistributed(bool trackPeaks) {
     } else {
       // In ensemble mode, still handle LR switching
       if (timeStepLR && !inLR && beginLRTime <= currentTime) {
-        inLR     = true;
+        inLR = true;
         timeStep = timeStepLR;
       }
     }
@@ -2040,7 +2040,7 @@ void Simulator::SimulateDistributed(bool trackPeaks) {
     sprintf(buffer, "%s/maxrp.%04i%02i%02i.%02i%02i%02i.tif", outputPath, ctWE->tm_year + 1900,
             ctWE->tm_mon + 1, ctWE->tm_mday, ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
     for (size_t i = 0; i < currentQ.size(); i++) {
-      float val    = floorf(rpMaxGrid[i] + 0.5f);
+      float val = floorf(rpMaxGrid[i] + 0.5f);
       rpMaxGrid[i] = val;
     }
     gridWriter.WriteGrid(&nodes, &rpMaxGrid, buffer, false);
@@ -2051,7 +2051,7 @@ void Simulator::SimulateDistributed(bool trackPeaks) {
             ctWE->tm_mon + 1, ctWE->tm_mday, ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
     for (size_t i = 0; i < currentQ.size(); i++) {
       float val = floorf(SM[i] + 0.5f);
-      SM[i]     = val;
+      SM[i] = val;
     }
     gridWriter.WriteGrid(&nodes, &SM, buffer, false);
   }
@@ -2060,7 +2060,7 @@ void Simulator::SimulateDistributed(bool trackPeaks) {
     sprintf(buffer, "%s/maxq.%04i%02i%02i.%02i%02i%02i.tif", outputPath, ctWE->tm_year + 1900,
             ctWE->tm_mon + 1, ctWE->tm_mday, ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
     for (size_t i = 0; i < currentQ.size(); i++) {
-      float val       = floorf(maxGrid[i] * 10.0f + 0.5f) / 10.0f;
+      float val = floorf(maxGrid[i] * 10.0f + 0.5f) / 10.0f;
       currentDepth[i] = val;
     }
     gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
@@ -2075,7 +2075,7 @@ void Simulator::SimulateDistributed(bool trackPeaks) {
   if ((griddedOutputs & OG_MAXUNITQ) == OG_MAXUNITQ) {
     for (size_t i = 0; i < currentQ.size(); i++) {
       currentDepth[i] = maxGrid[i] / nodes[i].contribArea;
-      float val       = floorf(currentDepth[i] * 10.0f + 0.5f) / 10.0f;
+      float val = floorf(currentDepth[i] * 10.0f + 0.5f) / 10.0f;
       currentDepth[i] = val;
     }
     sprintf(buffer, "%s/maxunitq.%04i%02i%02i.%02i%02i%02i.tif", outputPath, ctWE->tm_year + 1900,
@@ -2145,7 +2145,7 @@ void Simulator::SimulateDistributed(bool trackPeaks) {
 
 #if _OPENMP
   double simEndTime = omp_get_wtime();
-  double timeDiff   = simEndTime - simStartTime;
+  double timeDiff = simEndTime - simStartTime;
 #endif
 
   sprintf(buffer, "%s/results.json", task->GetOutput());
@@ -2160,16 +2160,16 @@ void Simulator::SimulateDistributed(bool trackPeaks) {
 
 void Simulator::ShareForcingsFrom(Simulator* other) {
   preloadedForcings = true;
-  sharedPrecipCali  = &(other->currentPrecipCali);
-  sharedPETCali     = &(other->currentPETCali);
-  sharedTempCali    = &(other->currentTempCali);
+  sharedPrecipCali = &(other->currentPrecipCali);
+  sharedPETCali = &(other->currentPETCali);
+  sharedTempCali = &(other->currentTempCali);
 }
 
 void Simulator::SimulateLumped() {
   PrecipReader precipReader;
-  PETReader    petReader;
-  char         buffer[CONFIG_MAX_LEN * 2];
-  size_t       tsIndex = 0;
+  PETReader petReader;
+  char buffer[CONFIG_MAX_LEN * 2];
+  size_t tsIndex = 0;
 
   std::vector<float> SM;
   SM.resize(currentFF.size());
@@ -2255,7 +2255,7 @@ void Simulator::PreloadForcingsMemoryOnly() {
 
   // Calculate total time steps if not already done
   if (currentPrecipCali.empty()) {
-    totalTimeSteps   = 0;
+    totalTimeSteps = 0;
     TimeVar tempTime = beginTime;
     for (tempTime.Increment(timeStep); tempTime <= endTime; tempTime.Increment(timeStep)) {
       totalTimeSteps++;
@@ -2273,12 +2273,12 @@ void Simulator::PreloadForcingsMemoryOnly() {
 }
 
 void Simulator::PreloadForcings(char* file, bool cali) {
-  PrecipReader       precipReader;
-  PETReader          petReader;
-  TempReader         tempReader;
-  char               buffer[CONFIG_MAX_LEN * 2];
+  PrecipReader precipReader;
+  PETReader petReader;
+  TempReader tempReader;
+  char buffer[CONFIG_MAX_LEN * 2];
   std::vector<float> readVec;
-  size_t             tsIndex = 0, tsIndexWarm = 0;
+  size_t tsIndex = 0, tsIndexWarm = 0;
 
   if (file != NULL && LoadSavedForcings(file, cali)) {
     // We found a saved forcing file that we loaded, woo!
@@ -2315,8 +2315,8 @@ void Simulator::PreloadForcings(char* file, bool cali) {
     }
 
     std::vector<float>* precipVec = &(currentPrecipCali[tsIndex]);
-    std::vector<float>* petVec    = &(currentPETCali[tsIndex]);
-    std::vector<float>* tempVec   = NULL;
+    std::vector<float>* petVec = &(currentPETCali[tsIndex]);
+    std::vector<float>* tempVec = NULL;
     if (sModel) {
       tempVec = &(currentTempCali[tsIndex]);
     }
@@ -2468,8 +2468,8 @@ bool Simulator::LoadSavedForcings(char* file, bool cali) {
   }
   for (size_t tsIndex = 0; tsIndex < totalTimeSteps; tsIndex++) {
     std::vector<float>* precipVec = &(currentPrecipCali[tsIndex]);
-    std::vector<float>* petVec    = &(currentPETCali[tsIndex]);
-    std::vector<float>* tempVec   = NULL;
+    std::vector<float>* petVec = &(currentPETCali[tsIndex]);
+    std::vector<float>* tempVec = NULL;
     precipVec->resize(numDataPoints);
     petVec->resize(numDataPoints);
     gzread(filep, &(precipVec->at(0)), (unsigned int)(sizeof(float) * numDataPoints));
@@ -2488,7 +2488,7 @@ bool Simulator::LoadSavedForcings(char* file, bool cali) {
   }
 
   size_t tsIndexWarm = 0;
-  currentTime        = beginTime;
+  currentTime = beginTime;
   for (currentTime.Increment(timeStep); currentTime <= endTime; currentTime.Increment(timeStep)) {
     if (warmEndTime <= currentTime) {
       obsQ[tsIndexWarm] = caliGauge->GetObserved(&currentTime);
@@ -2518,7 +2518,7 @@ void Simulator::SaveForcings(char* file) {
   }
   for (size_t tsIndex = 0; tsIndex < totalTimeSteps; tsIndex++) {
     std::vector<float>* precipVec = &(currentPrecipCali[tsIndex]);
-    std::vector<float>* petVec    = &(currentPETCali[tsIndex]);
+    std::vector<float>* petVec = &(currentPETCali[tsIndex]);
     gzwrite(filep, &(precipVec->at(0)), sizeof(float) * numDataPoints);
     gzwrite(filep, &(petVec->at(0)), sizeof(float) * numDataPoints);
     if (sModel) {
@@ -2531,36 +2531,36 @@ void Simulator::SaveForcings(char* file) {
 
 float Simulator::SimulateForCali(float* testParams) {
   WaterBalanceModel* runModel;
-  RoutingModel*      runRoutingModel;
-  SnowModel*         runSnowModel;
+  RoutingModel* runRoutingModel;
+  SnowModel* runSnowModel;
   std::vector<float> currentFFCali, currentSFCali, currentQCali, simQCali, SMCali, currentSWECali,
       currentPrecipSnow;
-  TimeVar                                currentTimeCali;
+  TimeVar currentTimeCali;
   std::map<GaugeConfigSection*, float*>* currentWBParamSettings;
   std::map<GaugeConfigSection*, float*>* currentRParamSettings;
   std::map<GaugeConfigSection*, float*>* currentSParamSettings;
-  float *                                currentWBParams, *currentRParams, *currentSParams;
+  float *currentWBParams, *currentRParams, *currentSParams;
 #if _OPENMP
-  int thread             = omp_get_thread_num();
-  runModel               = caliWBModels[thread];
-  runRoutingModel        = caliRModels[thread];
-  runSnowModel           = caliSModels[thread];
+  int thread = omp_get_thread_num();
+  runModel = caliWBModels[thread];
+  runRoutingModel = caliRModels[thread];
+  runSnowModel = caliSModels[thread];
   currentWBParamSettings = &caliWBFullParamSettings[thread];
-  currentWBParams        = caliWBCurrentParams[thread];
-  currentRParamSettings  = &caliRFullParamSettings[thread];
-  currentRParams         = caliRCurrentParams[thread];
-  currentSParamSettings  = &caliSFullParamSettings[thread];
-  currentSParams         = caliSCurrentParams[thread];
+  currentWBParams = caliWBCurrentParams[thread];
+  currentRParamSettings = &caliRFullParamSettings[thread];
+  currentRParams = caliRCurrentParams[thread];
+  currentSParamSettings = &caliSFullParamSettings[thread];
+  currentSParams = caliSCurrentParams[thread];
 #else
-  runModel               = wbModel;
-  runRoutingModel        = rModel;
-  runSnowModel           = sModel;
+  runModel = wbModel;
+  runRoutingModel = rModel;
+  runSnowModel = sModel;
   currentWBParamSettings = &fullParamSettings;
-  currentRParamSettings  = &fullParamSettingsRoute;
-  currentSParamSettings  = &fullParamSettingsSnow;
-  currentWBParams        = caliWBParams;
-  currentRParams         = caliRParams;
-  currentSParams         = caliSParams;
+  currentRParamSettings = &fullParamSettingsRoute;
+  currentSParamSettings = &fullParamSettingsSnow;
+  currentWBParams = caliWBParams;
+  currentRParams = caliRParams;
+  currentSParams = caliSParams;
 #endif
 
   memcpy(currentWBParams, testParams, sizeof(float) * numWBParams);
@@ -2598,7 +2598,7 @@ float Simulator::SimulateForCali(float* testParams) {
   for (currentTimeCali.Increment(timeStep); currentTimeCali <= endTime;
        currentTimeCali.Increment(timeStep)) {
     std::vector<float>* precipVec = &(currentPrecipCali[tsIndex]);
-    std::vector<float>* petVec    = &(currentPETCali[tsIndex]);
+    std::vector<float>* petVec = &(currentPETCali[tsIndex]);
 
     if (runSnowModel) {
       std::vector<float>* tempVec = &(currentTempCali[tsIndex]);
@@ -2639,21 +2639,21 @@ float Simulator::SimulateForCali(float* testParams) {
 }
 
 float* Simulator::SimulateForCaliTS(float* testParams) {
-  WaterBalanceModel*                     runModel;
-  std::vector<float>                     currentFFCali, currentSFCali, SMCali;
-  float*                                 simQCali;
-  TimeVar                                currentTimeCali;
+  WaterBalanceModel* runModel;
+  std::vector<float> currentFFCali, currentSFCali, SMCali;
+  float* simQCali;
+  TimeVar currentTimeCali;
   std::map<GaugeConfigSection*, float*>* currentParamSettings;
-  float*                                 currentParams;
+  float* currentParams;
 #if 0  // def _OPENMP
   int thread = omp_get_thread_num();
   runModel = caliModels[thread];
   currentParamSettings = &(caliFullParamSettings[thread]);
   currentParams = caliCurrentParams[thread];
 #else
-  runModel             = wbModel;
+  runModel = wbModel;
   currentParamSettings = &fullParamSettings;
-  currentParams        = caliWBParams;
+  currentParams = caliWBParams;
 #endif
 
   memcpy(currentParams, testParams, sizeof(float) * numWBParams);
@@ -2677,7 +2677,7 @@ float* Simulator::SimulateForCaliTS(float* testParams) {
   for (currentTimeCali.Increment(timeStep); currentTimeCali <= endTime;
        currentTimeCali.Increment(timeStep)) {
     std::vector<float>* precipVec = &(currentPrecipCali[tsIndex]);
-    std::vector<float>* petVec    = &(currentPETCali[tsIndex]);
+    std::vector<float>* petVec = &(currentPETCali[tsIndex]);
 
     runModel->WaterBalance(timeStepHours, precipVec, petVec, &currentFFCali, &currentSFCali,
                            &SMCali);
@@ -2707,8 +2707,8 @@ float* Simulator::GetObsTS() {
 }
 
 bool Simulator::InitializeGridParams(TaskConfigSection* task) {
-  int                       numParams = numModelParams[task->GetModel()];
-  std::vector<std::string>* vecGrids  = task->GetParamsSec()->GetParamGrids();
+  int numParams = numModelParams[task->GetModel()];
+  std::vector<std::string>* vecGrids = task->GetParamsSec()->GetParamGrids();
 
   paramGrids.resize(numParams);
 
@@ -2726,7 +2726,7 @@ bool Simulator::InitializeGridParams(TaskConfigSection* task) {
   }
 
   if (task->GetRouting() != ROUTE_QTY) {
-    int                       numRParams    = numRouteParams[task->GetRouting()];
+    int numRParams = numRouteParams[task->GetRouting()];
     std::vector<std::string>* vecRouteGrids = task->GetRoutingParamsSec()->GetParamGrids();
 
     paramGridsRoute.resize(numRParams);
@@ -2746,7 +2746,7 @@ bool Simulator::InitializeGridParams(TaskConfigSection* task) {
   }
 
   if (task->GetSnow() != SNOW_QTY) {
-    int                       numSParams   = numSnowParams[task->GetSnow()];
+    int numSParams = numSnowParams[task->GetSnow()];
     std::vector<std::string>* vecSnowGrids = task->GetSnowParamsSec()->GetParamGrids();
 
     paramGridsSnow.resize(numSParams);
@@ -2766,7 +2766,7 @@ bool Simulator::InitializeGridParams(TaskConfigSection* task) {
   }
 
   if (task->GetInundation() != INUNDATION_QTY) {
-    int                       numIParams         = numInundationParams[task->GetInundation()];
+    int numIParams = numInundationParams[task->GetInundation()];
     std::vector<std::string>* vecInundationGrids = task->GetInundationParamsSec()->GetParamGrids();
 
     paramGridsInundation.resize(numIParams);
@@ -2834,12 +2834,12 @@ void FixNaNsInObservedData(std::vector<float>& obsQ, bool shouldInterpolate, con
   // Check if we have NaN values and set flag accordingly
   if (nanCount > 0) {
     if (shouldInterpolate) {
-      g_interpolationUsed     = true;
+      g_interpolationUsed = true;
       g_mismatchedFrequencies = false;
       INFO_LOGF("Found %zu NaN values in observed discharge - applying interpolation", nanCount);
     } else {
       // Set flag to indicate that we have varying frequencies but didn't interpolate
-      g_interpolationUsed     = false;
+      g_interpolationUsed = false;
       g_mismatchedFrequencies = true;
       INFO_LOGF(
           "Found %zu NaN values in observed discharge - NOT interpolating (INTERPOLATE_OBS=false)",
@@ -2848,7 +2848,7 @@ void FixNaNsInObservedData(std::vector<float>& obsQ, bool shouldInterpolate, con
     }
   } else {
     // No NaN values found - no interpolation needed
-    g_interpolationUsed     = false;
+    g_interpolationUsed = false;
     g_mismatchedFrequencies = false;
     INFO_LOGF("%s", "Observed discharge data is complete - no interpolation needed");
     return;
@@ -2916,11 +2916,11 @@ void FixNaNsInObservedData(std::vector<float>& obsQ, bool shouldInterpolate, con
     if (!std::isnan(obsQ[i]) && std::isfinite(obsQ[i])) {
       // Found next valid value - interpolate the gap
       if (i - lastValidIdx > 1) {
-        float  startValue = obsQ[lastValidIdx];
-        float  endValue   = obsQ[i];
-        size_t gap        = i - lastValidIdx;
+        float startValue = obsQ[lastValidIdx];
+        float endValue = obsQ[i];
+        size_t gap = i - lastValidIdx;
         for (size_t j = 1; j < gap; j++) {
-          float fraction         = (float)j / (float)gap;
+          float fraction = (float)j / (float)gap;
           obsQ[lastValidIdx + j] = startValue + (endValue - startValue) * fraction;
         }
         // INFO_LOGF("Interpolated gap from %zu to %zu (%.6f to %.6f)", lastValidIdx+1, i-1,

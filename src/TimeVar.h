@@ -11,9 +11,9 @@ class TimeVar {
   bool LoadTimeExcel(char* time);
   void Increment(TimeUnit* inc);
   void Decrement(TimeUnit* inc);
-  tm*  GetTM();
+  tm* GetTM();
 
-  TimeVar&    operator=(const TimeVar& rhs);
+  TimeVar& operator=(const TimeVar& rhs);
   friend bool operator==(const TimeVar& lhs, const TimeVar& rhs);
   friend bool operator<(const TimeVar& lhs, const TimeVar& rhs);
   friend bool operator<=(const TimeVar& lhs, const TimeVar& rhs);

@@ -5,5 +5,3 @@ SortIncludes: false
 BreakBeforeBraces: Attach
 AllowShortBlocksOnASingleLine: Empty
 AllowShortFunctionsOnASingleLine: Empty
-AlignConsecutiveAssignments: true
-AlignConsecutiveDeclarations: true

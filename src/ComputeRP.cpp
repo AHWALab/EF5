@@ -11,8 +11,8 @@
 
 int main(int argc, char** argv) {
   static ef5::RuntimeStatsReporter runtime_stats_reporter_instance;
-  struct dirent*                   dp;
-  DIR*                             dfd;
+  struct dirent* dp;
+  DIR* dfd;
 
   char* dir;
   dir = argv[1];
@@ -54,41 +54,41 @@ int main(int argc, char** argv) {
     }
   }
   if (grids.size() > 0) {
-    FloatGrid* blah        = grids[0];
-    FloatGrid* avgGrid     = new FloatGrid;
-    avgGrid->numCols       = blah->numCols;
-    avgGrid->numRows       = blah->numRows;
-    avgGrid->cellSize      = blah->cellSize;
-    avgGrid->extent.top    = blah->extent.top;
+    FloatGrid* blah = grids[0];
+    FloatGrid* avgGrid = new FloatGrid;
+    avgGrid->numCols = blah->numCols;
+    avgGrid->numRows = blah->numRows;
+    avgGrid->cellSize = blah->cellSize;
+    avgGrid->extent.top = blah->extent.top;
     avgGrid->extent.bottom = blah->extent.bottom;
-    avgGrid->extent.right  = blah->extent.right;
-    avgGrid->extent.left   = blah->extent.left;
-    avgGrid->noData        = blah->noData;
-    avgGrid->data          = new float*[avgGrid->numRows];
-    FloatGrid* stdGrid     = new FloatGrid;
-    stdGrid->numCols       = blah->numCols;
-    stdGrid->numRows       = blah->numRows;
-    stdGrid->cellSize      = blah->cellSize;
-    stdGrid->extent.top    = blah->extent.top;
+    avgGrid->extent.right = blah->extent.right;
+    avgGrid->extent.left = blah->extent.left;
+    avgGrid->noData = blah->noData;
+    avgGrid->data = new float*[avgGrid->numRows];
+    FloatGrid* stdGrid = new FloatGrid;
+    stdGrid->numCols = blah->numCols;
+    stdGrid->numRows = blah->numRows;
+    stdGrid->cellSize = blah->cellSize;
+    stdGrid->extent.top = blah->extent.top;
     stdGrid->extent.bottom = blah->extent.bottom;
-    stdGrid->extent.right  = blah->extent.right;
-    stdGrid->extent.left   = blah->extent.left;
-    stdGrid->noData        = blah->noData;
-    stdGrid->data          = new float*[stdGrid->numRows];
-    FloatGrid* csGrid      = new FloatGrid;
-    csGrid->numCols        = blah->numCols;
-    csGrid->numRows        = blah->numRows;
-    csGrid->cellSize       = blah->cellSize;
-    csGrid->extent.top     = blah->extent.top;
-    csGrid->extent.bottom  = blah->extent.bottom;
-    csGrid->extent.right   = blah->extent.right;
-    csGrid->extent.left    = blah->extent.left;
-    csGrid->noData         = blah->noData;
-    csGrid->data           = new float*[csGrid->numRows];
+    stdGrid->extent.right = blah->extent.right;
+    stdGrid->extent.left = blah->extent.left;
+    stdGrid->noData = blah->noData;
+    stdGrid->data = new float*[stdGrid->numRows];
+    FloatGrid* csGrid = new FloatGrid;
+    csGrid->numCols = blah->numCols;
+    csGrid->numRows = blah->numRows;
+    csGrid->cellSize = blah->cellSize;
+    csGrid->extent.top = blah->extent.top;
+    csGrid->extent.bottom = blah->extent.bottom;
+    csGrid->extent.right = blah->extent.right;
+    csGrid->extent.left = blah->extent.left;
+    csGrid->noData = blah->noData;
+    csGrid->data = new float*[csGrid->numRows];
     for (int i = 0; i < blah->numRows; i++) {
       avgGrid->data[i] = new float[blah->numCols];
       stdGrid->data[i] = new float[blah->numCols];
-      csGrid->data[i]  = new float[blah->numCols];
+      csGrid->data[i] = new float[blah->numCols];
     }
 
     float numYears = (float)(grids.size());
@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
           if (year == 0) {
             avgGrid->data[j][i] = 0.0;
             stdGrid->data[j][i] = 0.0;
-            csGrid->data[j][i]  = 0.0;
+            csGrid->data[j][i] = 0.0;
           }
           if (grids[year]->data[j][i] == 0.0) {
             grids[year]->data[j][i] = 0.0000001;
@@ -119,9 +119,9 @@ int main(int argc, char** argv) {
         }
         stdGrid->data[j][i] /= (numYears - 1.0);
         stdGrid->data[j][i] = sqrt(stdGrid->data[j][i]);
-        float csNum         = numYears * total;
-        float csDom         = (numYears - 1.0) * (numYears - 2.0) * powf(stdGrid->data[j][i], 3.0);
-        csGrid->data[j][i]  = csNum / csDom;
+        float csNum = numYears * total;
+        float csDom = (numYears - 1.0) * (numYears - 2.0) * powf(stdGrid->data[j][i], 3.0);
+        csGrid->data[j][i] = csNum / csDom;
       }
     }
 

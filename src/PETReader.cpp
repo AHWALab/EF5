@@ -83,15 +83,15 @@ bool PETReader::Read(char* file, SUPPORTED_PET_TYPES type, std::vector<GridNode>
       if (currentPET->at(i) <= 0 && currentPET->at(i) != petGrid->noData) {
         currentPET->at(i) = 0;  // Hey, its below freezing, no potential evaporation!
       } else if (currentPET->at(i) != petGrid->noData) {
-        float  lon, lat;
+        float lon, lat;
         RefLoc pt;
         g_DEM->GetRefLoc(node->x, node->y, &pt);
         g_Projection->UnprojectPoint(pt.x, pt.y, &lon, &lat);
-        float e_s     = 0.2749e8 * exp(-4278.6 / (currentPET->at(i) + 242.8));
-        float delta   = 0.4093 * sin(2 * PI * jday / 365 - 1.405);
+        float e_s = 0.2749e8 * exp(-4278.6 / (currentPET->at(i) + 242.8));
+        float delta = 0.4093 * sin(2 * PI * jday / 365 - 1.405);
         float omega_s = acos(-tan(TORADIANS(lat)) * tan(delta));
-        float H_t     = 24 * omega_s / PI;
-        float E_t     = 2.1 * pow(H_t, 2) * e_s / (currentPET->at(i) + 273.3);
+        float H_t = 24 * omega_s / PI;
+        float E_t = 2.1 * pow(H_t, 2) * e_s / (currentPET->at(i) + 273.3);
         // printf("(%f, %f) %f, %f, %f, %f, %f, %f\n", lat, lon,
         // currentPET->at(i), e_s, delta, omega_s, H_t, E_t);
         currentPET->at(i) = E_t / 24;  // These E_t values are mm day ^ -1, we want mm h ^ -1

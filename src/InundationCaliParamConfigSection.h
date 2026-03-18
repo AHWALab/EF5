@@ -26,20 +26,20 @@ class InundationCaliParamConfigSection : public ConfigSection {
     return modelParamInits;
   }
 
-  char*          GetName();
+  char* GetName();
   CONFIG_SEC_RET ProcessKeyValue(char* name, char* value);
   CONFIG_SEC_RET ValidateSection();
 
   static bool IsDuplicate(char* name, INUNDATIONS inundationVal);
 
  private:
-  char                name[CONFIG_MAX_LEN];
-  INUNDATIONS         inundation;
+  char name[CONFIG_MAX_LEN];
+  INUNDATIONS inundation;
   GaugeConfigSection* gauge;
-  float*              modelParamMins;
-  float*              modelParamMaxs;
-  float*              modelParamInits;
-  bool*               paramsSet;
+  float* modelParamMins;
+  float* modelParamMaxs;
+  float* modelParamInits;
+  bool* paramsSet;
 };
 
 extern std::map<std::string, InundationCaliParamConfigSection*> g_inundationCaliParamConfigs[];

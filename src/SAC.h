@@ -14,9 +14,9 @@ class SAC : public WaterBalanceModel {
  public:
   SAC();
   ~SAC();
-  bool InitializeModel(std::vector<GridNode>*                 newNodes,
+  bool InitializeModel(std::vector<GridNode>* newNodes,
                        std::map<GaugeConfigSection*, float*>* paramSettings,
-                       std::vector<FloatGrid*>*               paramGrids);
+                       std::vector<FloatGrid*>* paramGrids);
   void InitializeStates(TimeVar* beginTime, char* statePath);
   void SaveStates(TimeVar* currentTime, char* statePath, GridWriterFull* gridWriter);
   bool WaterBalance(float stepHours, std::vector<float>* precip, std::vector<float>* pet,
@@ -35,9 +35,9 @@ class SAC : public WaterBalanceModel {
   // void LocalRouteQF(GridNode *node, HyMODGridNode *cNode);
   // void LocalRouteSF(GridNode *node, HyMODGridNode *cNode);
   void InitializeParameters(std::map<GaugeConfigSection*, float*>* paramSettings,
-                            std::vector<FloatGrid*>*               paramGrids);
+                            std::vector<FloatGrid*>* paramGrids);
 
-  std::vector<GridNode>*   nodes;
+  std::vector<GridNode>* nodes;
   std::vector<SACGridNode> sacNodes;
 };
 

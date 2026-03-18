@@ -13,9 +13,9 @@ VCInundation::VCInundation() {}
 
 VCInundation::~VCInundation() {}
 
-bool VCInundation::InitializeModel(std::vector<GridNode>*                 newNodes,
+bool VCInundation::InitializeModel(std::vector<GridNode>* newNodes,
                                    std::map<GaugeConfigSection*, float*>* paramSettings,
-                                   std::vector<FloatGrid*>*               paramGrids) {
+                                   std::vector<FloatGrid*>* paramGrids) {
   nodes = newNodes;
   if (iNodes.size() != nodes->size()) {
     iNodes.resize(nodes->size());
@@ -24,7 +24,7 @@ bool VCInundation::InitializeModel(std::vector<GridNode>*                 newNod
   // Fill in modelIndex in the gridNodes
   size_t numNodes = nodes->size();
   for (size_t i = 0; i < numNodes; i++) {
-    GridNode* node   = &nodes->at(i);
+    GridNode* node = &nodes->at(i);
     node->modelIndex = i;
     if (node->channelGridCell) {
       ComputeLayers(i, node, &(iNodes[i]));
@@ -38,7 +38,7 @@ bool VCInundation::InitializeModel(std::vector<GridNode>*                 newNod
 
 void VCInundation::ComputeLayers(size_t nodeIndex, GridNode* node, VCInundationGridNode* cNode) {
   std::vector<GridNode*> upstreamNodes;
-  std::stack<GridNode*>  walkNodes;
+  std::stack<GridNode*> walkNodes;
 
   walkNodes.push(node);
 
@@ -75,7 +75,7 @@ void VCInundation::ComputeLayers(size_t nodeIndex, GridNode* node, VCInundationG
   cNode->layers.reserve(upstreamNodes.size());
   for (int i = 0; i < upstreamCount; i++) {
     GridNode* current = upstreamNodes[i];
-    GridNode* up      = upstreamNodes[i + 1];
+    GridNode* up = upstreamNodes[i + 1];
     if (nodeIndex == 54) {
       printf("%i, %f\n", i, g_DEM->data[current->y][current->x]);
     }
@@ -84,22 +84,22 @@ void VCInundation::ComputeLayers(size_t nodeIndex, GridNode* node, VCInundationG
       continue;
       // heightDiff = 0.01;
     }
-    float     layerVolume = current->area * (i + 1) * heightDiff * 1000000.0;
-    VCILayer* layer       = new VCILayer;
-    layer->totalVolume    = layerVolume;
-    layer->totalArea      = current->area * (i + 1) * 1000000.0;
-    layer->height         = heightDiff;
-    layer->toIndex        = i + 1;
+    float layerVolume = current->area * (i + 1) * heightDiff * 1000000.0;
+    VCILayer* layer = new VCILayer;
+    layer->totalVolume = layerVolume;
+    layer->totalArea = current->area * (i + 1) * 1000000.0;
+    layer->height = heightDiff;
+    layer->toIndex = i + 1;
     cNode->layers.push_back(layer);
   }
 
-  float     layerVolume = upstreamNodes[0]->area * (upstreamNodes.size()) * 1000.0 * 1000000.0;
-  VCILayer* layer       = new VCILayer;
-  layer->totalVolume    = layerVolume;
-  layer->totalArea      = upstreamNodes[0]->area * (upstreamNodes.size()) * 1000000.0;
-  layer->height         = 1000.0;
-  layer->toIndex        = upstreamNodes.size();
-  upstreamCount         = (int)(upstreamNodes.size());
+  float layerVolume = upstreamNodes[0]->area * (upstreamNodes.size()) * 1000.0 * 1000000.0;
+  VCILayer* layer = new VCILayer;
+  layer->totalVolume = layerVolume;
+  layer->totalArea = upstreamNodes[0]->area * (upstreamNodes.size()) * 1000000.0;
+  layer->height = 1000.0;
+  layer->toIndex = upstreamNodes.size();
+  upstreamCount = (int)(upstreamNodes.size());
   cNode->gridIndicies.reserve(upstreamCount);
   for (int gi = 0; gi < upstreamCount; gi++) {
     cNode->gridIndicies.push_back(upstreamNodes[gi]->index);
@@ -117,21 +117,21 @@ bool VCInundation::Inundation(std::vector<float>* discharge, std::vector<float>*
   for (size_t i = 0; i < numNodes; i++) {
     GridNode* node = &nodes->at(i);
     if (node->channelGridCell) {
-      VCInundationGridNode* cNode         = &(iNodes[i]);
-      float                 dischargeLeft = discharge->at(i) * node->horLen;
-      int                   layerCount    = (int)(cNode->layers.size());
+      VCInundationGridNode* cNode = &(iNodes[i]);
+      float dischargeLeft = discharge->at(i) * node->horLen;
+      int layerCount = (int)(cNode->layers.size());
       for (int layerI = 0; layerI < layerCount; layerI++) {
-        VCILayer* layer      = cNode->layers[layerI];
-        float     volumeUsed = 0.0;
+        VCILayer* layer = cNode->layers[layerI];
+        float volumeUsed = 0.0;
         if (dischargeLeft >= layer->totalVolume) {
           volumeUsed = layer->totalVolume;
           dischargeLeft -= layer->totalVolume;
         } else {
-          volumeUsed    = dischargeLeft;
+          volumeUsed = dischargeLeft;
           dischargeLeft = 0.0;
         }
-        float height    = volumeUsed / layer->totalArea;
-        int   gridCount = (int)(layer->toIndex);
+        float height = volumeUsed / layer->totalArea;
+        int gridCount = (int)(layer->toIndex);
         for (int gi = 0; gi < gridCount; gi++) {
           depth->at(cNode->gridIndicies[gi]) += height;
         }
@@ -143,12 +143,12 @@ bool VCInundation::Inundation(std::vector<float>* discharge, std::vector<float>*
 }
 
 void VCInundation::InitializeParameters(std::map<GaugeConfigSection*, float*>* paramSettings,
-                                        std::vector<FloatGrid*>*               paramGrids) {
+                                        std::vector<FloatGrid*>* paramGrids) {
   // This pass distributes parameters
   size_t numNodes = nodes->size();
-  size_t unused   = 0;
+  size_t unused = 0;
   for (size_t i = 0; i < numNodes; i++) {
-    GridNode*             node  = &nodes->at(i);
+    GridNode* node = &nodes->at(i);
     VCInundationGridNode* cNode = &(iNodes[i]);
     if (!node->gauge) {
       unused++;

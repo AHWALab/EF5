@@ -17,8 +17,8 @@
 void InitVar(struct DREAM_Parameters* pstPar, struct DREAM_Variables** pstRUN,
              struct DREAM_Output** pstOutput) {
   // Initializes important variables for use in the algorithm
-  int      i, j, zy, zz, buffer;
-  float    gamma, pstCb, pstWb;
+  int i, j, zy, zz, buffer;
+  float gamma, pstCb, pstWb;
   float*** CRpt;
   // Calculate the parameters in the exponential power density function of Box
   // and Tiao (1973)
@@ -62,7 +62,7 @@ void InitVar(struct DREAM_Parameters* pstPar, struct DREAM_Variables** pstRUN,
   // Calculate the actual CR values based on p
   allocate2D(&(*pstRUN)->CR, pstPar->seq, pstPar->steps);
   (*pstRUN)->lCR = (float*)malloc(pstPar->nCR * sizeof(float));
-  CRpt           = &(*pstRUN)->CR;
+  CRpt = &(*pstRUN)->CR;
   GenCR(&pstPar, &(*pstRUN)->pCR, &CRpt);
   // Initialize output information -- N_CR
   allocate2D(&(*pstOutput)->CR, floorf((*pstRUN)->Nelem / pstPar->steps) + buffer, pstPar->nCR + 1);
@@ -86,10 +86,10 @@ void InitVar(struct DREAM_Parameters* pstPar, struct DREAM_Variables** pstRUN,
     }
   }
   // Initialize Iter and counter
-  (*pstRUN)->Iter       = pstPar->seq;
-  (*pstRUN)->counter    = 2;
-  (*pstRUN)->iloc       = 1;
-  (*pstRUN)->teller     = 2;
+  (*pstRUN)->Iter = pstPar->seq;
+  (*pstRUN)->counter = 2;
+  (*pstRUN)->iloc = 1;
+  (*pstRUN)->teller = 2;
   (*pstRUN)->new_teller = 1;
   // Change MCMCPar.steps to make sure to get nice iteration numbers in first
   // loop
@@ -100,16 +100,16 @@ void CalcCbWb(float* beta, float* pCb, float* pWb) {
   /*This function calculates the parameters for the exponential power density
   Equation [20] paper by Thiemann et al. WRR 2001, Vol 37, No 10, 2521-2535*/
   float A1, A2;
-  A1   = expf(lgammaf(3 * (1 + *beta) / 2));
-  A2   = expf(lgammaf((1 + *beta) / 2));
+  A1 = expf(lgammaf(3 * (1 + *beta) / 2));
+  A2 = expf(lgammaf((1 + *beta) / 2));
   *pCb = powf((A1 / A2), (1 / (1 + *beta)));
   *pWb = sqrtf(A1) / ((1 + *beta) * powf(A2, (1.5)));
 }
 
 void GenCR(struct DREAM_Parameters** ppPar, float*** pppCR, float**** ptCR) {
   // Generates CR values based on current probabilities
-  int   cont, idx, i_start, i_end, i, j, zz, sumL, *ptL, *ptr;
-  int   L[(*ppPar)->nCR], L2[(*ppPar)->nCR + 1], r[(*ppPar)->seq * (*ppPar)->steps];
+  int cont, idx, i_start, i_end, i, j, zz, sumL, *ptL, *ptr;
+  int L[(*ppPar)->nCR], L2[(*ppPar)->nCR + 1], r[(*ppPar)->seq * (*ppPar)->steps];
   float CRarray[(*ppPar)->seq * (*ppPar)->steps];
   ptL = &L[0];
   ptr = &r[0];
@@ -128,10 +128,10 @@ void GenCR(struct DREAM_Parameters** ppPar, float*** pppCR, float**** ptCR) {
   // Then generate CR values for each chain
   for (zz = 0; zz < (*ppPar)->nCR; zz++) {
     i_start = L2[zz];
-    i_end   = L2[zz + 1];
+    i_end = L2[zz + 1];
     // printf("start %i, end %i\n", i_start, i_end);
     for (i = i_start; i < i_end; i++) {
-      idx          = r[i] - 1;
+      idx = r[i] - 1;
       CRarray[idx] = (float)(zz + 1) / (float)((*ppPar)->nCR);
       // printf("blah %i %i %f\n", zz+1, (*ppPar)->nCR, CRarray[idx]);
     }
@@ -142,7 +142,7 @@ void GenCR(struct DREAM_Parameters** ppPar, float*** pppCR, float**** ptCR) {
   for (j = 0; j < (*ppPar)->steps; j++) {
     for (i = 0; i < (*ppPar)->seq; i++) {
       (**ptCR)[i][j] = CRarray[cont];
-      cont           = cont + 1;
+      cont = cont + 1;
     }
   }
 }
@@ -151,7 +151,7 @@ void multrnd(int** X, int n, float*** p, int ncols, int m) {
   // MULTRND Multinomial random sequence of m simulations of k outcomes with p
   // probabiltites
   // in n trials.
-  int   i, j, in;
+  int i, j, in;
   float sums;
   float o[n], r[n], s[ncols];
   sums = 0;
@@ -164,7 +164,7 @@ void multrnd(int** X, int n, float*** p, int ncols, int m) {
     }
     // cumulative sum
     for (in = 0; in < ncols; in++) {
-      sums  = sums + (*p)[0][in];
+      sums = sums + (*p)[0][in];
       s[in] = sums;
       // printf("index %i s %f\n", in, sums);
       // Initialize Ouput Vector
@@ -192,7 +192,7 @@ void multrnd(int** X, int n, float*** p, int ncols, int m) {
 }
 
 void LHSU(float*** s, int nvar, float* xmax, float* xmin, int nsample) {
-  int   i, j, *pidx, idx[nsample];
+  int i, j, *pidx, idx[nsample];
   float P[nsample], ran[nsample][nvar];
   float nsamplef = (float)(nsample);
   // Initialize array ran with random numbers
@@ -206,7 +206,7 @@ void LHSU(float*** s, int nvar, float* xmax, float* xmin, int nsample) {
   for (j = 0; j < nvar; j++) {
     randperm(&pidx, nsample);
     for (i = 0; i < nsample; i++) {
-      P[i]       = ((float)(idx[i]) - ran[i][j]) / nsamplef;
+      P[i] = ((float)(idx[i]) - ran[i][j]) / nsamplef;
       (*s)[i][j] = xmin[j] + P[i] * (xmax[j] - xmin[j]);
     }
   }
@@ -229,11 +229,11 @@ void Gelman(float** R_Stat, int R_Stat_Index, float*** Sequences, int numSamples
   // ip = number of sequences
 
   // Calculates the R-statistic convergence diagnostic
-  int     iSamples, iParams, iChains;
+  int iSamples, iParams, iChains;
   float** meanSeq;
   float **varSeq, *vararray, *B, *W, *sigma2;
-  float   numChainsf  = (float)numChains;
-  float   numSamplesf = (float)numSamples;
+  float numChainsf = (float)numChains;
+  float numSamplesf = (float)numSamples;
   if (numSamples < 10) {
     // Set the R-statistic to a large value
     for (iParams = 0; iParams < numParams; iParams++) {
@@ -253,7 +253,7 @@ void Gelman(float** R_Stat, int R_Stat_Index, float*** Sequences, int numSamples
           vararray[iSamples] = Sequences[iSamples + start_loc][iParams][iChains];
         }
         meanSeq[iChains][iParams] = meanvar(vararray, numSamples - 1, MVOP_MEAN);
-        varSeq[iChains][iParams]  = meanvar(vararray, numSamples - 1, MVOP_VAR);
+        varSeq[iChains][iParams] = meanvar(vararray, numSamples - 1, MVOP_VAR);
       }
     }
     free(vararray);
@@ -339,7 +339,7 @@ void GetLocation(float** x_old, float* p_old, float* log_p_old, float** X,
 
 void DEStrategy(int* DEversion, struct DREAM_Parameters* MCMCPar) {
   // Determine which sequences to evolve with what DE strategy
-  int    qq, i, j, zend = 0;
+  int qq, i, j, zend = 0;
   float *p_pair, *Z;
   // Determine probability of selecting a given number of pairs
   p_pair = (float*)malloc((MCMCPar->DEpairs + 1) * sizeof(float));
@@ -371,9 +371,9 @@ void offde(float** x_new, float** x_old, float** X, float** CR, struct DREAM_Par
            float** Table_JumpRate, struct Model_Input* Input, const char* BHandling, float* R2,
            const char* DR) {
   // Generates offspring using METROPOLIS HASTINGS monte-carlo markov chain
-  int     i, j, qq;
+  int i, j, qq;
   float **eps, D[MCMC->seq][MCMC->n], noise_x[MCMC->seq][MCMC->n], delta_x[MCMC->seq][MCMC->n];
-  int *   DEversion = NULL, *permarray = NULL, tt[MCMC->seq - 1][MCMC->seq], idx[MCMC->seq - 1],
+  int *DEversion = NULL, *permarray = NULL, tt[MCMC->seq - 1][MCMC->seq], idx[MCMC->seq - 1],
       ii[MCMC->seq], *rr;
   int NrDim, p_i[MCMC->n], *pp_i;
   ;
@@ -422,11 +422,11 @@ void offde(float** x_new, float** x_old, float** X, float** CR, struct DREAM_Par
     for (qq = 0; qq < MCMC->seq; qq++) {
       // Remove from ii current member as an option
       ii[qq] = 0;
-      j      = 0;
+      j = 0;
       for (i = 0; i < MCMC->seq; i++) {
         if (ii[i] > 0) {
           idx[j] = i;
-          j      = j + 1;
+          j = j + 1;
         }
       }
 
@@ -464,7 +464,7 @@ void offde(float** x_new, float** x_old, float** X, float** CR, struct DREAM_Par
         for (i = 0; i < DEversion[qq]; i++) {
           for (j = 0; j < MCMC->n; j++) {
             temp_delta[j] = X[rr[i]][j] - X[rr[DEversion[qq] + i]][j];
-            delta[j]      = delta[j] + temp_delta[j];
+            delta[j] = delta[j] + temp_delta[j];
           }
         }
 
@@ -556,7 +556,7 @@ void metrop(float** newgen, float* alpha, float* accept, float** x, float** p_x,
             float** x_old, float* p_old, float* log_p_old, struct Model_Input* pointerInput,
             struct DREAM_Parameters* pointerMCMC, int option) {
   // Metropolis rule for acceptance or rejection
-  int   i, j, NrChains;
+  int i, j, NrChains;
   float pre_alpha, Z;
   // Calculate the number of Chains
   NrChains = pointerMCMC->seq;
@@ -566,7 +566,7 @@ void metrop(float** newgen, float* alpha, float* accept, float** x, float** p_x,
     for (j = 0; j < pointerMCMC->n; j++) {
       newgen[i][j] = x_old[i][j];
     }
-    newgen[i][pointerInput->nPar]     = p_old[i];
+    newgen[i][pointerInput->nPar] = p_old[i];
     newgen[i][pointerInput->nPar + 1] = log_p_old[i];
   }
 
@@ -623,7 +623,7 @@ void metrop(float** newgen, float* alpha, float* accept, float** x, float** p_x,
         newgen[i][j] = x[i][j];  // update these chains
       }
       // update these chains
-      newgen[i][pointerInput->nPar]     = p_x[i][0];
+      newgen[i][pointerInput->nPar] = p_x[i][0];
       newgen[i][pointerInput->nPar + 1] = log_p_x[i];
     }
   }
@@ -651,7 +651,7 @@ void AdaptpCR(struct DREAM_Variables* RUNvar, struct DREAM_Parameters* MCMC, flo
   // Updates the probabilities of the various crossover values
 
   float **CRvector, sumpCR;
-  int     i, zz, cont;
+  int i, zz, cont;
 
   // Make CR to be a single vector
   reshape(RUNvar->CR, MCMC->seq, MCMC->steps, &CRvector, 1, MCMC->seq * MCMC->steps);
@@ -689,13 +689,13 @@ void AdaptpCR(struct DREAM_Variables* RUNvar, struct DREAM_Parameters* MCMC, flo
 void RemOutLierChains(float** X, struct DREAM_Variables* RUNvar, struct DREAM_Parameters* MCMC,
                       struct DREAM_Output* output) {
   // Finds outlier chains and removes them when needed
-  int    i, j, cont, idx_start, idx_end, arr_size, Nid, *chain_id, qq, r_idx = 0;
+  int i, j, cont, idx_start, idx_end, arr_size, Nid, *chain_id, qq, r_idx = 0;
   float *mean_hist_logp, *col_array, Q1, Q3, IQR, UpperRange;
 
   // Determine the number of elements of L_density
-  idx_end   = RUNvar->Nelem - 1;
+  idx_end = RUNvar->Nelem - 1;
   idx_start = floorf(0.5 * idx_end);
-  arr_size  = idx_end - idx_start + 1;
+  arr_size = idx_end - idx_start + 1;
 
   col_array = (float*)malloc(arr_size * sizeof(float));
   MEMORYCHECK(col_array, "ERROR at RemOutLierChains: Out of Memory!! col_array not allocated.\n")
@@ -735,7 +735,7 @@ void RemOutLierChains(float** X, struct DREAM_Variables* RUNvar, struct DREAM_Pa
     for (i = 0; i < MCMC->seq; i++) {
       if (mean_hist_logp[i] < UpperRange) {
         chain_id[cont] = i;
-        cont           = cont + 1;
+        cont = cont + 1;
       }
     }
 
@@ -778,7 +778,7 @@ void RemOutLierChains(float** X, struct DREAM_Variables* RUNvar, struct DREAM_Pa
       // Jump outlier chain to r_idx -- X
       for (i = 0; i < MCMC->n + 2; i++) {
         RUNvar->Sequences[0][i][chain_id[qq]] = X[r_idx][i];
-        X[chain_id[qq]][i]                    = X[r_idx][i];
+        X[chain_id[qq]][i] = X[r_idx][i];
       }
 
       // Add to chainoutlier
@@ -794,7 +794,7 @@ void RemOutLierChains(float** X, struct DREAM_Variables* RUNvar, struct DREAM_Pa
 
 void GenParSet(float** ParSet, struct DREAM_Variables* RUNvar, int post_Sequences,
                struct DREAM_Parameters* MCMC, FILE* fid, float* bestParams) {
-  int     qq, i, j, cont = 0, num;
+  int qq, i, j, cont = 0, num;
   float **parset, **sorted;
   // Generates ParSet
   // If save in memory -> No -- ParSet is empty
@@ -815,8 +815,8 @@ void GenParSet(float** ParSet, struct DREAM_Variables* RUNvar, int post_Sequence
         parset[cont][j] = RUNvar->Sequences[i][j][qq];
       }
       parset[cont][MCMC->n + 2] = num;
-      cont                      = cont + 1;
-      num                       = num + 1;
+      cont = cont + 1;
+      num = num + 1;
     }
   }
   //}

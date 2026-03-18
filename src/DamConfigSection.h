@@ -53,9 +53,9 @@ class DamConfigSection : public ConfigSection {
   }
   float GetObserved(TimeVar* currentTime);
   float GetObserved(TimeVar* currentTime, float diff);
-  void  SetObservedValue(char* timeBuffer, float dataValue);
-  void  LoadTS();
-  void  SetGridNodeIndex(long newVal) {
+  void SetObservedValue(char* timeBuffer, float dataValue);
+  void LoadTS();
+  void SetGridNodeIndex(long newVal) {
     gridNodeIndex = newVal;
   }
   void SetLat(float newVal) {
@@ -85,21 +85,21 @@ class DamConfigSection : public ConfigSection {
   static bool IsDuplicate(char* name);
 
  private:
-  bool       obsSet, latSet, lonSet, xSet, ySet, obsFlowAccumSet, outputTSSet, volumeSet;
-  bool       outputTS, wantDA, wantCO;
-  char       observation[CONFIG_MAX_LEN];
-  char       name[CONFIG_MAX_LEN];
-  float      lat;
-  float      lon;
-  float      obsFlowAccum;
-  float      volume;
+  bool obsSet, latSet, lonSet, xSet, ySet, obsFlowAccumSet, outputTSSet, volumeSet;
+  bool outputTS, wantDA, wantCO;
+  char observation[CONFIG_MAX_LEN];
+  char name[CONFIG_MAX_LEN];
+  float lat;
+  float lon;
+  float obsFlowAccum;
+  float volume;
   TimeSeries obs;
 
   // These are for basin carving procedures!
-  long    flowAccum;
-  bool    used;
+  long flowAccum;
+  bool used;
   GridLoc gridLoc;
-  long    gridNodeIndex;
+  long gridNodeIndex;
 };
 
 extern std::map<std::string, DamConfigSection*> g_damConfigs;

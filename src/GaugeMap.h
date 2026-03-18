@@ -15,10 +15,10 @@ class GaugeMap {
   void GetGaugeArea(std::vector<GridNode>* nodes, std::vector<float>* gaugeArea);
 
  private:
-  std::vector<GaugeConfigSection*>               gauges;
+  std::vector<GaugeConfigSection*> gauges;
   std::vector<std::vector<GaugeConfigSection*> > gaugeTree;
-  std::map<GaugeConfigSection*, size_t>          gaugeMap;
-  std::vector<float>                             partialVal, partialArea;
+  std::map<GaugeConfigSection*, size_t> gaugeMap;
+  std::vector<float> partialVal, partialArea;
 };
 
 #endif

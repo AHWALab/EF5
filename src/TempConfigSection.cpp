@@ -7,12 +7,12 @@
 std::map<std::string, TempConfigSection*> g_tempConfigs;
 
 TempConfigSection::TempConfigSection() {
-  locSet  = false;
+  locSet = false;
   freqSet = false;
   nameSet = false;
   typeSet = false;
   unitSet = false;
-  demSet  = false;
+  demSet = false;
 }
 
 TempConfigSection::~TempConfigSection() {}
