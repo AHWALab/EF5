@@ -11,14 +11,12 @@
 #define TIFFTAG_GDAL_NODATA 42113
 
 static const TIFFFieldInfo xtiffFieldInfo[] = {
-    {TIFFTAG_GDAL_METADATA, -1, -1, TIFF_ASCII, FIELD_CUSTOM, true, false,
-     (char *)"GDALMetadata"},
-    {TIFFTAG_GDAL_NODATA, -1, -1, TIFF_ASCII, FIELD_CUSTOM, true, false,
-     (char *)"GDALNoDataValue"}};
+    {TIFFTAG_GDAL_METADATA, -1, -1, TIFF_ASCII, FIELD_CUSTOM, true, false, (char*)"GDALMetadata"},
+    {TIFFTAG_GDAL_NODATA, -1, -1, TIFF_ASCII, FIELD_CUSTOM, true, false, (char*)"GDALNoDataValue"}};
 
 static TIFFExtendProc TIFFParentExtender = NULL;
-static void TIFFExtenderInit();
-static void TIFFDefaultDirectory(TIFF *tif);
+static void           TIFFExtenderInit();
+static void           TIFFDefaultDirectory(TIFF* tif);
 
 static void TIFFExtenderInit() {
   static int first_time = 1;
@@ -35,10 +33,9 @@ static void TIFFExtenderInit() {
   TIFFSetWarningHandler(NULL);
 }
 
-static void TIFFDefaultDirectory(TIFF *tif) {
+static void TIFFDefaultDirectory(TIFF* tif) {
   /* Install the extended Tag field info */
-  TIFFMergeFieldInfo(tif, xtiffFieldInfo,
-                     sizeof(xtiffFieldInfo) / sizeof(xtiffFieldInfo[0]));
+  TIFFMergeFieldInfo(tif, xtiffFieldInfo, sizeof(xtiffFieldInfo) / sizeof(xtiffFieldInfo[0]));
 
   /* Since an XTIFF client module may have overridden
    *      * the default directory method, we call it now to
@@ -50,17 +47,16 @@ static void TIFFDefaultDirectory(TIFF *tif) {
   }
 }
 
-FloatGrid *ReadFloatTifGrid(const char *file) {
+FloatGrid* ReadFloatTifGrid(const char* file) {
   return ReadFloatTifGrid(file, NULL);
 }
 
-FloatGrid *ReadFloatTifGrid(const char *file, FloatGrid *incGrid) {
-
+FloatGrid* ReadFloatTifGrid(const char* file, FloatGrid* incGrid) {
   TIFFExtenderInit();
 
-  FloatGrid *grid = incGrid;
-  TIFF *tif = NULL;
-  GTIF *gtif = NULL;
+  FloatGrid* grid = incGrid;
+  TIFF*      tif  = NULL;
+  GTIF*      gtif = NULL;
 
   tif = XTIFFOpen(file, "r");
   if (!tif) {
@@ -78,8 +74,7 @@ FloatGrid *ReadFloatTifGrid(const char *file, FloatGrid *incGrid) {
   TIFFGetField(tif, TIFFTAG_BITSPERSAMPLE, &bitsPerSample);
   TIFFGetField(tif, TIFFTAG_SAMPLEFORMAT, &sampleFormat);
 
-  if (sampleFormat != SAMPLEFORMAT_IEEEFP || bitsPerSample != 32 ||
-      samplesPerPixel != 1) {
+  if (sampleFormat != SAMPLEFORMAT_IEEEFP || bitsPerSample != 32 || samplesPerPixel != 1) {
     WARNING_LOGF("%s is not a supported Float32 GeoTiff", file);
     GTIFFree(gtif);
     XTIFFClose(tif);
@@ -97,9 +92,9 @@ FloatGrid *ReadFloatTifGrid(const char *file, FloatGrid *incGrid) {
   TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width);
   TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
 
-  short tiepointsize, pixscalesize;
-  double *tiepoints; //[6];
-  double *pixscale;  //[3];
+  short   tiepointsize, pixscalesize;
+  double* tiepoints;  //[6];
+  double* pixscale;   //[3];
   TIFFGetField(tif, TIFFTAG_GEOTIEPOINTS, &tiepointsize, &tiepoints);
   TIFFGetField(tif, TIFFTAG_GEOPIXELSCALE, &pixscalesize, &pixscale);
 
@@ -107,13 +102,12 @@ FloatGrid *ReadFloatTifGrid(const char *file, FloatGrid *incGrid) {
     if (grid) {
       delete grid;
     }
-    grid = new FloatGrid();
+    grid          = new FloatGrid();
     grid->numCols = width;
     grid->numRows = height;
-    grid->data = new float *[grid->numRows]();
+    grid->data    = new float*[grid->numRows]();
     if (!grid->data) {
-      WARNING_LOGF("TIF file %s too large (out of memory) with %li rows", file,
-                   grid->numRows);
+      WARNING_LOGF("TIF file %s too large (out of memory) with %li rows", file, grid->numRows);
       delete grid;
       GTIFFree(gtif);
       XTIFFClose(tif);
@@ -122,8 +116,7 @@ FloatGrid *ReadFloatTifGrid(const char *file, FloatGrid *incGrid) {
     for (long i = 0; i < grid->numRows; i++) {
       grid->data[i] = new float[grid->numCols]();
       if (!grid->data[i]) {
-        WARNING_LOGF("TIF file %s too large (out of memory) with %li columns",
-                     file, grid->numCols);
+        WARNING_LOGF("TIF file %s too large (out of memory) with %li columns", file, grid->numCols);
         delete grid;
         GTIFFree(gtif);
         XTIFFClose(tif);
@@ -132,17 +125,17 @@ FloatGrid *ReadFloatTifGrid(const char *file, FloatGrid *incGrid) {
     }
   }
 
-  char *noData = NULL;
+  char* noData = NULL;
   if (TIFFGetField(tif, TIFFTAG_GDAL_NODATA, &noData)) {
     grid->noData = atof(noData);
   } else {
     grid->noData = std::numeric_limits<float>::quiet_NaN();
   }
-  grid->cellSize = pixscale[0];
-  grid->extent.top = tiepoints[4];
-  grid->extent.left = tiepoints[3];
+  grid->cellSize      = pixscale[0];
+  grid->extent.top    = tiepoints[4];
+  grid->extent.left   = tiepoints[3];
   grid->extent.bottom = tiepoints[4] - (pixscale[1] * float(height));
-  grid->extent.right = tiepoints[3] + (pixscale[0] * float(width));
+  grid->extent.right  = tiepoints[3] + (pixscale[0] * float(width));
 
   GTIFKeyGet(gtif, GTModelTypeGeoKey, &grid->modelType, 0, 1);
   GTIFKeyGet(gtif, GeographicTypeGeoKey, &grid->geographicType, 0, 1);
@@ -163,13 +156,12 @@ FloatGrid *ReadFloatTifGrid(const char *file, FloatGrid *incGrid) {
   return grid;
 }
 
-void WriteFloatTifGrid(const char *file, FloatGrid *grid, const char *artist,
-                       const char *datetime, const char *copyright) {
-
+void WriteFloatTifGrid(const char* file, FloatGrid* grid, const char* artist, const char* datetime,
+                       const char* copyright) {
   TIFFExtenderInit();
 
-  TIFF *tif = NULL;
-  GTIF *gtif = NULL;
+  TIFF* tif  = NULL;
+  GTIF* gtif = NULL;
 
   tif = XTIFFOpen(file, "w");
   if (!tif) {
@@ -209,9 +201,9 @@ void WriteFloatTifGrid(const char *file, FloatGrid *grid, const char *artist,
   double tiepoints[6];
   double pixscale[3];
 
-  pixscale[0] = grid->cellSize;
-  pixscale[1] = grid->cellSize;
-  pixscale[2] = 0.0;
+  pixscale[0]  = grid->cellSize;
+  pixscale[1]  = grid->cellSize;
+  pixscale[2]  = 0.0;
   tiepoints[0] = 0;
   tiepoints[1] = 0;
   tiepoints[2] = 0;
@@ -228,8 +220,7 @@ void WriteFloatTifGrid(const char *file, FloatGrid *grid, const char *artist,
     GTIFKeySet(gtif, GTModelTypeGeoKey, TYPE_SHORT, 1, grid->modelType);
     GTIFKeySet(gtif, GTRasterTypeGeoKey, TYPE_SHORT, 1, RasterPixelIsArea);
     GTIFKeySet(gtif, GeographicTypeGeoKey, TYPE_SHORT, 1, grid->geographicType);
-    GTIFKeySet(gtif, GeogGeodeticDatumGeoKey, TYPE_SHORT, 1,
-               grid->geodeticDatum);
+    GTIFKeySet(gtif, GeogGeodeticDatumGeoKey, TYPE_SHORT, 1, grid->geodeticDatum);
     GTIFKeySet(gtif, GeogAngularUnitsGeoKey, TYPE_SHORT, 1, Angular_Degree);
   } else {
     GTIFKeySet(gtif, GTModelTypeGeoKey, TYPE_SHORT, 1, ModelGeographic);
@@ -250,11 +241,10 @@ void WriteFloatTifGrid(const char *file, FloatGrid *grid, const char *artist,
   XTIFFClose(tif);
 }
 
-LongGrid *ReadLongTifGrid(const char *file) {
-
-  LongGrid *grid = NULL;
-  TIFF *tif = NULL;
-  GTIF *gtif = NULL;
+LongGrid* ReadLongTifGrid(const char* file) {
+  LongGrid* grid = NULL;
+  TIFF*     tif  = NULL;
+  GTIF*     gtif = NULL;
 
   TIFFSetErrorHandler(NULL);
 
@@ -274,8 +264,7 @@ LongGrid *ReadLongTifGrid(const char *file) {
   TIFFGetField(tif, TIFFTAG_BITSPERSAMPLE, &bitsPerSample);
   TIFFGetField(tif, TIFFTAG_SAMPLEFORMAT, &sampleFormat);
 
-  if (sampleFormat != SAMPLEFORMAT_INT || bitsPerSample != 32 ||
-      samplesPerPixel != 1) {
+  if (sampleFormat != SAMPLEFORMAT_INT || bitsPerSample != 32 || samplesPerPixel != 1) {
     WARNING_LOGF("%s is not a supported Int GeoTiff", file);
     GTIFFree(gtif);
     XTIFFClose(tif);
@@ -286,23 +275,23 @@ LongGrid *ReadLongTifGrid(const char *file) {
   TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width);
   TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
 
-  short tiepointsize, pixscalesize;
-  double *tiepoints; //[6];
-  double *pixscale;  //[3];
+  short   tiepointsize, pixscalesize;
+  double* tiepoints;  //[6];
+  double* pixscale;   //[3];
   TIFFGetField(tif, TIFFTAG_GEOTIEPOINTS, &tiepointsize, &tiepoints);
   TIFFGetField(tif, TIFFTAG_GEOPIXELSCALE, &pixscalesize, &pixscale);
 
   grid = new LongGrid();
 
-  grid->numCols = width;
-  grid->numRows = height;
-  grid->cellSize = pixscale[0];
-  grid->extent.top = tiepoints[4];
-  grid->extent.left = tiepoints[3];
+  grid->numCols       = width;
+  grid->numRows       = height;
+  grid->cellSize      = pixscale[0];
+  grid->extent.top    = tiepoints[4];
+  grid->extent.left   = tiepoints[3];
   grid->extent.bottom = tiepoints[4] - (pixscale[1] * float(height));
-  grid->extent.right = tiepoints[3] + (pixscale[0] * float(width));
+  grid->extent.right  = tiepoints[3] + (pixscale[0] * float(width));
 
-  grid->data = new long *[grid->numRows];
+  grid->data = new long*[grid->numRows];
   for (long i = 0; i < grid->numRows; i++) {
     grid->data[i] = new long[grid->numCols];
     if (TIFFReadScanline(tif, grid->data[i], (unsigned int)i, 1) == -1) {

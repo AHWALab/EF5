@@ -5,104 +5,89 @@
 #include "TRMMV6Grid.h"
 #include "RuntimeStats.h"
 
-int main(int argc, char *argv[])
-{
-
+int main(int argc, char* argv[]) {
   static ef5::RuntimeStatsReporter runtime_stats_reporter_instance;
 
-  if (argc != 3 && argc != 7)
-  {
-    printf("Use this program as TRMMV6Clip <input_filename> <output_filename> "
-           "<top> <bottom> <left> <right>\n");
+  if (argc != 3 && argc != 7) {
+    printf(
+        "Use this program as TRMMV6Clip <input_filename> <output_filename> "
+        "<top> <bottom> <left> <right>\n");
     return 0;
   }
 
-  char *filename = argv[1];
-  char *outputfile = argv[2];
+  char* filename   = argv[1];
+  char* outputfile = argv[2];
   float top = 50.0, bottom = -50.0, left = -180.0, right = 180.0;
 
-  if (argc == 7)
-  {
-    top = atof(argv[3]);
+  if (argc == 7) {
+    top    = atof(argv[3]);
     bottom = atof(argv[4]);
-    left = atof(argv[5]);
-    right = atof(argv[6]);
+    left   = atof(argv[5]);
+    right  = atof(argv[6]);
   }
 
   int part = top / 0.25;
-  top = 0.25 * (float)(part);
+  top      = 0.25 * (float)(part);
 
-  part = bottom / 0.25;
+  part   = bottom / 0.25;
   bottom = 0.25 * (float)(part);
 
   part = left / 0.25;
   left = 0.25 * (float)(part);
 
-  part = right / 0.25;
+  part  = right / 0.25;
   right = 0.25 * (float)(part);
 
-  if (top > 50.0 || top < -50.0 || top <= bottom)
-  {
+  if (top > 50.0 || top < -50.0 || top <= bottom) {
     printf("Top must be between 50 & -50 and > Bottom\n");
     return 0;
   }
 
-  if (bottom > 50.0 || bottom < -50.0)
-  {
+  if (bottom > 50.0 || bottom < -50.0) {
     printf("Bottom must be between 50 & -50\n");
     return 0;
   }
 
-  if (left < -180.0 || left > 180.0 || left >= right)
-  {
+  if (left < -180.0 || left > 180.0 || left >= right) {
     printf("Left must be between -180 & 180 and must be < Right\n");
     return 0;
   }
 
-  if (right < -180.0 || right > 180.0)
-  {
+  if (right < -180.0 || right > 180.0) {
     printf("Right must be between -180 & 180\n");
     return 0;
   }
 
-  FloatGrid *outGrid = new FloatGrid;
-  outGrid->cellSize = 0.25;
-  outGrid->numCols = (right - left) / outGrid->cellSize;
-  outGrid->numRows = (top - bottom) / outGrid->cellSize;
+  FloatGrid* outGrid     = new FloatGrid;
+  outGrid->cellSize      = 0.25;
+  outGrid->numCols       = (right - left) / outGrid->cellSize;
+  outGrid->numRows       = (top - bottom) / outGrid->cellSize;
   outGrid->extent.bottom = bottom;
-  outGrid->extent.left = left;
-  outGrid->noData = -9999.0;
-  outGrid->data = new float *[outGrid->numRows];
-  for (long i = 0; i < outGrid->numRows; i++)
-  {
+  outGrid->extent.left   = left;
+  outGrid->noData        = -9999.0;
+  outGrid->data          = new float*[outGrid->numRows];
+  for (long i = 0; i < outGrid->numRows; i++) {
     outGrid->data[i] = new float[outGrid->numCols];
   }
   // Fill in the rest of the BoundingBox
-  outGrid->extent.top =
-      outGrid->extent.bottom + outGrid->numRows * outGrid->cellSize;
-  outGrid->extent.right =
-      outGrid->extent.left + outGrid->numCols * outGrid->cellSize;
+  outGrid->extent.top   = outGrid->extent.bottom + outGrid->numRows * outGrid->cellSize;
+  outGrid->extent.right = outGrid->extent.left + outGrid->numCols * outGrid->cellSize;
 
-  FloatGrid *precipGrid = ReadFloatTRMMV6Grid(filename);
+  FloatGrid* precipGrid = ReadFloatTRMMV6Grid(filename);
 
-  if (!precipGrid)
-  {
+  if (!precipGrid) {
     printf("Failed to open file %s\n", filename);
     return 0;
   }
 
-  int realTop =
-      (precipGrid->extent.top - outGrid->extent.top) / outGrid->cellSize;
-  int realLeft =
-      (outGrid->extent.left - precipGrid->extent.left) / outGrid->cellSize;
+  int realTop  = (precipGrid->extent.top - outGrid->extent.top) / outGrid->cellSize;
+  int realLeft = (outGrid->extent.left - precipGrid->extent.left) / outGrid->cellSize;
 
-  printf("Real top is %i, left is %i (%f %f)\n", realTop, realLeft,
-         precipGrid->extent.top, outGrid->extent.top);
+  printf("Real top is %i, left is %i (%f %f)\n", realTop, realLeft, precipGrid->extent.top,
+         outGrid->extent.top);
 
-  for (long y = realTop; y < realTop + outGrid->numRows; y++)
-  {
-    for (long x = realLeft; x < realLeft + outGrid->numCols; x++)
-    {
+  for (long y = realTop; y < realTop + outGrid->numRows; y++) {
+    for (long x = realLeft; x < realLeft + outGrid->numCols; x++) {
       outGrid->data[y - realTop][x - realLeft] = precipGrid->data[y][x];
     }
   }

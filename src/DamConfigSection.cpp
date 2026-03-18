@@ -5,26 +5,28 @@
 #include <cstring>
 #include <limits>
 
-std::map<std::string, DamConfigSection *> g_damConfigs;
+std::map<std::string, DamConfigSection*> g_damConfigs;
 
-DamConfigSection::DamConfigSection(char *nameVal) {
-  obsSet = false;
-  latSet = false;
-  lonSet = false;
-  xSet = false;
-  ySet = false;
+DamConfigSection::DamConfigSection(char* nameVal) {
+  obsSet          = false;
+  latSet          = false;
+  lonSet          = false;
+  xSet            = false;
+  ySet            = false;
   obsFlowAccumSet = false;
-  volumeSet = false;
+  volumeSet       = false;
   strcpy(name, nameVal);
-  outputTS = true;
+  outputTS       = true;
   observation[0] = 0;
-  wantDA = true;
-  wantCO = false;
+  wantDA         = true;
+  wantCO         = false;
 }
 
 DamConfigSection::~DamConfigSection() {}
 
-char *DamConfigSection::GetName() { return name; }
+char* DamConfigSection::GetName() {
+  return name;
+}
 
 void DamConfigSection::LoadTS() {
   if (observation[0]) {
@@ -32,31 +34,30 @@ void DamConfigSection::LoadTS() {
   }
 }
 
-float DamConfigSection::GetObserved(TimeVar *currentTime) {
+float DamConfigSection::GetObserved(TimeVar* currentTime) {
   if (!obs.GetNumberOfObs()) {
     return std::numeric_limits<float>::quiet_NaN();
   }
   return obs.GetValueAtTime(currentTime);
 }
 
-float DamConfigSection::GetObserved(TimeVar *currentTime, float diff) {
+float DamConfigSection::GetObserved(TimeVar* currentTime, float diff) {
   if (!obs.GetNumberOfObs()) {
     return std::numeric_limits<float>::quiet_NaN();
   }
   return obs.GetValueNearTime(currentTime, diff);
 }
 
-void DamConfigSection::SetObservedValue(char *timeBuffer, float dataValue) {
+void DamConfigSection::SetObservedValue(char* timeBuffer, float dataValue) {
   obs.PutValueAtTime(timeBuffer, dataValue);
 }
 
-CONFIG_SEC_RET DamConfigSection::ProcessKeyValue(char *name, char *value) {
-
+CONFIG_SEC_RET DamConfigSection::ProcessKeyValue(char* name, char* value) {
   if (!strcasecmp(name, "lat")) {
-    lat = strtod(value, NULL);
+    lat    = strtod(value, NULL);
     latSet = true;
   } else if (!strcasecmp(name, "lon")) {
-    lon = strtod(value, NULL);
+    lon    = strtod(value, NULL);
     lonSet = true;
   } else if (!strcasecmp(name, "cellx")) {
     SetCellX(atoi(value));
@@ -65,10 +66,10 @@ CONFIG_SEC_RET DamConfigSection::ProcessKeyValue(char *name, char *value) {
     SetCellY(atoi(value));
     ySet = true;
   } else if (!strcasecmp(name, "basinarea")) {
-    obsFlowAccum = atof(value);
+    obsFlowAccum    = atof(value);
     obsFlowAccumSet = true;
   } else if (!strcasecmp(name, "volume")) {
-    volume = atof(value);
+    volume    = atof(value);
     volumeSet = true;
   } else if (!strcasecmp(name, "obs")) {
     strcpy(observation, value);
@@ -117,9 +118,8 @@ CONFIG_SEC_RET DamConfigSection::ValidateSection() {
   return VALID_RESULT;
 }
 
-bool DamConfigSection::IsDuplicate(char *name) {
-  std::map<std::string, DamConfigSection *>::iterator itr =
-      g_damConfigs.find(name);
+bool DamConfigSection::IsDuplicate(char* name) {
+  std::map<std::string, DamConfigSection*>::iterator itr = g_damConfigs.find(name);
   if (itr == g_damConfigs.end()) {
     return false;
   } else {

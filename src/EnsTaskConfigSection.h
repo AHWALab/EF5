@@ -8,28 +8,27 @@
 #include <vector>
 
 class EnsTaskConfigSection : public ConfigSection {
-
-public:
-  EnsTaskConfigSection(const char *nameVal);
+ public:
+  EnsTaskConfigSection(const char* nameVal);
   ~EnsTaskConfigSection();
 
-  char *GetName();
+  char*    GetName();
   RUNSTYLE GetRunStyle();
 
-  CONFIG_SEC_RET ProcessKeyValue(char *name, char *value);
+  CONFIG_SEC_RET ProcessKeyValue(char* name, char* value);
   CONFIG_SEC_RET ValidateSection();
 
-  std::vector<TaskConfigSection *> *GetTasks();
+  std::vector<TaskConfigSection*>* GetTasks();
 
-  static bool IsDuplicate(char *name);
+  static bool IsDuplicate(char* name);
 
-private:
-  bool styleSet;
-  char name[CONFIG_MAX_LEN];
-  RUNSTYLE style;
-  std::vector<TaskConfigSection *> tasks;
+ private:
+  bool                            styleSet;
+  char                            name[CONFIG_MAX_LEN];
+  RUNSTYLE                        style;
+  std::vector<TaskConfigSection*> tasks;
 };
 
-extern std::map<std::string, EnsTaskConfigSection *> g_ensTaskConfigs;
+extern std::map<std::string, EnsTaskConfigSection*> g_ensTaskConfigs;
 
 #endif

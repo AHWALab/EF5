@@ -1,11 +1,11 @@
 #include "Model.h"
 
-const char *runStyleStrings[] = {
+const char* runStyleStrings[] = {
     "simu",       "simu_rp",    "cali_ars",   "cali_dream",
     "clip_basin", "clip_gauge", "make_basic", "basin_avg",
 };
 
-const char *modelStrings[] = {
+const char* modelStrings[] = {
 #undef ADDMODEL
 #define ADDMODEL(a, b) a,
 #include "Models.tbl"
@@ -13,7 +13,7 @@ const char *modelStrings[] = {
 #define ADDMODEL(a, b)
 };
 
-const char *modelParamSetStrings[] = {
+const char* modelParamSetStrings[] = {
 #undef ADDMODEL
 #define ADDMODEL(a, b) a "paramset",
 #include "Models.tbl"
@@ -21,7 +21,7 @@ const char *modelParamSetStrings[] = {
 #define ADDMODEL(a, b)
 };
 
-const char *modelCaliParamStrings[] = {
+const char* modelCaliParamStrings[] = {
 #undef ADDMODEL
 #define ADDMODEL(a, b) a "caliparams",
 #include "Models.tbl"
@@ -32,7 +32,7 @@ const char *modelCaliParamStrings[] = {
 // Order of models must match that in Models.tbl
 
 namespace paramStrings {
-const char *HP[] = {
+const char* HP[] = {
 #undef ADDPARAMHP
 #define ADDPARAMHP(a, b) a,
 #include "Models.tbl"
@@ -40,7 +40,7 @@ const char *HP[] = {
 #define ADDPARAMHP(a, b)
 };
 
-const char *CREST[] = {
+const char* CREST[] = {
 #undef ADDPARAMCREST
 #define ADDPARAMCREST(a, b) a,
 #include "Models.tbl"
@@ -48,7 +48,7 @@ const char *CREST[] = {
 #define ADDPARAMCREST(a, b)
 };
 
-const char *HYMOD[] = {
+const char* HYMOD[] = {
 #undef ADDPARAMHYMOD
 #define ADDPARAMHYMOD(a, b) a,
 #include "Models.tbl"
@@ -56,7 +56,7 @@ const char *HYMOD[] = {
 #define ADDPARAMHYMOD(a, b)
 };
 
-const char *SAC[] = {
+const char* SAC[] = {
 #undef ADDPARAMSAC
 #define ADDPARAMSAC(a, b) a,
 #include "Models.tbl"
@@ -64,9 +64,9 @@ const char *SAC[] = {
 #define ADDPARAMSAC(a, b)
 };
 
-} // namespace paramStrings
+}  // namespace paramStrings
 
-const char **modelParamStrings[] = {
+const char** modelParamStrings[] = {
     paramStrings::HP,
     paramStrings::CREST,
     paramStrings::HYMOD,
@@ -77,7 +77,7 @@ const char **modelParamStrings[] = {
 // Order of models must match that in Models.tbl
 
 namespace paramGridStrings {
-const char *HP[] = {
+const char* HP[] = {
 #undef ADDPARAMHP
 #define ADDPARAMHP(a, b) a "_grid",
 #include "Models.tbl"
@@ -85,7 +85,7 @@ const char *HP[] = {
 #define ADDPARAMHP(a, b)
 };
 
-const char *CREST[] = {
+const char* CREST[] = {
 #undef ADDPARAMCREST
 #define ADDPARAMCREST(a, b) a "_grid",
 #include "Models.tbl"
@@ -93,7 +93,7 @@ const char *CREST[] = {
 #define ADDPARAMCREST(a, b)
 };
 
-const char *HYMOD[] = {
+const char* HYMOD[] = {
 #undef ADDPARAMHYMOD
 #define ADDPARAMHYMOD(a, b) a "_grid",
 #include "Models.tbl"
@@ -101,18 +101,17 @@ const char *HYMOD[] = {
 #define ADDPARAMHYMOD(a, b)
 };
 
-const char *SAC[] = {
+const char* SAC[] = {
 #undef ADDPARAMSAC
 #define ADDPARAMSAC(a, b) a "_grid",
 #include "Models.tbl"
 #undef ADDPARAMSAC
 #define ADDPARAMSAC(a, b)
 };
-} // namespace paramGridStrings
+}  // namespace paramGridStrings
 
-const char **modelParamGridStrings[] = {
-    paramGridStrings::HP, paramGridStrings::CREST, paramGridStrings::HYMOD,
-    paramGridStrings::SAC};
+const char** modelParamGridStrings[] = {paramGridStrings::HP, paramGridStrings::CREST,
+                                        paramGridStrings::HYMOD, paramGridStrings::SAC};
 
 const int numModelParams[] = {
 #undef ADDMODEL
@@ -122,7 +121,7 @@ const int numModelParams[] = {
 #define ADDMODEL(a, b)
 };
 
-const char *routeStrings[] = {
+const char* routeStrings[] = {
 #undef ADDROUTE
 #define ADDROUTE(a, b) a,
 #include "Models.tbl"
@@ -130,7 +129,7 @@ const char *routeStrings[] = {
 #define ADDROUTE(a, b)
 };
 
-const char *routeParamSetStrings[] = {
+const char* routeParamSetStrings[] = {
 #undef ADDROUTE
 #define ADDROUTE(a, b) a "paramset",
 #include "Models.tbl"
@@ -138,7 +137,7 @@ const char *routeParamSetStrings[] = {
 #define ADDROUTE(a, b)
 };
 
-const char *routeCaliParamStrings[] = {
+const char* routeCaliParamStrings[] = {
 #undef ADDROUTE
 #define ADDROUTE(a, b) a "caliparams",
 #include "Models.tbl"
@@ -147,7 +146,7 @@ const char *routeCaliParamStrings[] = {
 };
 
 namespace paramRouteStrings {
-const char *LINEAR[] = {
+const char* LINEAR[] = {
 #undef ADDPARAMLINEAR
 #define ADDPARAMLINEAR(a, b) a,
 #include "Models.tbl"
@@ -156,7 +155,7 @@ const char *LINEAR[] = {
 
 };
 
-const char *KINEMATIC[] = {
+const char* KINEMATIC[] = {
 #undef ADDPARAMKINEMATIC
 #define ADDPARAMKINEMATIC(a, b) a,
 #include "Models.tbl"
@@ -165,16 +164,16 @@ const char *KINEMATIC[] = {
 
 };
 
-} // namespace paramRouteStrings
+}  // namespace paramRouteStrings
 
-const char **routeParamStrings[] = {
+const char** routeParamStrings[] = {
     paramRouteStrings::LINEAR,
     paramRouteStrings::KINEMATIC,
 
 };
 
 namespace paramRouteGridStrings {
-const char *LINEAR[] = {
+const char* LINEAR[] = {
 #undef ADDPARAMLINEAR
 #define ADDPARAMLINEAR(a, b) a "_grid",
 #include "Models.tbl"
@@ -183,7 +182,7 @@ const char *LINEAR[] = {
 
 };
 
-const char *KINEMATIC[] = {
+const char* KINEMATIC[] = {
 #undef ADDPARAMKINEMATIC
 #define ADDPARAMKINEMATIC(a, b) a "_grid",
 #include "Models.tbl"
@@ -191,9 +190,9 @@ const char *KINEMATIC[] = {
 #define ADDPARAMKINEMATIC(a, b)
 
 };
-} // namespace paramRouteGridStrings
+}  // namespace paramRouteGridStrings
 
-const char **routeParamGridStrings[] = {
+const char** routeParamGridStrings[] = {
     paramRouteGridStrings::LINEAR,
     paramRouteGridStrings::KINEMATIC,
 };
@@ -206,7 +205,7 @@ const int numRouteParams[] = {
 #define ADDROUTE(a, b)
 };
 
-const char *snowStrings[] = {
+const char* snowStrings[] = {
 #undef ADDSNOW
 #define ADDSNOW(a, b) a,
 #include "Models.tbl"
@@ -214,7 +213,7 @@ const char *snowStrings[] = {
 #define ADDSNOW(a, b)
 };
 
-const char *snowParamSetStrings[] = {
+const char* snowParamSetStrings[] = {
 #undef ADDSNOW
 #define ADDSNOW(a, b) a "paramset",
 #include "Models.tbl"
@@ -222,7 +221,7 @@ const char *snowParamSetStrings[] = {
 #define ADDSNOW(a, b)
 };
 
-const char *snowCaliParamStrings[] = {
+const char* snowCaliParamStrings[] = {
 #undef ADDSNOW
 #define ADDSNOW(a, b) a "caliparams",
 #include "Models.tbl"
@@ -231,7 +230,7 @@ const char *snowCaliParamStrings[] = {
 };
 
 namespace paramSnowStrings {
-const char *SNOW17[] = {
+const char* SNOW17[] = {
 #undef ADDPARAMSNOW17
 #define ADDPARAMSNOW17(a, b) a,
 #include "Models.tbl"
@@ -239,23 +238,23 @@ const char *SNOW17[] = {
 #define ADDPARAMSNOW17(a, b)
 
 };
-} // namespace paramSnowStrings
+}  // namespace paramSnowStrings
 
-const char **snowParamStrings[] = {
+const char** snowParamStrings[] = {
     paramSnowStrings::SNOW17,
 };
 
 namespace paramSnowGridStrings {
-const char *SNOW17[] = {
+const char* SNOW17[] = {
 #undef ADDPARAMSNOW17
 #define ADDPARAMSNOW17(a, b) a "_grid",
 #include "Models.tbl"
 #undef ADDPARAMSNOW17
 #define ADDPARAMSNOW17(a, b)
 };
-} // namespace paramSnowGridStrings
+}  // namespace paramSnowGridStrings
 
-const char **snowParamGridStrings[] = {
+const char** snowParamGridStrings[] = {
     paramSnowGridStrings::SNOW17,
 
 };
@@ -268,7 +267,7 @@ const int numSnowParams[] = {
 #define ADDSNOW(a, b)
 };
 
-const char *inundationStrings[] = {
+const char* inundationStrings[] = {
 #undef ADDINUNDATION
 #define ADDINUNDATION(a, b) a,
 #include "Models.tbl"
@@ -276,7 +275,7 @@ const char *inundationStrings[] = {
 #define ADDINUNDATION(a, b)
 };
 
-const char *inundationParamSetStrings[] = {
+const char* inundationParamSetStrings[] = {
 #undef ADDINUNDATION
 #define ADDINUNDATION(a, b) a "paramset",
 #include "Models.tbl"
@@ -284,7 +283,7 @@ const char *inundationParamSetStrings[] = {
 #define ADDINUNDATION(a, b)
 };
 
-const char *inundationCaliParamStrings[] = {
+const char* inundationCaliParamStrings[] = {
 #undef ADDINUNDATION
 #define ADDINUNDATION(a, b) a "caliparams",
 #include "Models.tbl"
@@ -293,7 +292,7 @@ const char *inundationCaliParamStrings[] = {
 };
 
 namespace paramInundationStrings {
-const char *SI[] = {
+const char* SI[] = {
 #undef ADDPARAMSI
 #define ADDPARAMSI(a, b) a,
 #include "Models.tbl"
@@ -301,22 +300,22 @@ const char *SI[] = {
 #define ADDPARAMSI(a, b)
 };
 
-const char *VCI[] = {
+const char* VCI[] = {
 #undef ADDPARAMVCI
 #define ADDPARAMVCI(a, b) a,
 #include "Models.tbl"
 #undef ADDPARAMVCI
 #define ADDPARAMVCI(a, b)
 };
-} // namespace paramInundationStrings
+}  // namespace paramInundationStrings
 
-const char **inundationParamStrings[] = {
+const char** inundationParamStrings[] = {
     paramInundationStrings::SI,
     paramInundationStrings::VCI,
 };
 
 namespace paramInundationGridStrings {
-const char *SI[] = {
+const char* SI[] = {
 #undef ADDPARAMSI
 #define ADDPARAMSI(a, b) a "_grid",
 #include "Models.tbl"
@@ -324,16 +323,16 @@ const char *SI[] = {
 #define ADDPARAMSI(a, b)
 };
 
-const char *VCI[] = {
+const char* VCI[] = {
 #undef ADDPARAMVCI
 #define ADDPARAMVCI(a, b) a "_grid",
 #include "Models.tbl"
 #undef ADDPARAMVCI
 #define ADDPARAMVCI(a, b)
 };
-} // namespace paramInundationGridStrings
+}  // namespace paramInundationGridStrings
 
-const char **inundationParamGridStrings[] = {
+const char** inundationParamGridStrings[] = {
     paramInundationGridStrings::SI,
     paramInundationGridStrings::VCI,
 

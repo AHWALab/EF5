@@ -1,0 +1,7 @@
+---
+Checks:          '-*,readability-*,performance-*,modernize-use-override,modernize-use-nullptr,modernize-loop-convert'
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*'
+AnalyzeTemporaryDtors: false
+FormatStyle:     none
+...

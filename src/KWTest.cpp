@@ -17,21 +17,18 @@ void PrintStartupMessage();
 void InitializeKW();
 void SimulateRouting();
 
-std::vector<GridNode> nodes;
-RoutingModel *rModel;
-std::map<GaugeConfigSection *, float *> fullParamSettingsRoute;
-std::vector<float> currentFF, currentSF, currentQ;
-std::vector<FloatGrid *> paramGridsRoute;
-GaugeConfigSection gaugeConfigSec("010000");
-float params[PARAM_KINEMATIC_QTY];
+std::vector<GridNode>                 nodes;
+RoutingModel*                         rModel;
+std::map<GaugeConfigSection*, float*> fullParamSettingsRoute;
+std::vector<float>                    currentFF, currentSF, currentQ;
+std::vector<FloatGrid*>               paramGridsRoute;
+GaugeConfigSection                    gaugeConfigSec("010000");
+float                                 params[PARAM_KINEMATIC_QTY];
 
-float inflowHydrograph[] = {0.0, 56.633694, 56.633694, 84.950541,
-                            113.267388, 141.584235, 169.901082, 141.584235,
-                            113.267388, 84.950541, 56.633694, 56.633694};
+float inflowHydrograph[] = {0.0,        56.633694,  56.633694,  84.950541, 113.267388, 141.584235,
+                            169.901082, 141.584235, 113.267388, 84.950541, 56.633694,  56.633694};
 
-int main(int argc, char *argv[])
-{
-
+int main(int argc, char* argv[]) {
   static ef5::RuntimeStatsReporter kwtest_runtime_stats_reporter_instance;
 
   PrintStartupMessage();
@@ -41,76 +38,66 @@ int main(int argc, char *argv[])
   return ERROR_SUCCESS;
 }
 
-void InitializeKW()
-{
-
+void InitializeKW() {
   rModel = new KWRoute();
 
   nodes.resize(NUM_GRID_CELLS);
   currentQ.resize(nodes.size());
   currentSF.resize(nodes.size());
   currentFF.resize(nodes.size());
-  for (int currentNode = 0; currentNode < NUM_GRID_CELLS; currentNode++)
-  {
-    GridNode *currentN = &(nodes)[currentNode];
+  for (int currentNode = 0; currentNode < NUM_GRID_CELLS; currentNode++) {
+    GridNode* currentN = &(nodes)[currentNode];
 
     // Setup the initial node for initiating the search for upstream nodes
     currentN->index = currentNode;
-    currentN->x = currentNode;
-    currentN->y = 0;
-    if (currentNode == 0)
-    {
+    currentN->x     = currentNode;
+    currentN->y     = 0;
+    if (currentNode == 0) {
       currentN->downStreamNode = INVALID_DOWNSTREAM_NODE;
-    }
-    else
-    {
+    } else {
       currentN->downStreamNode = currentNode - 1;
     }
-    currentN->horLen = CELL_SIZE;                         // meters
-    currentN->slope = 0.01;                               // 10.0 / currentN->horLen; // We assume a
-                                                          // difference in height of 1 meter because we know
-                                                          // nothing else
-    currentN->area = (CELL_SIZE * CELL_SIZE) / 1000000.0; // km2
-    currentN->fac = NUM_GRID_CELLS - currentNode + 1;
+    currentN->horLen = CELL_SIZE;  // meters
+    currentN->slope  = 0.01;       // 10.0 / currentN->horLen; // We assume a
+                                   // difference in height of 1 meter because we know
+                                   // nothing else
+    currentN->area  = (CELL_SIZE * CELL_SIZE) / 1000000.0;  // km2
+    currentN->fac   = NUM_GRID_CELLS - currentNode + 1;
     currentN->gauge = &gaugeConfigSec;
 
-    currentQ[currentNode] = 0.0;
+    currentQ[currentNode]  = 0.0;
     currentSF[currentNode] = 0.0;
     currentFF[currentNode] = 0.0;
   }
 
   // We only use lumped parameters here for ease of use.
-  for (size_t paramI = 0; paramI < PARAM_KINEMATIC_QTY; paramI++)
-  {
+  for (size_t paramI = 0; paramI < PARAM_KINEMATIC_QTY; paramI++) {
     paramGridsRoute.push_back(NULL);
   }
 
   // Parameter setup
   fullParamSettingsRoute[&gaugeConfigSec] = params;
-  params[PARAM_KINEMATIC_COEM] = 50.0;
-  params[PARAM_KINEMATIC_UNDER] = 0.1;
-  params[PARAM_KINEMATIC_LEAKI] = 1.0;
-  params[PARAM_KINEMATIC_TH] = -1.0;
-  params[PARAM_KINEMATIC_ISU] = 0.0;
-  params[PARAM_KINEMATIC_ALPHA] = 3.49;
-  params[PARAM_KINEMATIC_BETA] = 0.60;
+  params[PARAM_KINEMATIC_COEM]            = 50.0;
+  params[PARAM_KINEMATIC_UNDER]           = 0.1;
+  params[PARAM_KINEMATIC_LEAKI]           = 1.0;
+  params[PARAM_KINEMATIC_TH]              = -1.0;
+  params[PARAM_KINEMATIC_ISU]             = 0.0;
+  params[PARAM_KINEMATIC_ALPHA]           = 3.49;
+  params[PARAM_KINEMATIC_BETA]            = 0.60;
 
   rModel->InitializeModel(&nodes, &fullParamSettingsRoute, &paramGridsRoute);
 }
 
-void SimulateRouting()
-{
-  FILE *file = fopen("results.csv", "w");
+void SimulateRouting() {
+  FILE* file = fopen("results.csv", "w");
   fprintf(file, "%s", "Time,Inflow(m^3 s^-1),Outflow(m^3 s^-1)\n");
-  float stepHoursReal = 5.0 / 60.0; /// 3600.0f;
+  float stepHoursReal = 5.0 / 60.0;  /// 3600.0f;
 
-  int numInflow = sizeof(inflowHydrograph) / sizeof(inflowHydrograph[0]);
+  int   numInflow = sizeof(inflowHydrograph) / sizeof(inflowHydrograph[0]);
   float totalIn = 0.0, totalOut = 0.0;
-  for (int i = 0; i < TOTAL_TIME_STEPS; i++)
-  {
+  for (int i = 0; i < TOTAL_TIME_STEPS; i++) {
     float inflow = 0.0;
-    if (i < numInflow)
-    {
+    if (i < numInflow) {
       inflow = inflowHydrograph[i];
     }
     rModel->SetObsInflow(NUM_GRID_CELLS - 1, inflow);
@@ -126,12 +113,10 @@ void SimulateRouting()
   printf("Total in %f, out %f\n", totalIn, totalOut);
 }
 
-void PrintStartupMessage()
-{
+void PrintStartupMessage() {
   printf("%s", "********************************************************\n");
   printf("%s", "**   Ensemble Framework For Flash Flood Forecasting   **\n");
-  printf("**                   Version %s                     **\n",
-         EF5_VERSION);
+  printf("**                   Version %s                     **\n", EF5_VERSION);
   printf("**                   KW Test                           **\n");
   printf("%s", "********************************************************\n");
 }

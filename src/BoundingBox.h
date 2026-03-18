@@ -2,8 +2,7 @@
 #define BOUNDING_BOX_H
 
 class BoundingBox {
-
-public:
+ public:
   double top;
   double bottom;
   double left;

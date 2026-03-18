@@ -5,23 +5,24 @@
 #include "TimeUnit.h"
 #include <time.h>
 
-extern const char *datedNameStrings[];
-extern const int datePartLen[];
+extern const char* datedNameStrings[];
+extern const int   datePartLen[];
 
 class DatedName {
+ public:
+  bool  ProcessName(TimeUnit* freq);
+  bool  ProcessNameLoose(TimeUnit* freq);
+  void  SetNameStr(const char* nameStr);
+  void  UpdateName(tm* ptm);
+  char* GetName() {
+    return inUseName;
+  }
 
-public:
-  bool ProcessName(TimeUnit *freq);
-  bool ProcessNameLoose(TimeUnit *freq);
-  void SetNameStr(const char *nameStr);
-  void UpdateName(tm *ptm);
-  char *GetName() { return inUseName; }
-
-private:
+ private:
   SUPPORTED_TIME_UNITS resolution;
-  char inUseName[CONFIG_MAX_LEN];
-  char *timeParts[TIME_UNIT_QTY];
-  bool inUseTimeParts[TIME_UNIT_QTY];
+  char                 inUseName[CONFIG_MAX_LEN];
+  char*                timeParts[TIME_UNIT_QTY];
+  bool                 inUseTimeParts[TIME_UNIT_QTY];
 };
 
 #endif

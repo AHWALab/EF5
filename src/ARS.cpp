@@ -4,21 +4,20 @@
 #include <cstring>
 #include <stdlib.h>
 
-void ARS::Initialize(CaliParamConfigSection *caliParamConfigNew,
-                     RoutingCaliParamConfigSection *routingCaliParamConfigNew,
-                     SnowCaliParamConfigSection *snowCaliParamConfigNew,
-                     int numParamsWBNew, int numParamsRNew, int numParamsSNew,
-                     Simulator *simNew) {
-  caliParamConfig = caliParamConfigNew;
+void ARS::Initialize(CaliParamConfigSection*        caliParamConfigNew,
+                     RoutingCaliParamConfigSection* routingCaliParamConfigNew,
+                     SnowCaliParamConfigSection* snowCaliParamConfigNew, int numParamsWBNew,
+                     int numParamsRNew, int numParamsSNew, Simulator* simNew) {
+  caliParamConfig        = caliParamConfigNew;
   routingCaliParamConfig = routingCaliParamConfigNew;
-  numParamsWB = numParamsWBNew;
-  numParamsR = numParamsR;
-  numParams = numParamsWBNew + numParamsRNew;
-  sim = simNew;
+  numParamsWB            = numParamsWBNew;
+  numParamsR             = numParamsR;
+  numParams              = numParamsWBNew + numParamsRNew;
+  sim                    = simNew;
 
   // Create storage arrays
-  minParams = new float[numParams];
-  maxParams = new float[numParams];
+  minParams     = new float[numParams];
+  maxParams     = new float[numParams];
   currentParams = new float[numParams];
 
   // Stuff from CaliParamConfigSection
@@ -27,14 +26,14 @@ void ARS::Initialize(CaliParamConfigSection *caliParamConfigNew,
   goal = objectiveGoals[caliParamConfig->GetObjFunc()];
 
   // Configurable Parameters
-  topNum = caliParamConfig->ARSGetTopNum();
-  minObjScore = caliParamConfig->ARSGetCritObjScore();
+  topNum              = caliParamConfig->ARSGetTopNum();
+  minObjScore         = caliParamConfig->ARSGetCritObjScore();
   convergenceCriteria = caliParamConfig->ARSGetConvCriteria();
-  burnInSets = caliParamConfig->ARSGetBurnInSets();
+  burnInSets          = caliParamConfig->ARSGetBurnInSets();
 
   // Initialize vars & RNG
   totalSets = 0;
-  goodSets = 0;
+  goodSets  = 0;
 #ifdef WIN32
   srand(time(NULL));
 #else
@@ -43,18 +42,16 @@ void ARS::Initialize(CaliParamConfigSection *caliParamConfigNew,
 }
 
 void ARS::CalibrateParams() {
-
   float objScore;
   float scoreDiff = 0;
 
   while (goodSets < burnInSets || scoreDiff > convergenceCriteria) {
-
     // Generate new parameters
     for (int i = 0; i < numParams; i++) {
 #ifdef WIN32
       float randVal = ((float)rand()) / RAND_MAX;
 #else
-      float randVal = drand48(); //((float)rand()) / RAND_MAX;
+      float randVal = drand48();  //((float)rand()) / RAND_MAX;
 #endif
       currentParams[i] = minParams[i] + (maxParams[i] - minParams[i]) * randVal;
     }
@@ -77,14 +74,13 @@ void ARS::CalibrateParams() {
     }
 
     bool insertedParams = false;
-    for (std::list<ARS_INFO *>::iterator itr = topSets.begin();
-         itr != topSets.end(); itr++) {
-      ARS_INFO *current = *itr;
+    for (std::list<ARS_INFO*>::iterator itr = topSets.begin(); itr != topSets.end(); itr++) {
+      ARS_INFO* current = *itr;
       // Add this sucker here, it is a winner!
       if (((goal == OBJECTIVE_GOAL_MAXIMIZE) && objScore > current->objScore) ||
           ((goal == OBJECTIVE_GOAL_MINIMIZE) && objScore < current->objScore)) {
-        ARS_INFO *newInfo = new ARS_INFO;
-        newInfo->params = new float[numParams];
+        ARS_INFO* newInfo = new ARS_INFO;
+        newInfo->params   = new float[numParams];
         memcpy(newInfo->params, currentParams, sizeof(float) * numParams);
         newInfo->objScore = objScore;
         topSets.insert(itr, newInfo);
@@ -96,8 +92,8 @@ void ARS::CalibrateParams() {
     // Lets see if the top number of sets hasn't filled yet, if so add it to the
     // back
     if (!insertedParams && topSets.size() < topNum) {
-      ARS_INFO *newInfo = new ARS_INFO;
-      newInfo->params = new float[numParams];
+      ARS_INFO* newInfo = new ARS_INFO;
+      newInfo->params   = new float[numParams];
       memcpy(newInfo->params, currentParams, sizeof(float) * numParams);
       newInfo->objScore = objScore;
       topSets.push_back(newInfo);
@@ -106,7 +102,7 @@ void ARS::CalibrateParams() {
 
     // Ensure that our list of good parameter sets only contains topNum
     if (topSets.size() > topNum) {
-      ARS_INFO *current = topSets.back();
+      ARS_INFO* current = topSets.back();
       delete[] current->params;
       delete current;
       topSets.pop_back();
@@ -114,15 +110,13 @@ void ARS::CalibrateParams() {
 
     // Update the min and max values!
     if (goodSets > burnInSets && insertedParams) {
-
       for (int i = 0; i < numParams; i++) {
         minParams[i] = 9999;
         maxParams[i] = 0;
       }
 
-      for (std::list<ARS_INFO *>::iterator itr = topSets.begin();
-           itr != topSets.end(); itr++) {
-        ARS_INFO *current = *itr;
+      for (std::list<ARS_INFO*>::iterator itr = topSets.begin(); itr != topSets.end(); itr++) {
+        ARS_INFO* current = *itr;
         for (int i = 0; i < numParams; i++) {
           if (current->params[i] < minParams[i]) {
             minParams[i] = current->params[i];
@@ -134,36 +128,32 @@ void ARS::CalibrateParams() {
       }
     }
 
-    ARS_INFO *top = topSets.front();
-    ARS_INFO *bottom = topSets.back();
+    ARS_INFO* top    = topSets.front();
+    ARS_INFO* bottom = topSets.back();
     if (insertedParams) {
       scoreDiff = top->objScore - bottom->objScore;
-      printf("ConvC %f (%f, %f), total runs %i, good runs %i\n",
-             (top->objScore - bottom->objScore), top->objScore,
-             bottom->objScore, totalSets, goodSets);
+      printf("ConvC %f (%f, %f), total runs %i, good runs %i\n", (top->objScore - bottom->objScore),
+             top->objScore, bottom->objScore, totalSets, goodSets);
     }
   }
 }
 
-void ARS::WriteOutput(char *outputFile, MODELS model, ROUTES route) {
-  FILE *file = fopen(outputFile, "w");
+void ARS::WriteOutput(char* outputFile, MODELS model, ROUTES route) {
+  FILE* file = fopen(outputFile, "w");
 
   fprintf(file, "%s", "Rank,ObjFunc,");
   for (int i = 0; i < numParams; i++) {
-    fprintf(file, "%s%s", modelParamStrings[model][i],
-            (i != (numParams - 1)) ? "," : "\n");
+    fprintf(file, "%s%s", modelParamStrings[model][i], (i != (numParams - 1)) ? "," : "\n");
   }
 
   int index = 0;
-  for (std::list<ARS_INFO *>::iterator itr = topSets.begin();
-       itr != topSets.end(); itr++) {
-    ARS_INFO *current = *itr;
+  for (std::list<ARS_INFO*>::iterator itr = topSets.begin(); itr != topSets.end(); itr++) {
+    ARS_INFO* current = *itr;
 
     fprintf(file, "%i,%f,", index, current->objScore);
 
     for (int i = 0; i < numParams; i++) {
-      fprintf(file, "%f%s", current->params[i],
-              (i != (numParams - 1)) ? "," : "\n");
+      fprintf(file, "%f%s", current->params[i], (i != (numParams - 1)) ? "," : "\n");
     }
 
     index++;
@@ -171,7 +161,7 @@ void ARS::WriteOutput(char *outputFile, MODELS model, ROUTES route) {
 
   fprintf(file, "%s", "\n\n\n");
 
-  ARS_INFO *current = *(topSets.begin());
+  ARS_INFO* current = *(topSets.begin());
   for (int i = 0; i < numParams; i++) {
     fprintf(file, "%s=%f\n", modelParamStrings[model][i], current->params[i]);
   }

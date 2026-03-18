@@ -8,14 +8,14 @@
 #include <vector>
 
 class GridWriterFull {
-public:
+ public:
   void Initialize();
-  void WriteGrid(std::vector<GridNode> *nodes, std::vector<float> *data,
-                 const char *file, bool ascii = true);
-  void WriteGrid(std::vector<GridNode> *nodes, std::vector<double> *data,
-                 const char *file, bool ascii = true);
+  void WriteGrid(std::vector<GridNode>* nodes, std::vector<float>* data, const char* file,
+                 bool ascii = true);
+  void WriteGrid(std::vector<GridNode>* nodes, std::vector<double>* data, const char* file,
+                 bool ascii = true);
 
-private:
+ private:
   FloatGrid grid;
 };
 

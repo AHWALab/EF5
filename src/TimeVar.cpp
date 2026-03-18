@@ -8,67 +8,64 @@
 #include <stdlib.h>
 
 #ifdef _WIN32
-int is_leap(int year);
-int days_from_0(int year);
-int days_from_1970(int year);
-int days_from_1jan(int year, int month, int day);
-time_t internal_timegm(struct tm *t);
+int    is_leap(int year);
+int    days_from_0(int year);
+int    days_from_1970(int year);
+int    days_from_1jan(int year, int month, int day);
+time_t internal_timegm(struct tm* t);
 #endif
 
-bool TimeVar::LoadTime(char *time) {
-
-  int year = 0;
-  int month = 0;
-  int day = 0;
-  int hour = 0;
+bool TimeVar::LoadTime(char* time) {
+  int year   = 0;
+  int month  = 0;
+  int day    = 0;
+  int hour   = 0;
   int minute = 0;
   int second = 0;
 
   memset(&currentTime, 0, sizeof(tm));
-  currentTime.tm_mday = 1;
+  currentTime.tm_mday  = 1;
   currentTime.tm_isdst = -1;
 
-  int num = sscanf(time, "%04d%02d%02d%02d%02d%02d", &year, &month, &day, &hour,
-                   &minute, &second);
+  int num = sscanf(time, "%04d%02d%02d%02d%02d%02d", &year, &month, &day, &hour, &minute, &second);
 
   switch (num) {
-  case 6:
-    currentTime.tm_sec = second;
-  case 5:
-    currentTime.tm_min = minute;
-  case 4:
-    currentTime.tm_hour = hour;
-  case 3:
-    currentTime.tm_mday = day;
-  case 2:
-    currentTime.tm_mon = month - 1;
-  case 1:
-    currentTime.tm_year = year - 1900;
-    break;
-  default:
-    ERROR_LOGF("Unable to process time \"%s\"!", time);
-    return false;
+    case 6:
+      currentTime.tm_sec = second;
+    case 5:
+      currentTime.tm_min = minute;
+    case 4:
+      currentTime.tm_hour = hour;
+    case 3:
+      currentTime.tm_mday = day;
+    case 2:
+      currentTime.tm_mon = month - 1;
+    case 1:
+      currentTime.tm_year = year - 1900;
+      break;
+    default:
+      ERROR_LOGF("Unable to process time \"%s\"!", time);
+      return false;
   }
 
   // This cleans up currentTime
-  currentTimeSec = port_timegm(&currentTime); // For portability use mktime
-                                              // (while setting TZ environmental
-                                              // variable) instead of timegm
+  currentTimeSec = port_timegm(&currentTime);  // For portability use mktime
+                                               // (while setting TZ environmental
+                                               // variable) instead of timegm
 
   return true;
 }
 
-bool TimeVar::LoadTimeExcel(char *time) {
-
-  int year = 0;
-  int month = 0;
-  int day = 0;
-  int hour = 0;
-  int minute = 0;
-  int second = 0;
-  size_t len = strlen(time);
+bool TimeVar::LoadTimeExcel(char* time) {
+  int    year   = 0;
+  int    month  = 0;
+  int    day    = 0;
+  int    hour   = 0;
+  int    minute = 0;
+  int    second = 0;
+  size_t len    = strlen(time);
   memset(&currentTime, 0, sizeof(tm));
-  currentTime.tm_mday = 1;
+  currentTime.tm_mday  = 1;
   currentTime.tm_isdst = -1;
 
   bool yearMonthDay = false;
@@ -76,17 +73,17 @@ bool TimeVar::LoadTimeExcel(char *time) {
     yearMonthDay = true;
   }
 
-  int num = 1;
-  char *end;
+  int   num = 1;
+  char* end;
   if (!yearMonthDay) {
     if (len > 2) {
-      time[2] = ' '; // Month-Day
+      time[2] = ' ';  // Month-Day
     }
     if (len > 5) {
-      time[5] = ' '; // Day-Year
+      time[5] = ' ';  // Day-Year
     }
     if (len > 13) {
-      time[13] = ' '; // Hour:Minute
+      time[13] = ' ';  // Hour:Minute
     }
     if (len > 16) {
       time[16] = ' ';
@@ -114,13 +111,13 @@ bool TimeVar::LoadTimeExcel(char *time) {
     }
   } else {
     if (len > 4) {
-      time[4] = ' '; // Year-Month
+      time[4] = ' ';  // Year-Month
     }
     if (len > 7) {
-      time[7] = ' '; // Month-Day
+      time[7] = ' ';  // Month-Day
     }
     if (len > 13) {
-      time[13] = ' '; // Hour:Minute
+      time[13] = ' ';  // Hour:Minute
     }
     if (len > 16) {
       time[16] = ' ';
@@ -149,35 +146,35 @@ bool TimeVar::LoadTimeExcel(char *time) {
   }
 
   switch (num) {
-  case 6:
-    currentTime.tm_sec = second;
-  case 5:
-    currentTime.tm_min = minute;
-  case 4:
-    currentTime.tm_hour = hour;
-  case 3:
-    currentTime.tm_mday = day;
-  case 2:
-    currentTime.tm_mon = month - 1;
-  case 1:
-    if (year < 1900) {
-      if (year < 50) {
-        year += 2000;
-      } else {
-        year += 1900;
+    case 6:
+      currentTime.tm_sec = second;
+    case 5:
+      currentTime.tm_min = minute;
+    case 4:
+      currentTime.tm_hour = hour;
+    case 3:
+      currentTime.tm_mday = day;
+    case 2:
+      currentTime.tm_mon = month - 1;
+    case 1:
+      if (year < 1900) {
+        if (year < 50) {
+          year += 2000;
+        } else {
+          year += 1900;
+        }
       }
-    }
-    currentTime.tm_year = year - 1900;
-    break;
-  default:
-    ERROR_LOGF("Unable to process time \"%s\"!", time);
-    return false;
+      currentTime.tm_year = year - 1900;
+      break;
+    default:
+      ERROR_LOGF("Unable to process time \"%s\"!", time);
+      return false;
   }
 
   // This cleans up currentTime
-  currentTimeSec = port_timegm(&currentTime); // For portability use mktime
-                                              // (while setting TZ environmental
-                                              // variable) instead of timegm
+  currentTimeSec = port_timegm(&currentTime);  // For portability use mktime
+                                               // (while setting TZ environmental
+                                               // variable) instead of timegm
 
   /*INFO_LOGF(
       "Input \"%s\", year %i, month %i, day %i, hour %i, minutes %i, epoch %li",
@@ -188,83 +185,81 @@ bool TimeVar::LoadTimeExcel(char *time) {
   return true;
 }
 
-void TimeVar::Decrement(TimeUnit *inc) {
-
+void TimeVar::Decrement(TimeUnit* inc) {
   switch (inc->GetTimeUnit()) {
-  case YEARS:
-    currentTime.tm_year -= inc->GetTimeModifier();
-    break;
-  case MONTHS:
-    currentTime.tm_mon -= inc->GetTimeModifier();
-    break;
-  case DAYS:
-    currentTime.tm_mday -= inc->GetTimeModifier();
-    break;
-  case HOURS:
-    currentTime.tm_hour -= inc->GetTimeModifier();
-    break;
-  case MINUTES:
-    currentTime.tm_min -= inc->GetTimeModifier();
-    break;
-  case SECONDS:
-    currentTime.tm_sec -= inc->GetTimeModifier();
-    break;
-  default:
-    break; // Should be __builtin_unreachable();
+    case YEARS:
+      currentTime.tm_year -= inc->GetTimeModifier();
+      break;
+    case MONTHS:
+      currentTime.tm_mon -= inc->GetTimeModifier();
+      break;
+    case DAYS:
+      currentTime.tm_mday -= inc->GetTimeModifier();
+      break;
+    case HOURS:
+      currentTime.tm_hour -= inc->GetTimeModifier();
+      break;
+    case MINUTES:
+      currentTime.tm_min -= inc->GetTimeModifier();
+      break;
+    case SECONDS:
+      currentTime.tm_sec -= inc->GetTimeModifier();
+      break;
+    default:
+      break;  // Should be __builtin_unreachable();
   }
 
   currentTime.tm_isdst = -1;
 
   // Clean up currentTime
-  currentTimeSec = port_timegm(&currentTime); // For portability use mktime
-                                              // (while setting TZ environmental
-                                              // variable) instead of timegm
+  currentTimeSec = port_timegm(&currentTime);  // For portability use mktime
+                                               // (while setting TZ environmental
+                                               // variable) instead of timegm
 }
 
-void TimeVar::Increment(TimeUnit *inc) {
-
+void TimeVar::Increment(TimeUnit* inc) {
   switch (inc->GetTimeUnit()) {
-  case YEARS:
-    currentTime.tm_year += inc->GetTimeModifier();
-    break;
-  case MONTHS:
-    currentTime.tm_mon += inc->GetTimeModifier();
-    break;
-  case DAYS:
-    currentTime.tm_mday += inc->GetTimeModifier();
-    break;
-  case HOURS:
-    currentTime.tm_hour += inc->GetTimeModifier();
-    break;
-  case MINUTES:
-    currentTime.tm_min += inc->GetTimeModifier();
-    break;
-  case SECONDS:
-    currentTime.tm_sec += inc->GetTimeModifier();
-    break;
-  default:
-    break; // Should be __builtin_unreachable();
+    case YEARS:
+      currentTime.tm_year += inc->GetTimeModifier();
+      break;
+    case MONTHS:
+      currentTime.tm_mon += inc->GetTimeModifier();
+      break;
+    case DAYS:
+      currentTime.tm_mday += inc->GetTimeModifier();
+      break;
+    case HOURS:
+      currentTime.tm_hour += inc->GetTimeModifier();
+      break;
+    case MINUTES:
+      currentTime.tm_min += inc->GetTimeModifier();
+      break;
+    case SECONDS:
+      currentTime.tm_sec += inc->GetTimeModifier();
+      break;
+    default:
+      break;  // Should be __builtin_unreachable();
   }
 
   currentTime.tm_isdst = -1;
 
   // Clean up currentTime
-  currentTimeSec = port_timegm(&currentTime); // For portability use mktime
-                                              // (while setting TZ environmental
-                                              // variable) instead of timegm
+  currentTimeSec = port_timegm(&currentTime);  // For portability use mktime
+                                               // (while setting TZ environmental
+                                               // variable) instead of timegm
 }
 
-tm *TimeVar::GetTM() { return &currentTime; }
+tm* TimeVar::GetTM() {
+  return &currentTime;
+}
 
-TimeVar &TimeVar::operator=(const TimeVar &rhs) {
-
+TimeVar& TimeVar::operator=(const TimeVar& rhs) {
   memcpy(&currentTime, &rhs.currentTime, sizeof(tm));
   currentTimeSec = port_timegm(&currentTime);
   return *this;
 }
 
-bool operator==(const TimeVar &lhs, const TimeVar &rhs) {
-
+bool operator==(const TimeVar& lhs, const TimeVar& rhs) {
   return lhs.currentTimeSec == rhs.currentTimeSec;
 
   /*if (lhs.currentTime.tm_min != rhs.currentTime.tm_min) {
@@ -294,8 +289,7 @@ bool operator==(const TimeVar &lhs, const TimeVar &rhs) {
   return true;*/
 }
 
-bool operator<(const TimeVar &lhs, const TimeVar &rhs) {
-
+bool operator<(const TimeVar& lhs, const TimeVar& rhs) {
   return lhs.currentTimeSec < rhs.currentTimeSec;
 
   /*
@@ -344,8 +338,7 @@ bool operator<(const TimeVar &lhs, const TimeVar &rhs) {
    return false;*/
 }
 
-bool operator<=(const TimeVar &lhs, const TimeVar &rhs) {
-
+bool operator<=(const TimeVar& lhs, const TimeVar& rhs) {
   return lhs.currentTimeSec <= rhs.currentTimeSec;
 
   /*int diff = lhs.currentTime.tm_year - rhs.currentTime.tm_year;
@@ -393,23 +386,22 @@ bool operator<=(const TimeVar &lhs, const TimeVar &rhs) {
   return true;*/
 }
 
-time_t TimeVar::port_timegm(struct tm *tm) {
-
+time_t TimeVar::port_timegm(struct tm* tm) {
 #ifdef _WIN32
-  time_t result = mktime(tm);
-  struct tm *newtm = gmtime(&result);
+  time_t     result = mktime(tm);
+  struct tm* newtm  = gmtime(&result);
   // if (!newtm) {
   //	ERROR_LOGF("Got null from gmtime! %i, %i %i %i %i %i %i", result,
-  //tm->tm_year, tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
+  // tm->tm_year, tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
   // } else {
   tm->tm_year = newtm->tm_year;
-  tm->tm_mon = newtm->tm_mon;
+  tm->tm_mon  = newtm->tm_mon;
   tm->tm_mday = newtm->tm_mday;
   tm->tm_hour = newtm->tm_hour;
-  tm->tm_min = newtm->tm_min;
-  tm->tm_sec = newtm->tm_sec;
+  tm->tm_min  = newtm->tm_min;
+  tm->tm_sec  = newtm->tm_sec;
   //	}
-  return result; // internal_timegm(tm);
+  return result;  // internal_timegm(tm);
 #else
   return timegm(tm);
 #endif
@@ -417,12 +409,9 @@ time_t TimeVar::port_timegm(struct tm *tm) {
 
 #ifdef WIN32
 inline int is_leap(int year) {
-  if (year % 400 == 0)
-    return 1;
-  if (year % 100 == 0)
-    return 0;
-  if (year % 4 == 0)
-    return 1;
+  if (year % 400 == 0) return 1;
+  if (year % 100 == 0) return 0;
+  if (year % 4 == 0) return 1;
   return 0;
 }
 inline int days_from_0(int year) {
@@ -434,14 +423,13 @@ inline int days_from_1970(int year) {
   return days_from_0(year) - days_from_0_to_1970;
 }
 inline int days_from_1jan(int year, int month, int day) {
-  static const int days[2][12] = {
-      {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334},
-      {0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335}};
+  static const int days[2][12] = {{0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334},
+                                  {0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335}};
   return days[is_leap(year)][month - 1] + day - 1;
 }
 
-inline time_t internal_timegm(struct tm *t) {
-  int year = t->tm_year + 1900;
+inline time_t internal_timegm(struct tm* t) {
+  int year  = t->tm_year + 1900;
   int month = t->tm_mon;
   if (month > 11) {
     year += month / 12;
@@ -452,13 +440,13 @@ inline time_t internal_timegm(struct tm *t) {
     month += 12 * years_diff;
   }
   month++;
-  int day = t->tm_mday;
-  int day_of_year = days_from_1jan(year, month, day);
+  int day              = t->tm_mday;
+  int day_of_year      = days_from_1jan(year, month, day);
   int days_since_epoch = days_from_1970(year) + day_of_year;
 
   time_t seconds_in_day = 3600 * 24;
-  time_t result = seconds_in_day * days_since_epoch + 3600 * t->tm_hour +
-                  60 * t->tm_min + t->tm_sec;
+  time_t result =
+      seconds_in_day * days_since_epoch + 3600 * t->tm_hour + 60 * t->tm_min + t->tm_sec;
 
   return result;
 }

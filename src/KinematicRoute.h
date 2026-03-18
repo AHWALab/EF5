@@ -15,17 +15,16 @@ struct KWGridNode : BasicGridNode {
   float params[PARAM_KINEMATIC_QTY];
   float states[STATE_KW_QTY];
 
-  bool channelGridCell;
-  bool daActive;
+  bool   channelGridCell;
+  bool   daActive;
   double slopeSqrt;
   double hillSlopeSqrt;
 
-  double
-      nexTime[KW_LAYER_QTY]; // This is a by product of computing cell routing
-  KWGridNode *routeCNode[2][KW_LAYER_QTY]; // This is the node we route water to
-  GridNode *routeNode[2][KW_LAYER_QTY];
-  double routeAmount[2][KW_LAYER_QTY];
-  double incomingWater[KW_LAYER_QTY];
+  double      nexTime[KW_LAYER_QTY];        // This is a by product of computing cell routing
+  KWGridNode* routeCNode[2][KW_LAYER_QTY];  // This is the node we route water to
+  GridNode*   routeNode[2][KW_LAYER_QTY];
+  double      routeAmount[2][KW_LAYER_QTY];
+  double      incomingWater[KW_LAYER_QTY];
 
   // double reservoirs[KW_LAYER_QTY]; // CREST has two excess storage reservoirs
   // (overland & interflow)
@@ -36,35 +35,33 @@ struct KWGridNode : BasicGridNode {
 };
 
 class KWRoute : public RoutingModel {
-
-public:
+ public:
   KWRoute();
   ~KWRoute();
   float SetObsInflow(long index, float inflow);
-  bool InitializeModel(std::vector<GridNode> *newNodes,
-                       std::map<GaugeConfigSection *, float *> *paramSettings,
-                       std::vector<FloatGrid *> *paramGrids);
-  void InitializeStates(TimeVar *beginTime, char *statePath,
-                        std::vector<float> *fastFlow,
-                        std::vector<float> *slowFlow);
-  void SaveStates(TimeVar *currentTime, char *statePath,
-                  GridWriterFull *gridWriter);
-  bool Route(float stepHours, std::vector<float> *fastFlow,
-             std::vector<float> *slowFlow, std::vector<float> *discharge);
-  float GetMaxSpeed() { return maxSpeed; }
+  bool  InitializeModel(std::vector<GridNode>*                 newNodes,
+                        std::map<GaugeConfigSection*, float*>* paramSettings,
+                        std::vector<FloatGrid*>*               paramGrids);
+  void  InitializeStates(TimeVar* beginTime, char* statePath, std::vector<float>* fastFlow,
+                         std::vector<float>* slowFlow);
+  void  SaveStates(TimeVar* currentTime, char* statePath, GridWriterFull* gridWriter);
+  bool  Route(float stepHours, std::vector<float>* fastFlow, std::vector<float>* slowFlow,
+              std::vector<float>* discharge);
+  float GetMaxSpeed() {
+    return maxSpeed;
+  }
 
-private:
-  void RouteInt(float stepSeconds, GridNode *node, KWGridNode *cNode,
-                float fastFlow, float slowFlow);
-  void
-  InitializeParameters(std::map<GaugeConfigSection *, float *> *paramSettings,
-                       std::vector<FloatGrid *> *paramGrids);
+ private:
+  void RouteInt(float stepSeconds, GridNode* node, KWGridNode* cNode, float fastFlow,
+                float slowFlow);
+  void InitializeParameters(std::map<GaugeConfigSection*, float*>* paramSettings,
+                            std::vector<FloatGrid*>*               paramGrids);
   void InitializeRouting(float timeSeconds);
 
-  std::vector<GridNode> *nodes;
+  std::vector<GridNode>*  nodes;
   std::vector<KWGridNode> kwNodes;
-  float maxSpeed;
-  bool initialized;
+  float                   maxSpeed;
+  bool                    initialized;
 };
 
 #endif

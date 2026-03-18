@@ -4,10 +4,10 @@
 #include <cstring>
 #include <string>
 
-std::map<std::string, PrecipConfigSection *> g_precipConfigs;
+std::map<std::string, PrecipConfigSection*> g_precipConfigs;
 
 PrecipConfigSection::PrecipConfigSection() {
-  locSet = false;
+  locSet  = false;
   freqSet = false;
   nameSet = false;
   typeSet = false;
@@ -16,10 +16,11 @@ PrecipConfigSection::PrecipConfigSection() {
 
 PrecipConfigSection::~PrecipConfigSection() {}
 
-DatedName *PrecipConfigSection::GetFileName() { return &fileName; }
+DatedName* PrecipConfigSection::GetFileName() {
+  return &fileName;
+}
 
-CONFIG_SEC_RET PrecipConfigSection::ProcessKeyValue(char *name, char *value) {
-
+CONFIG_SEC_RET PrecipConfigSection::ProcessKeyValue(char* name, char* value) {
   if (!strcasecmp(name, "type")) {
     SUPPORTED_PRECIP_TYPES result = type.ParseType(value);
     if (result == PRECIP_TYPE_QTY) {
@@ -78,8 +79,8 @@ CONFIG_SEC_RET PrecipConfigSection::ValidateSection() {
   return VALID_RESULT;
 }
 
-bool PrecipConfigSection::IsDuplicate(char *name) {
-  std::map<std::string, PrecipConfigSection *>::iterator itr =
+bool PrecipConfigSection::IsDuplicate(char* name) {
+  std::map<std::string, PrecipConfigSection*>::iterator itr =
       g_precipConfigs.find(std::string(name));
   if (itr == g_precipConfigs.end()) {
     return false;

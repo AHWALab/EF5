@@ -3,15 +3,12 @@
 #include <cstdio>
 #include <fcntl.h>
 
-LongGrid *ReadLongAscGrid(char *file)
-{
-
-  LongGrid *grid = NULL;
-  FILE *fileH;
+LongGrid* ReadLongAscGrid(char* file) {
+  LongGrid* grid = NULL;
+  FILE*     fileH;
 
   fileH = fopen(file, "r");
-  if (fileH == NULL)
-  {
+  if (fileH == NULL) {
     return NULL;
   }
 
@@ -21,60 +18,51 @@ LongGrid *ReadLongAscGrid(char *file)
 
   grid = new LongGrid();
 
-  if (fscanf(fileH, "%*s %ld", &grid->numCols) != 1)
-  {
+  if (fscanf(fileH, "%*s %ld", &grid->numCols) != 1) {
     delete grid;
     fclose(fileH);
     return NULL;
   }
-  if (fscanf(fileH, "%*s %ld", &grid->numRows) != 1)
-  {
+  if (fscanf(fileH, "%*s %ld", &grid->numRows) != 1) {
     delete grid;
     fclose(fileH);
     return NULL;
   }
-  if (fscanf(fileH, "%*s %lf", &grid->extent.left) != 1)
-  {
+  if (fscanf(fileH, "%*s %lf", &grid->extent.left) != 1) {
     delete grid;
     fclose(fileH);
     return NULL;
   }
-  if (fscanf(fileH, "%*s %lf", &grid->extent.bottom) != 1)
-  {
+  if (fscanf(fileH, "%*s %lf", &grid->extent.bottom) != 1) {
     delete grid;
     fclose(fileH);
     return NULL;
   }
-  if (fscanf(fileH, "%*s %lf", &grid->cellSize) != 1)
-  {
+  if (fscanf(fileH, "%*s %lf", &grid->cellSize) != 1) {
     delete grid;
     fclose(fileH);
     return NULL;
   }
-  if (fscanf(fileH, "%*s %ld", &grid->noData) != 1)
-  {
+  if (fscanf(fileH, "%*s %ld", &grid->noData) != 1) {
     delete grid;
     fclose(fileH);
     return NULL;
   }
 
-  grid->data = new long *[grid->numRows];
-  for (long i = 0; i < grid->numRows; i++)
-  {
+  grid->data = new long*[grid->numRows];
+  for (long i = 0; i < grid->numRows; i++) {
     grid->data[i] = new long[grid->numCols];
   }
 
-  for (long row = 0; row < grid->numRows; row++)
-  {
-    for (long col = 0; col < grid->numCols; col++)
-    {
+  for (long row = 0; row < grid->numRows; row++) {
+    for (long col = 0; col < grid->numCols; col++) {
       int c = fscanf(fileH, "%ld", &grid->data[row][col]);
       (void)c;
     }
   }
 
   // Fill in the rest of the BoundingBox
-  grid->extent.top = grid->extent.bottom + grid->numRows * grid->cellSize;
+  grid->extent.top   = grid->extent.bottom + grid->numRows * grid->cellSize;
   grid->extent.right = grid->extent.left + grid->numCols * grid->cellSize;
 
   fclose(fileH);
@@ -82,14 +70,12 @@ LongGrid *ReadLongAscGrid(char *file)
   return grid;
 }
 
-FloatGrid *ReadFloatAscGrid(char *file)
-{
-  FloatGrid *grid = NULL;
-  FILE *fileH;
+FloatGrid* ReadFloatAscGrid(char* file) {
+  FloatGrid* grid = NULL;
+  FILE*      fileH;
 
   fileH = fopen(file, "r");
-  if (fileH == NULL)
-  {
+  if (fileH == NULL) {
     return NULL;
   }
 
@@ -99,83 +85,70 @@ FloatGrid *ReadFloatAscGrid(char *file)
 
   grid = new FloatGrid();
 
-  if (fscanf(fileH, "%*s %ld", &grid->numCols) != 1)
-  {
+  if (fscanf(fileH, "%*s %ld", &grid->numCols) != 1) {
     WARNING_LOGF("ASCII file %s missing number of columns", file);
     delete grid;
     fclose(fileH);
     return NULL;
   }
-  if (fscanf(fileH, "%*s %ld", &grid->numRows) != 1)
-  {
+  if (fscanf(fileH, "%*s %ld", &grid->numRows) != 1) {
     WARNING_LOGF("ASCII file %s missing number of rows", file);
     delete grid;
     fclose(fileH);
     return NULL;
   }
-  if (fscanf(fileH, "%*s %lf", &grid->extent.left) != 1)
-  {
+  if (fscanf(fileH, "%*s %lf", &grid->extent.left) != 1) {
     WARNING_LOGF("ASCII file %s missing lower left x", file);
     delete grid;
     fclose(fileH);
     return NULL;
   }
-  if (fscanf(fileH, "%*s %lf", &grid->extent.bottom) != 1)
-  {
+  if (fscanf(fileH, "%*s %lf", &grid->extent.bottom) != 1) {
     WARNING_LOGF("ASCII file %s missing lower left y", file);
     delete grid;
     fclose(fileH);
     return NULL;
   }
-  if (fscanf(fileH, "%*s %lf", &grid->cellSize) != 1)
-  {
+  if (fscanf(fileH, "%*s %lf", &grid->cellSize) != 1) {
     WARNING_LOGF("ASCII file %s missing cell size", file);
     delete grid;
     fclose(fileH);
     return NULL;
   }
-  if (fscanf(fileH, "%*s %f", &grid->noData) != 1)
-  {
+  if (fscanf(fileH, "%*s %f", &grid->noData) != 1) {
     WARNING_LOGF("ASCII file %s missing no data value", file);
     delete grid;
     fclose(fileH);
     return NULL;
   }
 
-  grid->data = new float *[grid->numRows]();
-  if (!grid->data)
-  {
-    WARNING_LOGF("ASCII file %s too large (out of memory) with %li rows", file,
-                 grid->numRows);
+  grid->data = new float*[grid->numRows]();
+  if (!grid->data) {
+    WARNING_LOGF("ASCII file %s too large (out of memory) with %li rows", file, grid->numRows);
     delete grid;
     fclose(fileH);
     return NULL;
   }
 
-  for (long i = 0; i < grid->numRows; i++)
-  {
+  for (long i = 0; i < grid->numRows; i++) {
     grid->data[i] = new float[grid->numCols];
-    if (!grid->data[i])
-    {
-      WARNING_LOGF("ASCII file %s too large (out of memory) with %li columns",
-                   file, grid->numCols);
+    if (!grid->data[i]) {
+      WARNING_LOGF("ASCII file %s too large (out of memory) with %li columns", file, grid->numCols);
       delete grid;
       fclose(fileH);
       return NULL;
     }
   }
 
-  for (long row = 0; row < grid->numRows; row++)
-  {
-    for (long col = 0; col < grid->numCols; col++)
-    {
+  for (long row = 0; row < grid->numRows; row++) {
+    for (long col = 0; col < grid->numCols; col++) {
       int c = fscanf(fileH, "%f", &grid->data[row][col]);
       (void)c;
     }
   }
 
   // Fill in the rest of the BoundingBox
-  grid->extent.top = grid->extent.bottom + grid->numRows * grid->cellSize;
+  grid->extent.top   = grid->extent.bottom + grid->numRows * grid->cellSize;
   grid->extent.right = grid->extent.left + grid->numCols * grid->cellSize;
 
   fclose(fileH);
@@ -183,13 +156,11 @@ FloatGrid *ReadFloatAscGrid(char *file)
   return grid;
 }
 
-void WriteLongAscGrid(const char *file, LongGrid *grid)
-{
-  FILE *fileH;
+void WriteLongAscGrid(const char* file, LongGrid* grid) {
+  FILE* fileH;
 
   fileH = fopen(file, "w");
-  if (fileH == NULL)
-  {
+  if (fileH == NULL) {
     printf("Failed to Open File in WriteLongAscGrid (AscGrid.cpp)\n");
     return;
   }
@@ -203,26 +174,21 @@ void WriteLongAscGrid(const char *file, LongGrid *grid)
   fprintf(fileH, "NODATA_value %ld\n", grid->noData);
 
   // Write out the data
-  for (long row = 0; row < grid->numRows; row++)
-  {
+  for (long row = 0; row < grid->numRows; row++) {
     long lastCol = grid->numCols - 1;
-    for (long col = 0; col < grid->numCols; col++)
-    {
-      fprintf(fileH, "%5ld%s", grid->data[row][col],
-              (col == lastCol) ? "\n" : " ");
+    for (long col = 0; col < grid->numCols; col++) {
+      fprintf(fileH, "%5ld%s", grid->data[row][col], (col == lastCol) ? "\n" : " ");
     }
   }
 
   fclose(fileH);
 }
 
-void WriteFloatAscGrid(const char *file, FloatGrid *grid)
-{
-  FILE *fileH;
+void WriteFloatAscGrid(const char* file, FloatGrid* grid) {
+  FILE* fileH;
 
   fileH = fopen(file, "w");
-  if (fileH == NULL)
-  {
+  if (fileH == NULL) {
     printf("Failed to Open File in WriteFloatAscGrid (AscGrid.cpp)!\n");
     return;
   }
@@ -236,13 +202,10 @@ void WriteFloatAscGrid(const char *file, FloatGrid *grid)
   fprintf(fileH, "NODATA_value %.02f\n", grid->noData);
 
   // Write out the data
-  for (long row = 0; row < grid->numRows; row++)
-  {
+  for (long row = 0; row < grid->numRows; row++) {
     long lastCol = grid->numCols - 1;
-    for (long col = 0; col < grid->numCols; col++)
-    {
-      fprintf(fileH, "%.05f%s", grid->data[row][col],
-              (col == lastCol) ? "\n" : " ");
+    for (long col = 0; col < grid->numCols; col++) {
+      fprintf(fileH, "%.05f%s", grid->data[row][col], (col == lastCol) ? "\n" : " ");
     }
   }
 

@@ -1,7 +1,7 @@
 #include "GaugeMap.h"
 #include <cstdio>
 
-void GaugeMap::Initialize(std::vector<GaugeConfigSection *> *newGauges) {
+void GaugeMap::Initialize(std::vector<GaugeConfigSection*>* newGauges) {
   // Copy the list of gauges over to internal storage
   gauges = (*newGauges);
 
@@ -22,57 +22,53 @@ void GaugeMap::Initialize(std::vector<GaugeConfigSection *> *newGauges) {
   partialArea.resize(countGauges);
 }
 
-void GaugeMap::AddUpstreamGauge(GaugeConfigSection *downStream,
-                                GaugeConfigSection *upStream) {
+void GaugeMap::AddUpstreamGauge(GaugeConfigSection* downStream, GaugeConfigSection* upStream) {
   size_t countGauges = gauges.size();
   for (size_t i = 0; i < countGauges; i++) {
     if (gauges[i] == downStream) {
-      printf("%s is upstream(direct) of %s\n", upStream->GetName(),
-             downStream->GetName());
+      printf("%s is upstream(direct) of %s\n", upStream->GetName(), downStream->GetName());
       gaugeTree[i].push_back(upStream);
     }
   }
 
   for (size_t i = 0; i < countGauges; i++) {
-    std::vector<GaugeConfigSection *> *intGauges = &(gaugeTree[i]);
+    std::vector<GaugeConfigSection*>* intGauges = &(gaugeTree[i]);
     for (size_t j = 0; j < intGauges->size(); j++) {
       if (intGauges->at(j) == downStream) {
-        printf("%s is upstream(indirect) of %s\n", upStream->GetName(),
-               gauges[j]->GetName());
+        printf("%s is upstream(indirect) of %s\n", upStream->GetName(), gauges[j]->GetName());
         intGauges->push_back(upStream);
       }
     }
   }
 }
 
-void GaugeMap::GaugeAverage(std::vector<GridNode> *nodes,
-                            std::vector<float> *currentValue,
-                            std::vector<float> *gaugeAvg) {
+void GaugeMap::GaugeAverage(std::vector<GridNode>* nodes, std::vector<float>* currentValue,
+                            std::vector<float>* gaugeAvg) {
   size_t countGauges = gauges.size();
-  size_t countNodes = nodes->size();
+  size_t countNodes  = nodes->size();
 
   // Zero out the partial vectors
   for (size_t i = 0; i < countGauges; i++) {
-    partialVal[i] = 0;
+    partialVal[i]  = 0;
     partialArea[i] = 0;
   }
 
   // Add up contributions to each gauge
   for (size_t i = 0; i < countNodes; i++) {
-    GridNode *node = &((*nodes)[i]);
-    size_t gaugeIndex = gaugeMap[node->gauge];
+    GridNode* node       = &((*nodes)[i]);
+    size_t    gaugeIndex = gaugeMap[node->gauge];
     partialVal[gaugeIndex] += ((*currentValue)[i] * node->area);
     partialArea[gaugeIndex] += node->area;
   }
 
   for (size_t i = 0; i < countGauges; i++) {
-    float totalVal = 0;
+    float totalVal  = 0;
     float totalArea = 0;
 
     totalVal += partialVal[i];
     totalArea += partialArea[i];
 
-    std::vector<GaugeConfigSection *> *intGauges = &(gaugeTree[i]);
+    std::vector<GaugeConfigSection*>* intGauges = &(gaugeTree[i]);
     for (size_t j = 0; j < intGauges->size(); j++) {
       size_t gaugeIndex = gaugeMap[intGauges->at(j)];
       totalVal += partialVal[gaugeIndex];
@@ -83,11 +79,9 @@ void GaugeMap::GaugeAverage(std::vector<GridNode> *nodes,
   }
 }
 
-void GaugeMap::GetGaugeArea(std::vector<GridNode> *nodes,
-                            std::vector<float> *gaugeArea) {
-
+void GaugeMap::GetGaugeArea(std::vector<GridNode>* nodes, std::vector<float>* gaugeArea) {
   size_t countGauges = gauges.size();
-  size_t countNodes = nodes->size();
+  size_t countNodes  = nodes->size();
 
   // Zero out the partial vectors
   for (size_t i = 0; i < countGauges; i++) {
@@ -96,8 +90,8 @@ void GaugeMap::GetGaugeArea(std::vector<GridNode> *nodes,
 
   // Add up contributions to each gauge
   for (size_t i = 0; i < countNodes; i++) {
-    GridNode *node = &((*nodes)[i]);
-    size_t gaugeIndex = gaugeMap[node->gauge];
+    GridNode* node       = &((*nodes)[i]);
+    size_t    gaugeIndex = gaugeMap[node->gauge];
     partialArea[gaugeIndex] += node->area;
   }
 
@@ -106,7 +100,7 @@ void GaugeMap::GetGaugeArea(std::vector<GridNode> *nodes,
 
     totalArea += partialArea[i];
 
-    std::vector<GaugeConfigSection *> *intGauges = &(gaugeTree[i]);
+    std::vector<GaugeConfigSection*>* intGauges = &(gaugeTree[i]);
     for (size_t j = 0; j < intGauges->size(); j++) {
       size_t gaugeIndex = gaugeMap[intGauges->at(j)];
       totalArea += partialArea[gaugeIndex];

@@ -8,16 +8,16 @@
 #include <vector>
 
 class GridWriter {
-public:
-  void Initialize(std::vector<GridNode> *nodes);
-  void WriteGrid(std::vector<GridNode> *nodes, std::vector<float> *data,
-                 const char *file, bool ascii = true);
-  void WriteGrid(std::vector<GridNode> *nodes, std::vector<double> *data,
-                 const char *file, bool ascii = true);
+ public:
+  void Initialize(std::vector<GridNode>* nodes);
+  void WriteGrid(std::vector<GridNode>* nodes, std::vector<float>* data, const char* file,
+                 bool ascii = true);
+  void WriteGrid(std::vector<GridNode>* nodes, std::vector<double>* data, const char* file,
+                 bool ascii = true);
 
-private:
+ private:
   FloatGrid grid;
-  long minX, maxX, minY, maxY;
+  long      minX, maxX, minY, maxY;
 };
 
 #endif

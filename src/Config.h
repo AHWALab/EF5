@@ -15,15 +15,14 @@ enum CONFIG_PARSE_RESULTS {
 };
 
 class Config {
-
-public:
-  Config(const char *configName);
+ public:
+  Config(const char* configName);
   ~Config();
 
   CONFIG_PARSE_RESULTS ParseConfig();
 
-private:
-  ConfigSection *GetConfigSection(char *sectionName, char *sectionVal);
+ private:
+  ConfigSection* GetConfigSection(char* sectionName, char* sectionVal);
 
   char name[CONFIG_MAX_LEN];
 };

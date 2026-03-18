@@ -9,22 +9,21 @@
 #include <vector>
 
 class ExecuteConfigSection : public ConfigSection {
-
-public:
+ public:
   ExecuteConfigSection();
   ~ExecuteConfigSection();
 
-  CONFIG_SEC_RET ProcessKeyValue(char *name, char *value);
+  CONFIG_SEC_RET ProcessKeyValue(char* name, char* value);
   CONFIG_SEC_RET ValidateSection();
 
-  std::vector<TaskConfigSection *> *GetTasks();
-  std::vector<EnsTaskConfigSection *> *GetEnsTasks();
+  std::vector<TaskConfigSection*>*    GetTasks();
+  std::vector<EnsTaskConfigSection*>* GetEnsTasks();
 
-private:
-  std::vector<TaskConfigSection *> tasks;
-  std::vector<EnsTaskConfigSection *> ensTasks;
+ private:
+  std::vector<TaskConfigSection*>    tasks;
+  std::vector<EnsTaskConfigSection*> ensTasks;
 };
 
-extern ExecuteConfigSection *g_executeConfig;
+extern ExecuteConfigSection* g_executeConfig;
 
 #endif

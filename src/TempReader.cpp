@@ -7,7 +7,7 @@
 #include <cstdio>
 #include <cstring>
 
-void TempReader::ReadDEM(char *file) {
+void TempReader::ReadDEM(char* file) {
   tempDEM = ReadFloatTifGrid(file);
   if (!tempDEM) {
     WARNING_LOGF("Failed to load temperature grid DEM %s\n", file);
@@ -16,18 +16,16 @@ void TempReader::ReadDEM(char *file) {
   }
 }
 
-bool TempReader::Read(char *file, SUPPORTED_TEMP_TYPES type,
-                      std::vector<GridNode> *nodes,
-                      std::vector<float> *currentTemp,
-                      std::vector<float> *prevTemp, bool hasF) {
+bool TempReader::Read(char* file, SUPPORTED_TEMP_TYPES type, std::vector<GridNode>* nodes,
+                      std::vector<float>* currentTemp, std::vector<float>* prevTemp, bool hasF) {
   if (!strcmp(lastTempFile, file)) {
     if (prevTemp) {
       for (size_t i = 0; i < nodes->size(); i++) {
         currentTemp->at(i) = prevTemp->at(i);
       }
     }
-    return true; // This is the same temp file that we read last time, we assume
-                 // currentPET is still valid!
+    return true;  // This is the same temp file that we read last time, we assume
+                  // currentPET is still valid!
   }
 
   if (!hasF) {
@@ -36,18 +34,18 @@ bool TempReader::Read(char *file, SUPPORTED_TEMP_TYPES type,
     strcpy(lastTempFile, file);
   }
 
-  FloatGrid *tempGrid = NULL;
+  FloatGrid* tempGrid = NULL;
 
   switch (type) {
-  case TEMP_ASCII:
-    tempGrid = ReadFloatAscGrid(file);
-    break;
-  case TEMP_TIF:
-    tempGrid = ReadFloatTifGrid(file);
-    break;
-  default:
-    ERROR_LOG("Unsupported Temp format!");
-    break;
+    case TEMP_ASCII:
+      tempGrid = ReadFloatAscGrid(file);
+      break;
+    case TEMP_TIF:
+      tempGrid = ReadFloatTifGrid(file);
+      break;
+    default:
+      ERROR_LOG("Unsupported Temp format!");
+      break;
   }
 
   if (!tempGrid) {
@@ -72,7 +70,7 @@ bool TempReader::Read(char *file, SUPPORTED_TEMP_TYPES type,
   if (g_DEM->IsSpatialMatch(tempGrid)) {
     // The grids are the same! Our life is easy!
     for (size_t i = 0; i < nodes->size(); i++) {
-      GridNode *node = &(nodes->at(i));
+      GridNode* node = &(nodes->at(i));
       if (tempGrid->data[node->y][node->x] != tempGrid->noData) {
         currentTemp->at(i) = tempGrid->data[node->y][node->x];
       } else {
@@ -84,14 +82,13 @@ bool TempReader::Read(char *file, SUPPORTED_TEMP_TYPES type,
     // The grids are different, we must do some resampling fun.
     GridLoc pt;
     for (size_t i = 0; i < nodes->size(); i++) {
-      GridNode *node = &(nodes->at(i));
+      GridNode* node = &(nodes->at(i));
       if (tempGrid->GetGridLoc(node->refLoc.x, node->refLoc.y, &pt) &&
           tempGrid->data[pt.y][pt.x] != tempGrid->noData) {
         if (tempDEM && tempDEM->IsSpatialMatch(tempGrid)) {
-          float temp = tempGrid->data[pt.y][pt.x];
-          float diffHeight =
-              g_DEM->data[node->y][node->x] - tempDEM->data[pt.y][pt.x];
-          float tempMod = -0.0065 * diffHeight;
+          float temp         = tempGrid->data[pt.y][pt.x];
+          float diffHeight   = g_DEM->data[node->y][node->x] - tempDEM->data[pt.y][pt.x];
+          float tempMod      = -0.0065 * diffHeight;
           currentTemp->at(i) = temp + tempMod;
         } else {
           currentTemp->at(i) = tempGrid->data[pt.y][pt.x];

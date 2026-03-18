@@ -7,15 +7,14 @@ enum SUPPORTED_TEMP_TYPES {
   TEMP_TYPE_QTY,
 };
 
-extern const char *tempTypeStrings[];
+extern const char* tempTypeStrings[];
 
 class TempType {
-
-public:
+ public:
   SUPPORTED_TEMP_TYPES GetType();
-  SUPPORTED_TEMP_TYPES ParseType(char *typeStr);
+  SUPPORTED_TEMP_TYPES ParseType(char* typeStr);
 
-private:
+ private:
   SUPPORTED_TEMP_TYPES type;
 };
 

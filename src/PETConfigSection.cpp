@@ -4,23 +4,24 @@
 #include <cstring>
 #include <string>
 
-std::map<std::string, PETConfigSection *> g_petConfigs;
+std::map<std::string, PETConfigSection*> g_petConfigs;
 
 PETConfigSection::PETConfigSection() {
-  locSet = false;
+  locSet  = false;
   freqSet = false;
   nameSet = false;
   typeSet = false;
   unitSet = false;
-  isTemp = false;
+  isTemp  = false;
 }
 
 PETConfigSection::~PETConfigSection() {}
 
-DatedName *PETConfigSection::GetFileName() { return &fileName; }
+DatedName* PETConfigSection::GetFileName() {
+  return &fileName;
+}
 
-CONFIG_SEC_RET PETConfigSection::ProcessKeyValue(char *name, char *value) {
-
+CONFIG_SEC_RET PETConfigSection::ProcessKeyValue(char* name, char* value) {
   if (!strcasecmp(name, "type")) {
     SUPPORTED_PET_TYPES result = type.ParseType(value);
     if (result == PET_TYPE_QTY) {
@@ -85,9 +86,8 @@ CONFIG_SEC_RET PETConfigSection::ValidateSection() {
   return VALID_RESULT;
 }
 
-bool PETConfigSection::IsDuplicate(char *name) {
-  std::map<std::string, PETConfigSection *>::iterator itr =
-      g_petConfigs.find(std::string(name));
+bool PETConfigSection::IsDuplicate(char* name) {
+  std::map<std::string, PETConfigSection*>::iterator itr = g_petConfigs.find(std::string(name));
   if (itr == g_petConfigs.end()) {
     return false;
   } else {

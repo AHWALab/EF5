@@ -3,7 +3,7 @@
 
 #include "Grid.h"
 
-FloatGrid *ReadFloatTRMMV6Grid(char *file, FloatGrid *grid);
-FloatGrid *ReadFloatTRMMV6Grid(char *file);
+FloatGrid* ReadFloatTRMMV6Grid(char* file, FloatGrid* grid);
+FloatGrid* ReadFloatTRMMV6Grid(char* file);
 
 #endif

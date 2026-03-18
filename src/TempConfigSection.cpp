@@ -4,23 +4,24 @@
 #include <cstring>
 #include <string>
 
-std::map<std::string, TempConfigSection *> g_tempConfigs;
+std::map<std::string, TempConfigSection*> g_tempConfigs;
 
 TempConfigSection::TempConfigSection() {
-  locSet = false;
+  locSet  = false;
   freqSet = false;
   nameSet = false;
   typeSet = false;
   unitSet = false;
-  demSet = false;
+  demSet  = false;
 }
 
 TempConfigSection::~TempConfigSection() {}
 
-DatedName *TempConfigSection::GetFileName() { return &fileName; }
+DatedName* TempConfigSection::GetFileName() {
+  return &fileName;
+}
 
-CONFIG_SEC_RET TempConfigSection::ProcessKeyValue(char *name, char *value) {
-
+CONFIG_SEC_RET TempConfigSection::ProcessKeyValue(char* name, char* value) {
   if (!strcasecmp(name, "type")) {
     SUPPORTED_TEMP_TYPES result = type.ParseType(value);
     if (result == TEMP_TYPE_QTY) {
@@ -84,9 +85,8 @@ CONFIG_SEC_RET TempConfigSection::ValidateSection() {
   return VALID_RESULT;
 }
 
-bool TempConfigSection::IsDuplicate(char *name) {
-  std::map<std::string, TempConfigSection *>::iterator itr =
-      g_tempConfigs.find(std::string(name));
+bool TempConfigSection::IsDuplicate(char* name) {
+  std::map<std::string, TempConfigSection*>::iterator itr = g_tempConfigs.find(std::string(name));
   if (itr == g_tempConfigs.end()) {
     return false;
   } else {

@@ -5,9 +5,8 @@
 
 #define CONFIG_MAX_LEN 256
 
-#define TOLOWER(x)           \
-  for (char *s = x; *s; s++) \
-    *s = tolower(*s);
+#define TOLOWER(x) \
+  for (char* s = x; *s; s++) *s = tolower(*s);
 #define TORADIANS(x) (x) / 180 * 3.1415926
 #define TODEGREES(x) (x) / 3.1415926 * 180
 #define PI 3.1415926
@@ -26,8 +25,7 @@ enum FLOW_DIR {
         FLOW_QTY,
 };*/
 
-enum FLOW_DIR
-{
+enum FLOW_DIR {
   FLOW_EAST = 1,
   FLOW_NORTHEAST,
   FLOW_NORTH,

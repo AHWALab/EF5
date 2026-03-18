@@ -6,25 +6,24 @@
 #include <time.h>
 
 class TimeVar {
+ public:
+  bool LoadTime(char* time);
+  bool LoadTimeExcel(char* time);
+  void Increment(TimeUnit* inc);
+  void Decrement(TimeUnit* inc);
+  tm*  GetTM();
 
-public:
-  bool LoadTime(char *time);
-  bool LoadTimeExcel(char *time);
-  void Increment(TimeUnit *inc);
-  void Decrement(TimeUnit *inc);
-  tm *GetTM();
-
-  TimeVar &operator=(const TimeVar &rhs);
-  friend bool operator==(const TimeVar &lhs, const TimeVar &rhs);
-  friend bool operator<(const TimeVar &lhs, const TimeVar &rhs);
-  friend bool operator<=(const TimeVar &lhs, const TimeVar &rhs);
+  TimeVar&    operator=(const TimeVar& rhs);
+  friend bool operator==(const TimeVar& lhs, const TimeVar& rhs);
+  friend bool operator<(const TimeVar& lhs, const TimeVar& rhs);
+  friend bool operator<=(const TimeVar& lhs, const TimeVar& rhs);
 
   time_t currentTimeSec;
 
-private:
+ private:
   tm currentTime;
 
-  time_t port_timegm(struct tm *tm);
+  time_t port_timegm(struct tm* tm);
 };
 
 #endif

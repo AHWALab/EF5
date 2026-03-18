@@ -8,16 +8,15 @@ enum SUPPORTED_PET_TYPES {
   PET_TYPE_QTY,
 };
 
-extern const char *petTypeStrings[];
+extern const char* petTypeStrings[];
 
 class PETType {
-
-public:
+ public:
   SUPPORTED_PET_TYPES GetType();
-  SUPPORTED_PET_TYPES ParseType(char *typeStr);
-  const char *GetTypes();
+  SUPPORTED_PET_TYPES ParseType(char* typeStr);
+  const char*         GetTypes();
 
-private:
+ private:
   SUPPORTED_PET_TYPES type;
 };
 

@@ -7,13 +7,12 @@
 #include <vector>
 
 class PrecipReader {
-public:
-  bool Read(char *file, SUPPORTED_PRECIP_TYPES type,
-            std::vector<GridNode> *nodes, std::vector<float> *currentPrecip,
-            float precipConvert, std::vector<float> *prevPrecip = NULL,
-            bool hasQPF = false);
+ public:
+  bool Read(char* file, SUPPORTED_PRECIP_TYPES type, std::vector<GridNode>* nodes,
+            std::vector<float>* currentPrecip, float precipConvert,
+            std::vector<float>* prevPrecip = NULL, bool hasQPF = false);
 
-private:
+ private:
   char lastPrecipFile[CONFIG_MAX_LEN * 2];
 };
 

@@ -1,0 +1,36 @@
+name: C/C++ CI Quality Check
+
+on:
+  push:
+    branches: [ "*" ]
+  pull_request:
+    branches: [ "*" ]
+
+jobs:
+  build_and_analyze:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-format clang-tidy cppcheck libtiff-dev libgeotiff-dev zlib1g-dev
+
+    - name: Run clang-format (Style Check)
+      run: |
+        find src -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run -Werror
+
+    - name: Run cppcheck (Static Analysis)
+      run: |
+        cppcheck --enable=all --suppress=missingIncludeSystem --error-exitcode=1 -I src/ src/
+
+    - name: Build Standard EF5
+      run: |
+        make -j$(nproc)
+
+    - name: Build with ASan (AddressSanitizer) and UBSan
+      run: |
+        make clean
+        # If using standard makefile, overriding CXXFLAGS adds sanitizers
+        make CXXFLAGS="-g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer -Wall -Werror -fopenmp" LDFLAGS="-fsanitize=address,undefined" -j$(nproc)

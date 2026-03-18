@@ -5,15 +5,18 @@
 #include "TimeUnit.h"
 
 class DistancePerTimeUnits {
+ public:
+  bool      ParseUnit(char* units);
+  TimeUnit* GetTime() {
+    return &time;
+  }
+  DistanceUnit* GetDist() {
+    return &dist;
+  }
 
-public:
-  bool ParseUnit(char *units);
-  TimeUnit *GetTime() { return &time; }
-  DistanceUnit *GetDist() { return &dist; }
-
-private:
+ private:
   DistanceUnit dist;
-  TimeUnit time;
+  TimeUnit     time;
 };
 
 #endif

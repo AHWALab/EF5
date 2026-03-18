@@ -16,10 +16,9 @@ enum OBJECTIVE_GOAL {
   OBJECTIVE_GOAL_MINIMIZE,
 };
 
-extern const char *objectiveStrings[];
+extern const char*          objectiveStrings[];
 extern const OBJECTIVE_GOAL objectiveGoals[];
 
-float CalcObjFunc(std::vector<float> *obs, std::vector<float> *sim,
-                  OBJECTIVES obj);
+float CalcObjFunc(std::vector<float>* obs, std::vector<float>* sim, OBJECTIVES obj);
 
 #endif

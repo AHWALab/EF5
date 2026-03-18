@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <cstring>
 
-const char *GriddedOutputText[] = {
+const char* GriddedOutputText[] = {
     "none",
     "streamflow",
     "soilmoisture",

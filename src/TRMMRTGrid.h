@@ -3,7 +3,7 @@
 
 #include "Grid.h"
 
-FloatGrid *ReadFloatTRMMRTGrid(char *file, FloatGrid *grid);
-FloatGrid *ReadFloatTRMMRTGrid(char *file);
+FloatGrid* ReadFloatTRMMRTGrid(char* file, FloatGrid* grid);
+FloatGrid* ReadFloatTRMMRTGrid(char* file);
 
 #endif

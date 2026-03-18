@@ -19,30 +19,27 @@ struct Snow17GridNode : BasicGridNode {
 };
 
 class Snow17Model : public SnowModel {
-
-public:
+ public:
   Snow17Model();
   ~Snow17Model();
-  bool InitializeModel(std::vector<GridNode> *newNodes,
-                       std::map<GaugeConfigSection *, float *> *paramSettings,
-                       std::vector<FloatGrid *> *paramGrids);
-  void InitializeStates(TimeVar *beginTime, char *statePath);
-  void SaveStates(TimeVar *currentTime, char *statePath,
-                  GridWriterFull *gridWriter);
-  bool SnowBalance(float jday, float stepHours, std::vector<float> *precip,
-                   std::vector<float> *temp, std::vector<float> *melt,
-                   std::vector<float> *swe);
-  const char *GetName() { return "snow17"; }
+  bool InitializeModel(std::vector<GridNode>*                 newNodes,
+                       std::map<GaugeConfigSection*, float*>* paramSettings,
+                       std::vector<FloatGrid*>*               paramGrids);
+  void InitializeStates(TimeVar* beginTime, char* statePath);
+  void SaveStates(TimeVar* currentTime, char* statePath, GridWriterFull* gridWriter);
+  bool SnowBalance(float jday, float stepHours, std::vector<float>* precip,
+                   std::vector<float>* temp, std::vector<float>* melt, std::vector<float>* swe);
+  const char* GetName() {
+    return "snow17";
+  }
 
-private:
-  void
-  InitializeParameters(std::map<GaugeConfigSection *, float *> *paramSettings,
-                       std::vector<FloatGrid *> *paramGrids);
-  void SnowBalanceInt(GridNode *node, Snow17GridNode *cNode, float stepHours,
-                      float jday, float precipIn, float tempIn, float *melt,
-                      float *swe);
+ private:
+  void InitializeParameters(std::map<GaugeConfigSection*, float*>* paramSettings,
+                            std::vector<FloatGrid*>*               paramGrids);
+  void SnowBalanceInt(GridNode* node, Snow17GridNode* cNode, float stepHours, float jday,
+                      float precipIn, float tempIn, float* melt, float* swe);
 
-  std::vector<GridNode> *nodes;
+  std::vector<GridNode>*      nodes;
   std::vector<Snow17GridNode> snowNodes;
 };
 
