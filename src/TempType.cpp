@@ -6,6 +6,8 @@ const char* tempTypeStrings[] = {
     "tif",
 };
 
+TempType::TempType() { type = TEMP_TYPE_QTY; }
+
 SUPPORTED_TEMP_TYPES TempType::GetType() {
   return type;
 }

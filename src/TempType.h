@@ -11,6 +11,7 @@ extern const char* tempTypeStrings[];
 
 class TempType {
  public:
+  TempType();
   SUPPORTED_TEMP_TYPES GetType();
   SUPPORTED_TEMP_TYPES ParseType(char* typeStr);
 
