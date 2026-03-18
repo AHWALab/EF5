@@ -77,9 +77,8 @@ static const int ENS_NUM_COLORS = sizeof(ENS_TASK_COLORS) / sizeof(ENS_TASK_COLO
 #define ENS_BOX_V       "│"
 #define ENS_CHECK       "✓"
 #define ENS_CROSS       "✗"
-#define ENS_ARROW       "►"
-#define ENS_CLOCK       "⏱"
-#define ENS_SPINNER_CHARS "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+#define ENS_ARROW       ">>"
+#define ENS_SPINNER_CHARS "/-\\|"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EnsembleTaskInfo — Tracks progress for one ensemble member
@@ -295,8 +294,8 @@ public:
         std::lock_guard<std::mutex> lock(logMutex_);
         printf("\n");
         PrintHRule('=', 74);
-        printf("  %s%s%s ENSEMBLE SIMULATION %s%s\n",
-               ENS_BOLD, ENS_FG_BCYAN, ENS_ARROW, ENS_CLOCK, ENS_RESET);
+        printf("  %s%s%s ENSEMBLE SIMULATION %s\n",
+               ENS_BOLD, ENS_FG_BCYAN, ENS_ARROW, ENS_RESET);
         printf("  %s%d task(s) queued for parallel execution%s\n",
                ENS_DIM, numTasks, ENS_RESET);
         PrintHRule('=', 74);
@@ -412,9 +411,9 @@ public:
         printf("%s", ENS_DIM);
         for (int j = overallFilled; j < overallBar; j++) printf(ENS_BAR_PARTIAL);
         printf("%s", ENS_RESET);
-        printf(" %s%3.0f%%%s  %s%s %s%s",
+        printf(" %s%3.0f%%%s  %s%s%s",
                ENS_FG_BWHITE, overallPct, ENS_RESET,
-               ENS_DIM, ENS_CLOCK, FormatTime(elapsed).c_str(), ENS_RESET);
+               ENS_DIM, FormatTime(elapsed).c_str(), ENS_RESET);
         printf("  %s" ENS_BOX_V "%s\n", ENS_FG_CYAN, ENS_RESET);
 
         // Bottom border

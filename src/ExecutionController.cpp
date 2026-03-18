@@ -446,10 +446,18 @@ void ExecuteSimulationEns(EnsTaskConfigSection *ensTask) {
     }
   }
 
-  // Stop progress bar thread
+  // Stop progress bar thread — give it time to draw the final 100% state
+  // Sleep briefly so the progress thread can pick up all finished states
+  if (logger.IsTTY()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+  }
   progressDone.store(true);
   if (progressThread.joinable()) {
     progressThread.join();
+  }
+  // One final draw after thread is fully stopped (safety net)
+  if (logger.IsTTY()) {
+    logger.DrawProgress();
   }
 
   // ── Phase 3: Cleanup & summary ────────────────────────────────────────────
