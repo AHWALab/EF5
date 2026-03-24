@@ -185,6 +185,13 @@ class EnsembleLogger {
     return nullptr;
   }
 
+  bool IsTaskFinished(int taskIdx) const {
+    if (taskIdx >= 0 && taskIdx < (int)tasks_.size()) {
+      return tasks_[taskIdx]->finished.load();
+    }
+    return true;  // Non-existent tasks are considered "finished"
+  }
+
   // ── Per-task log file management ────────────────────────────────────────
   void OpenTaskLogFile(int taskIdx, const char* outputDir) {
     if (taskIdx < 0 || taskIdx >= (int)tasks_.size()) return;

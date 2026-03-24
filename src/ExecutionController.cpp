@@ -18,6 +18,7 @@
 #include "TimeVar.h"
 #include <cstdio>
 #include <cstring>
+#include <algorithm>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <thread>
@@ -310,14 +311,23 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
     }
   }
 
-  std::vector<Simulator*> sims(numMembers);
-  int firstValidIdx = -1;  // Index of first successfully initialized simulator
+  // ── Determine batch size ────────────────────────────────────────────────────
+  // Process ensemble members in batches to cap peak memory usage.
+  // Instead of all N simulators alive simultaneously, only batch_size are.
+  int numCPUs = 1;
+#if _OPENMP
+  numCPUs = omp_get_max_threads();
+#endif
+  const int batchSize = numCPUs;  // One sim per available core
+
+  // ── Phase 1A: Initialize first member (full CarveBasin) ────────────────────
+  // The first member stays alive as the "template" for shared basin/nodes data.
+  Simulator* templateSim = nullptr;
+  int templateIdx = -1;
 
   for (int i = 0; i < numMembers; i++) {
     TaskConfigSection* t = tasks->at(i);
     logger.SetTaskName(i, t->GetName());
-
-    logger.Log(i, "%s%sInitializing...%s", ENS_DIM, ENS_ITALIC, ENS_RESET);
 
     // Validate output directory
     const char* outDir = t->GetOutput();
@@ -325,36 +335,56 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
       logger.Log(i, "%s%s" ENS_CROSS " Output dir '%s' not writable!%s", ENS_BOLD, ENS_FG_RED,
                  outDir, ENS_RESET);
       logger.SetTaskFinished(i, false);
-      sims[i] = nullptr;
       continue;
     }
 
-    sims[i] = new Simulator();
-    bool initOk = false;
+    templateSim = new Simulator();
+    if (templateSim->Initialize(t)) {
+      templateIdx = i;
+      logger.Log(i, "%s" ENS_CHECK " Basin carved%s  (shared with all tasks)", ENS_FG_BGREEN,
+                 ENS_RESET);
 
-    if (firstValidIdx < 0) {
-      // First task: full initialization with CarveBasin
-      initOk = sims[i]->Initialize(t);
-      if (initOk) {
-        firstValidIdx = i;
-        logger.Log(i, "%s" ENS_CHECK " Basin carved%s  (shared with all tasks)", ENS_FG_BGREEN,
-                   ENS_RESET);
+      // Count total time steps for progress tracking
+      TimeVar tempTime = *(t->GetTimeBegin());
+      TimeVar endTime = *(t->GetTimeEnd());
+      TimeUnit* ts = t->GetTimeStep();
+      int totalSteps = 0;
+      for (tempTime.Increment(ts); tempTime <= endTime; tempTime.Increment(ts)) {
+        totalSteps++;
       }
+      logger.SetTaskTotalSteps(i, totalSteps);
+      logger.OpenTaskLogFile(i, outDir);
+      logger.Log(i, "%s" ENS_CHECK " Ready%s  (%d timesteps, output: %s)", ENS_FG_BGREEN,
+                 ENS_RESET, totalSteps, outDir);
+      break;
     } else {
-      // Subsequent tasks: reuse carved nodes from first task
-      initOk = sims[i]->InitializeShared(t, sims[firstValidIdx]->GetNodes(),
-                                         sims[firstValidIdx]->GetGaugeMap());
-      if (initOk) {
-        logger.Log(i, "%s" ENS_CHECK " Initialized%s  (shared basin, own params)", ENS_FG_BCYAN,
-                   ENS_RESET);
-      }
-    }
-
-    if (!initOk) {
       logger.Log(i, "%s%s" ENS_CROSS " Initialization failed!%s", ENS_BOLD, ENS_FG_RED, ENS_RESET);
       logger.SetTaskFinished(i, false);
-      delete sims[i];
-      sims[i] = nullptr;
+      delete templateSim;
+      templateSim = nullptr;
+    }
+  }
+
+  if (!templateSim) {
+    ERROR_LOGF("%s", "No valid tasks to run in ensemble! First member failed to initialize.");
+    logger.Shutdown();
+    return;
+  }
+
+  // ── Phase 1B: Pre-register all remaining tasks (names, steps, dirs) ────────
+  // We don't create Simulators yet — just populate the logger so the progress
+  // bar and task table show all members from the start.
+  for (int i = 0; i < numMembers; i++) {
+    if (i == templateIdx) continue;  // Already done
+
+    TaskConfigSection* t = tasks->at(i);
+    logger.SetTaskName(i, t->GetName());
+
+    const char* outDir = t->GetOutput();
+    if (!IsDirWritable(outDir)) {
+      logger.Log(i, "%s%s" ENS_CROSS " Output dir '%s' not writable!%s", ENS_BOLD, ENS_FG_RED,
+                 outDir, ENS_RESET);
+      logger.SetTaskFinished(i, false);
       continue;
     }
 
@@ -367,10 +397,7 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
       totalSteps++;
     }
     logger.SetTaskTotalSteps(i, totalSteps);
-
-    // Open per-task log file in the output directory
     logger.OpenTaskLogFile(i, outDir);
-
     logger.Log(i, "%s" ENS_CHECK " Ready%s  (%d timesteps, output: %s)", ENS_FG_BGREEN, ENS_RESET,
                totalSteps, outDir);
   }
@@ -378,36 +405,28 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
   // Print task summary table
   logger.PrintTaskTable();
 
-  // Check if we have any valid tasks
+  // Count valid tasks (those not already marked finished/failed)
   int validTasks = 0;
+  std::vector<int> pendingIndices;  // Indices of tasks still to run
   for (int i = 0; i < numMembers; i++) {
-    if (sims[i] != nullptr) validTasks++;
+    if (!logger.IsTaskFinished(i)) {
+      validTasks++;
+      if (i != templateIdx) {
+        pendingIndices.push_back(i);
+      }
+    }
   }
   if (validTasks == 0) {
     ERROR_LOGF("%s", "No valid tasks to run in ensemble!");
+    delete templateSim;
     logger.Shutdown();
     return;
   }
 
-  // ── Phase 2: Parallel simulation ──────────────────────────────────────────
+  // ── Phase 2: Batched parallel simulation ──────────────────────────────────
   g_ensembleMode = true;
 
-  // ── Preload forcings once and share across all ensemble members ──────────
-  // All ensemble tasks read the same forcing files (precip, PET, temp).
-  // Instead of each member reading independently from disk, we preload once
-  // into the first valid sim, then share read-only pointers to all others.
-  // This saves both memory (N-1 fewer copies) and I/O time.
-  if (firstValidIdx >= 0 && sims[firstValidIdx] != nullptr) {
-    INFO_LOGF("%s", "Preloading forcings into memory for shared ensemble use...");
-    sims[firstValidIdx]->PreloadForcingsMemoryOnly();
-    for (int i = 0; i < numMembers; i++) {
-      if (i != firstValidIdx && sims[i] != nullptr) {
-        sims[i]->ShareForcingsFrom(sims[firstValidIdx]);
-      }
-    }
-  }
-
-  INFO_LOGF("Starting %d simulation(s)...", validTasks);
+  INFO_LOGF("Starting %d simulation(s) in batches of %d...", validTasks, batchSize);
   printf("\n");
 
   // Start progress bar thread (only in TTY mode)
@@ -425,30 +444,75 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
     });
   }
 
-#if _OPENMP
-#pragma omp parallel for schedule(dynamic)
-#endif
-  for (int i = 0; i < numMembers; i++) {
-    if (sims[i] == nullptr) continue;
-
-    g_ensembleTaskIndex = i;
-
-    logger.SetTaskStartTime(i);
-
-    bool rpMode = (tasks->at(i)->GetRunStyle() == STYLE_SIMU_RP);
-    sims[i]->Simulate(rpMode);
-    sims[i]->CleanUp();
-
-    logger.SetTaskMissingFiles(i, sims[i]->GetMissingQPE());
-    logger.SetTaskFinished(i, true);
-
+  // ── Run template sim (first valid member) ─────────────────────────────────
+  {
+    g_ensembleTaskIndex = templateIdx;
+    logger.SetTaskStartTime(templateIdx);
+    bool rpMode = (tasks->at(templateIdx)->GetRunStyle() == STYLE_SIMU_RP);
+    templateSim->Simulate(rpMode);
+    templateSim->CleanUp();
+    logger.SetTaskMissingFiles(templateIdx, templateSim->GetMissingQPE());
+    logger.SetTaskFinished(templateIdx, true);
     if (!logger.IsTTY()) {
-      logger.Log(i, "%s%s" ENS_CHECK " Simulation complete%s", ENS_BOLD, ENS_FG_BGREEN, ENS_RESET);
+      logger.Log(templateIdx, "%s%s" ENS_CHECK " Simulation complete%s", ENS_BOLD, ENS_FG_BGREEN,
+                 ENS_RESET);
     }
   }
 
-  // Stop progress bar thread — give it time to draw the final 100% state
-  // Sleep briefly so the progress thread can pick up all finished states
+  // ── Run remaining members in batches ──────────────────────────────────────
+  for (size_t batchStart = 0; batchStart < pendingIndices.size(); batchStart += batchSize) {
+    size_t batchEnd = std::min(batchStart + (size_t)batchSize, pendingIndices.size());
+    int thisBatchSize = (int)(batchEnd - batchStart);
+
+    // Initialize this batch
+    std::vector<Simulator*> batchSims(thisBatchSize, nullptr);
+    for (int b = 0; b < thisBatchSize; b++) {
+      int idx = pendingIndices[batchStart + b];
+      TaskConfigSection* t = tasks->at(idx);
+
+      batchSims[b] = new Simulator();
+      bool initOk = batchSims[b]->InitializeShared(t, templateSim->GetNodes(),
+                                                    templateSim->GetGaugeMap());
+      if (!initOk) {
+        logger.Log(idx, "%s%s" ENS_CROSS " Initialization failed!%s", ENS_BOLD, ENS_FG_RED,
+                   ENS_RESET);
+        logger.SetTaskFinished(idx, false);
+        delete batchSims[b];
+        batchSims[b] = nullptr;
+      }
+    }
+
+    // Run this batch in parallel
+#if _OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+    for (int b = 0; b < thisBatchSize; b++) {
+      if (batchSims[b] == nullptr) continue;
+      int idx = pendingIndices[batchStart + b];
+
+      g_ensembleTaskIndex = idx;
+      logger.SetTaskStartTime(idx);
+
+      bool rpMode = (tasks->at(idx)->GetRunStyle() == STYLE_SIMU_RP);
+      batchSims[b]->Simulate(rpMode);
+      batchSims[b]->CleanUp();
+
+      logger.SetTaskMissingFiles(idx, batchSims[b]->GetMissingQPE());
+      logger.SetTaskFinished(idx, true);
+
+      if (!logger.IsTTY()) {
+        logger.Log(idx, "%s%s" ENS_CHECK " Simulation complete%s", ENS_BOLD, ENS_FG_BGREEN,
+                   ENS_RESET);
+      }
+    }
+
+    // Free this batch before starting the next one — this is the key memory optimization
+    for (int b = 0; b < thisBatchSize; b++) {
+      delete batchSims[b];
+    }
+  }
+
+  // Stop progress bar thread
   if (logger.IsTTY()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(300));
   }
@@ -456,7 +520,6 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
   if (progressThread.joinable()) {
     progressThread.join();
   }
-  // One final draw after thread is fully stopped (safety net)
   if (logger.IsTTY()) {
     logger.DrawProgress();
   }
@@ -468,10 +531,8 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
   // Print summary
   logger.PrintSummary();
 
-  // Free simulators
-  for (int i = 0; i < numMembers; i++) {
-    delete sims[i];
-  }
+  // Free template simulator
+  delete templateSim;
 
   logger.Shutdown();
 }
