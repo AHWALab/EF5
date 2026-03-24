@@ -392,14 +392,17 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
   // ── Phase 2: Parallel simulation ──────────────────────────────────────────
   g_ensembleMode = true;
 
-  if (tasks->at(0)->HasParamSweep()) {
-    if (firstValidIdx >= 0 && sims[firstValidIdx] != nullptr) {
-      INFO_LOGF("%s", "Preloading forcings into memory for shared ensemble use...");
-      sims[firstValidIdx]->PreloadForcingsMemoryOnly();
-      for (int i = 0; i < numMembers; i++) {
-        if (i != firstValidIdx && sims[i] != nullptr) {
-          sims[i]->ShareForcingsFrom(sims[firstValidIdx]);
-        }
+  // ── Preload forcings once and share across all ensemble members ──────────
+  // All ensemble tasks read the same forcing files (precip, PET, temp).
+  // Instead of each member reading independently from disk, we preload once
+  // into the first valid sim, then share read-only pointers to all others.
+  // This saves both memory (N-1 fewer copies) and I/O time.
+  if (firstValidIdx >= 0 && sims[firstValidIdx] != nullptr) {
+    INFO_LOGF("%s", "Preloading forcings into memory for shared ensemble use...");
+    sims[firstValidIdx]->PreloadForcingsMemoryOnly();
+    for (int i = 0; i < numMembers; i++) {
+      if (i != firstValidIdx && sims[i] != nullptr) {
+        sims[i]->ShareForcingsFrom(sims[firstValidIdx]);
       }
     }
   }

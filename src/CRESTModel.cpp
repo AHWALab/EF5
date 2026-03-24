@@ -7,6 +7,7 @@
 #include "AscGrid.h"
 #include "CRESTModel.h"
 #include "DatedName.h"
+#include "Messages.h"
 #include <set>
 #include <iomanip>
 
@@ -50,7 +51,7 @@ void CRESTModel::InitializeStates(TimeVar* beginTime, char* statePath) {
 
     FloatGrid* sGrid = ReadFloatTifGrid(buffer);
     if (sGrid) {
-      printf("Using CREST %s State Grid %s\n", stateStrings[p], buffer);
+      INFO_LOGF("Using CREST %s State Grid %s", stateStrings[p], buffer);
       if (g_DEM->IsSpatialMatch(sGrid)) {
         for (size_t i = 0; i < nodes->size(); i++) {
           GridNode* node = &nodes->at(i);
@@ -72,7 +73,7 @@ void CRESTModel::InitializeStates(TimeVar* beginTime, char* statePath) {
       }
       delete sGrid;
     } else {
-      printf("CREST %s State Grid %s not found!\n", stateStrings[p], buffer);
+      WARNING_LOGF("CREST %s State Grid %s not found!", stateStrings[p], buffer);
     }
   }
 }
@@ -160,7 +161,7 @@ void CRESTModel::WaterBalanceInt(GridNode* node, CRESTGridNode* cNode, float ste
                           cNode->states[STATE_CREST_SM]);  // Leftovers after filling SM
 
         if (R < 0) {
-          printf("R to %f, [%f, %f, %f, %f, %f, %f]\n", R, cNode->params[PARAM_CREST_WM],
+          WARNING_LOGF("R to %f, [%f, %f, %f, %f, %f, %f]", R, cNode->params[PARAM_CREST_WM],
                  cNode->params[PARAM_CREST_B], cNode->states[STATE_CREST_SM], A, Wmaxm, precipSoil);
           R = 0.0;
         }
@@ -174,7 +175,7 @@ void CRESTModel::WaterBalanceInt(GridNode* node, CRESTGridNode* cNode, float ste
         if (infiltration > precipSoil) {
           infiltration = precipSoil;
         } else if (infiltration < 0.0) {
-          printf("Infiltration went to %f, [%f, %f, %f, %f, %f, %f]\n", infiltration,
+          WARNING_LOGF("Infiltration went to %f, [%f, %f, %f, %f, %f, %f]", infiltration,
                  cNode->params[PARAM_CREST_WM], cNode->params[PARAM_CREST_B],
                  cNode->states[STATE_CREST_SM], A, Wmaxm, precipSoil);
         }
@@ -182,7 +183,7 @@ void CRESTModel::WaterBalanceInt(GridNode* node, CRESTGridNode* cNode, float ste
         R = precipSoil - infiltration;
 
         if (R < 0) {
-          printf("R (infil) to %f, [%f, %f, %f, %f, %f, %f]\n", R, cNode->params[PARAM_CREST_WM],
+          WARNING_LOGF("R (infil) to %f, [%f, %f, %f, %f, %f, %f]", R, cNode->params[PARAM_CREST_WM],
                  cNode->params[PARAM_CREST_B], cNode->states[STATE_CREST_SM], A, Wmaxm, precipSoil);
           R = 0.0;
         }
@@ -306,7 +307,7 @@ void CRESTModel::InitializeParameters(std::map<GaugeConfigSection*, float*>* par
       // Round to 3 decimal places for uniqueness
       float rounded_val = std::round(val * 1000.0f) / 1000.0f;
       if (printed_sm_below_zero.find(rounded_val) == printed_sm_below_zero.end()) {
-        printf("Node Soil Moisture(%f) is less than 0, setting to 0.\n", val);
+        WARNING_LOGF("Node Soil Moisture(%f) is less than 0, setting to 0.", val);
         printed_sm_below_zero.insert(rounded_val);
       }
       cNode->states[STATE_CREST_SM] = 0.0;
@@ -316,7 +317,7 @@ void CRESTModel::InitializeParameters(std::map<GaugeConfigSection*, float*>* par
       // Round to 3 decimal places for uniqueness
       float rounded_val = std::round(val * 1000.0f) / 1000.0f;
       if (printed_sm_above_wm.find(rounded_val) == printed_sm_above_wm.end()) {
-        printf("Node Soil Moisture(%f) is greater than WM, setting to %f.\n", val,
+        WARNING_LOGF("Node Soil Moisture(%f) is greater than WM, setting to %f.", val,
                cNode->params[PARAM_CREST_WM]);
         printed_sm_above_wm.insert(rounded_val);
       }

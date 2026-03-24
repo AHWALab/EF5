@@ -1,6 +1,7 @@
 #include "KinematicRoute.h"
 #include "AscGrid.h"
 #include "DatedName.h"
+#include "Messages.h"
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -81,7 +82,7 @@ void KWRoute::InitializeStates(TimeVar* beginTime, char* statePath, std::vector<
 
     FloatGrid* sGrid = ReadFloatTifGrid(buffer);
     if (sGrid) {
-      printf("Using Kinematic Wave Routing %s State Grid %s\n", stateStrings[p], buffer);
+      INFO_LOGF("Using Kinematic Wave Routing %s State Grid %s", stateStrings[p], buffer);
       if (g_DEM->IsSpatialMatch(sGrid)) {
         for (size_t i = 0; i < nodes->size(); i++) {
           GridNode* node = &nodes->at(i);
@@ -103,7 +104,7 @@ void KWRoute::InitializeStates(TimeVar* beginTime, char* statePath, std::vector<
       }
       delete sGrid;
     } else {
-      printf("Kinematic Wave Routing %s State Grid %s not found!\n", stateStrings[p], buffer);
+      WARNING_LOGF("Kinematic Wave Routing %s State Grid %s not found!", stateStrings[p], buffer);
     }
   }
 }

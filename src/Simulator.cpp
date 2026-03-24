@@ -2210,7 +2210,9 @@ void Simulator::SimulateLumped() {
       sprintf(buffer, "%s/%s", petSec->GetLoc(), petFile->GetName());
       if (!petReader.Read(buffer, petSec->GetType(), &nodes, &currentPETSimu, petConvert,
                           petSec->IsTemperature(), (float)currentTime.GetTM()->tm_yday)) {
-        printf(" Missing PET file(%s)... Assuming zeros.", buffer);
+        if (!g_ensembleMode) {
+          printf(" Missing PET file(%s)... Assuming zeros.", buffer);
+        }
       }
     }
 
@@ -2245,7 +2247,9 @@ void Simulator::SimulateLumped() {
     }
 
     // All of our status messages are done for this timestep!
-    printf("%s", "\n");
+    if (!g_ensembleMode) {
+      printf("%s", "\n");
+    }
     tsIndex++;
   }
 }
