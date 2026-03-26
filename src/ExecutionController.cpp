@@ -341,8 +341,6 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
     templateSim = new Simulator();
     if (templateSim->Initialize(t)) {
       templateIdx = i;
-      logger.Log(i, "%s" ENS_CHECK " Basin carved%s  (shared with all tasks)", ENS_FG_BGREEN,
-                 ENS_RESET);
 
       // Count total time steps for progress tracking
       TimeVar tempTime = *(t->GetTimeBegin());
@@ -354,8 +352,6 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
       }
       logger.SetTaskTotalSteps(i, totalSteps);
       logger.OpenTaskLogFile(i, outDir);
-      logger.Log(i, "%s" ENS_CHECK " Ready%s  (%d timesteps, output: %s)", ENS_FG_BGREEN,
-                 ENS_RESET, totalSteps, outDir);
       break;
     } else {
       logger.Log(i, "%s%s" ENS_CROSS " Initialization failed!%s", ENS_BOLD, ENS_FG_RED, ENS_RESET);
@@ -382,8 +378,6 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
 
     const char* outDir = t->GetOutput();
     if (!IsDirWritable(outDir)) {
-      logger.Log(i, "%s%s" ENS_CROSS " Output dir '%s' not writable!%s", ENS_BOLD, ENS_FG_RED,
-                 outDir, ENS_RESET);
       logger.SetTaskFinished(i, false);
       continue;
     }
@@ -398,12 +392,7 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
     }
     logger.SetTaskTotalSteps(i, totalSteps);
     logger.OpenTaskLogFile(i, outDir);
-    logger.Log(i, "%s" ENS_CHECK " Ready%s  (%d timesteps, output: %s)", ENS_FG_BGREEN, ENS_RESET,
-               totalSteps, outDir);
   }
-
-  // Print task summary table
-  logger.PrintTaskTable();
 
   // Count valid tasks (those not already marked finished/failed)
   int validTasks = 0;
@@ -453,10 +442,15 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
     templateSim->CleanUp();
     logger.SetTaskMissingFiles(templateIdx, templateSim->GetMissingQPE());
     logger.SetTaskFinished(templateIdx, true);
-    if (!logger.IsTTY()) {
-      logger.Log(templateIdx, "%s%s" ENS_CHECK " Simulation complete%s", ENS_BOLD, ENS_FG_BGREEN,
-                 ENS_RESET);
-    }
+  }
+
+  // ── Preload forcings for shared use (parameter sweep optimization) ─────────
+  // For parameter sweeps, all ensemble members use the same forcing data.
+  // Load it once into memory from the template sim and share pointers.
+  bool useForcingSharing = tasks->at(0)->HasParamSweep();
+  if (useForcingSharing) {
+    INFO_LOGF("%s", "Preloading forcings into shared memory for ensemble reuse...");
+    templateSim->PreloadForcingsMemoryOnly();
   }
 
   // ── Run remaining members in batches ──────────────────────────────────────
@@ -474,11 +468,12 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
       bool initOk = batchSims[b]->InitializeShared(t, templateSim->GetNodes(),
                                                     templateSim->GetGaugeMap());
       if (!initOk) {
-        logger.Log(idx, "%s%s" ENS_CROSS " Initialization failed!%s", ENS_BOLD, ENS_FG_RED,
-                   ENS_RESET);
         logger.SetTaskFinished(idx, false);
         delete batchSims[b];
         batchSims[b] = nullptr;
+      } else if (useForcingSharing) {
+        // Share the preloaded forcing data instead of re-reading from disk
+        batchSims[b]->ShareForcingsFrom(templateSim);
       }
     }
 
@@ -499,11 +494,6 @@ void ExecuteSimulationEns(EnsTaskConfigSection* ensTask) {
 
       logger.SetTaskMissingFiles(idx, batchSims[b]->GetMissingQPE());
       logger.SetTaskFinished(idx, true);
-
-      if (!logger.IsTTY()) {
-        logger.Log(idx, "%s%s" ENS_CHECK " Simulation complete%s", ENS_BOLD, ENS_FG_BGREEN,
-                   ENS_RESET);
-      }
     }
 
     // Free this batch before starting the next one — this is the key memory optimization

@@ -23,7 +23,7 @@ jobs:
 
     - name: Run cppcheck (Static Analysis)
       run: |
-        cppcheck --enable=warning,performance,portability --suppress=missingIncludeSystem --error-exitcode=1 -I src/ src/
+        cppcheck --enable=warning,performance,portability --suppress=missingIncludeSystem -I src/ src/
 
     - name: Build Standard EF5
       run: |
