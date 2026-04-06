@@ -1805,6 +1805,35 @@ void Simulator::SimulateDistributed(bool trackPeaks)
                             &(currentPETCali[tsIndex]), &currentFF, &currentSF,
                             &SM);
     }
+
+    if (griddedOutputs && ((griddedOutputs & OG_RUNOFF) == OG_RUNOFF))
+    {
+      std::vector<float> _runoff;
+      _runoff.resize(currentFF.size());
+      for (size_t i = 0; i < currentFF.size(); i++)
+      {
+        _runoff[i] = currentFF[i] * 3600.0f;
+      }
+      currentTimeTextOutput.UpdateName(currentTime.GetTM());
+      sprintf(buffer, "%s/runoff.%s.%s.tif", outputPath,
+              currentTimeTextOutput.GetName(), wbModel->GetName());
+      gridWriter.WriteGrid(&nodes, &_runoff, buffer, false);
+    }
+
+    if (griddedOutputs && ((griddedOutputs & OG_SUBSURF) == OG_SUBSURF))
+    {
+      std::vector<float> _subsurface;
+      _subsurface.resize(currentSF.size());
+      for (size_t i = 0; i < currentSF.size(); i++)
+      {
+        _subsurface[i] = currentSF[i] * 3600.0f;
+      }
+      currentTimeTextOutput.UpdateName(currentTime.GetTM());
+      sprintf(buffer, "%s/subrunoff.%s.%s.tif", outputPath,
+              currentTimeTextOutput.GetName(), wbModel->GetName());
+      gridWriter.WriteGrid(&nodes, &_subsurface, buffer, false);
+    }
+
     if (outputTS)
     {
       gaugeMap.GaugeAverage(&nodes, &currentFF, &avgFF);

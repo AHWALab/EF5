@@ -1,5 +1,17 @@
 # Changelog
 
+## EF5 Version [1.2.8]
+
+### Added
+
+- New `runoff` gridded output for distributed simulations, written as GeoTIFF output grids
+- New `subrunoff` gridded output for distributed simulations, written as GeoTIFF output grids
+
+### Changed
+
+- Updated EF5 version metadata to `1.2.8`
+- Refreshed the startup banner color used in console output
+
 ## EF5 Version [1.2.6]
 
 ### Added
