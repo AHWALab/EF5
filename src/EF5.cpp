@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
 
 void PrintStartupMessage()
 {
-  printf("\033[38;2;0;107;255m");
+  printf("\033[38;2;255;140;0m");
   printf("********************************************************\n");
   printf("**   Ensemble Framework For Flash Flood Forecasting   **\n");
   printf("**                   Version %s                    **\n",

@@ -39,11 +39,29 @@ bool SimpleInundation::InitializeModel(
     GridNode *node = &nodes->at(i);
     node->modelIndex = i;
   }
+
+  // Pass 1: Set channelGridCell for all nodes using th_fim threshold.
+  // This must happen before the catchment-formation walk so that the downstream
+  // traversal below uses th_fim-based channel cells, not the KW routing th.
+  for (size_t i = 0; i < numNodes; i++)
+  {
+    GridNode *node = &nodes->at(i);
+    if (node->fac > iNodes[i].params[PARAM_SI_TH_FIM])
+    {
+      node->channelGridCell = true;
+    }
+    else
+    {
+      node->channelGridCell = false;
+    }
+  }
+
+  // Pass 2: Walk downstream to assign each node to its nearest channel cell.
+  // channelGridCell is now correctly set by th_fim from Pass 1.
   for (size_t i = 0; i < numNodes; i++)
   {
     GridNode *node = &nodes->at(i);
     GridNode *channelNode = node;
-    node->modelIndex = i;
     while (!channelNode->channelGridCell &&
            channelNode->downStreamNode != INVALID_DOWNSTREAM_NODE)
     {
@@ -57,15 +75,6 @@ bool SimpleInundation::InitializeModel(
     iNodes[i].elevationChannel = g_DEM->data[channelNode->y][channelNode->x];
     iNodes[i].elevDiff = iNodes[i].elevation - iNodes[i].elevationChannel;
     iNodes[i].channelIndex = channelNode->index;
-    // Set channelGridCell using th_fim threshold
-    if (node->fac > iNodes[i].params[PARAM_SI_TH_FIM])
-    {
-      node->channelGridCell = true;
-    }
-    else
-    {
-      node->channelGridCell = false;
-    }
   }
 
   return true;
