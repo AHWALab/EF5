@@ -215,6 +215,21 @@ install_dependencies() {
 }
 
 ################################################################################
+# Function: Run make clean
+################################################################################
+run_make_clean() {
+    print_step "Running make clean..."
+    if make clean 2>/dev/null; then
+        print_success "make clean completed"
+    else
+        print_info "make clean skipped (nothing to clean)"
+    fi
+    # Remove generated autoconf/automake files so autoreconf runs fresh
+    rm -f configure config.status config.log
+    rm -rf autom4te.cache
+}
+
+################################################################################
 # Function: Run autoreconf
 ################################################################################
 run_autoreconf() {
@@ -312,6 +327,12 @@ compile_ef5() {
     
     print_info "Working directory: $(pwd)"
     
+    # Clean build artifacts if requested
+    if [ -n "$FORCE_CLEAN" ]; then
+        run_make_clean
+        FORCE_AUTORECONF=1
+    fi
+
     # Run autoreconf if needed
     if [ ! -f "configure" ] || [ -n "$FORCE_AUTORECONF" ]; then
         run_autoreconf || exit 1
@@ -342,6 +363,7 @@ usage() {
     echo "Options:"
     echo "  -p, --prefix PATH      Set custom installation prefix"
     echo "  -a, --autoreconf       Force running autoreconf"
+    echo "  -c, --clean            Run make clean before building (recommended after git pull)"
     echo "  -s, --skip-deps        Skip dependency check and installation"
     echo "  -h, --help             Display this help message"
     echo ""
@@ -349,6 +371,7 @@ usage() {
     echo "  $0                     # Compile with default settings"
     echo "  $0 -p /usr/local       # Compile with custom prefix"
     echo "  $0 -a                  # Force autoreconf before compilation"
+    echo "  $0 -c                  # Clean build before compiling (safe for any git pull)"
     echo ""
 }
 
@@ -368,6 +391,10 @@ main() {
                 ;;
             -a|--autoreconf)
                 FORCE_AUTORECONF=1
+                shift
+                ;;
+            -c|--clean)
+                FORCE_CLEAN=1
                 shift
                 ;;
             -s|--skip-deps)
