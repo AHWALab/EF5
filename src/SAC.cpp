@@ -1,8 +1,19 @@
 #include "SAC.h"
 #include "DatedName.h"
+#include "Messages.h"
+#include "NetCDFStateWriter.h"
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+
+static const char *stateStrings[] = {
+  "uztwc",
+  "uzfwc",
+  "lztwc",
+  "lzfsc",
+  "lzfpc",
+  "adimc",
+};
 
 SAC::SAC() {}
 
@@ -217,6 +228,100 @@ void SAC::SaveStates(TimeVar *currentTime, char *statePath,
     dataVals[i] = cNode->ADIMC;
   }
   gridWriter->WriteGrid(nodes, &dataVals, buffer, false);
+}
+
+void SAC::InitializeStatesFromNetCDF(const char *filepath, TimeVar *initTime) {
+  NetCDFStateWriter reader;
+  std::vector<float> stateVals;
+
+  if (reader.ReadStateGrid(filepath, stateStrings[0], nodes, &stateVals,
+                           initTime->currentTimeSec) == 0) {
+    for (size_t i = 0; i < nodes->size(); i++) {
+      sacNodes[i].UZTWC = stateVals[i];
+    }
+  } else {
+    WARNING_LOGF("Failed reading SAC state %s from %s", stateStrings[0], filepath);
+    return;
+  }
+  if (reader.ReadStateGrid(filepath, stateStrings[1], nodes, &stateVals,
+                           initTime->currentTimeSec) == 0) {
+    for (size_t i = 0; i < nodes->size(); i++) {
+      sacNodes[i].UZFWC = stateVals[i];
+    }
+  }
+  if (reader.ReadStateGrid(filepath, stateStrings[2], nodes, &stateVals,
+                           initTime->currentTimeSec) == 0) {
+    for (size_t i = 0; i < nodes->size(); i++) {
+      sacNodes[i].LZTWC = stateVals[i];
+    }
+  }
+  if (reader.ReadStateGrid(filepath, stateStrings[3], nodes, &stateVals,
+                           initTime->currentTimeSec) == 0) {
+    for (size_t i = 0; i < nodes->size(); i++) {
+      sacNodes[i].LZFSC = stateVals[i];
+    }
+  }
+  if (reader.ReadStateGrid(filepath, stateStrings[4], nodes, &stateVals,
+                           initTime->currentTimeSec) == 0) {
+    for (size_t i = 0; i < nodes->size(); i++) {
+      sacNodes[i].LZFPC = stateVals[i];
+    }
+  }
+  if (reader.ReadStateGrid(filepath, stateStrings[5], nodes, &stateVals,
+                           initTime->currentTimeSec) == 0) {
+    for (size_t i = 0; i < nodes->size(); i++) {
+      sacNodes[i].ADIMC = stateVals[i];
+    }
+  }
+}
+
+int SAC::SaveStatesToNetCDF(const char *filepath, TimeVar *currentTime,
+                            NetCDFStateWriter *ncWriter) {
+  std::vector<float> stateVals(nodes->size());
+
+  for (size_t i = 0; i < nodes->size(); i++) {
+    stateVals[i] = sacNodes[i].UZTWC;
+  }
+  if (ncWriter->AppendStateGrid(filepath, stateStrings[0], nodes, &stateVals,
+                                currentTime->currentTimeSec) != 0) {
+    return -1;
+  }
+  for (size_t i = 0; i < nodes->size(); i++) {
+    stateVals[i] = sacNodes[i].UZFWC;
+  }
+  if (ncWriter->AppendStateGrid(filepath, stateStrings[1], nodes, &stateVals,
+                                currentTime->currentTimeSec) != 0) {
+    return -1;
+  }
+  for (size_t i = 0; i < nodes->size(); i++) {
+    stateVals[i] = sacNodes[i].LZTWC;
+  }
+  if (ncWriter->AppendStateGrid(filepath, stateStrings[2], nodes, &stateVals,
+                                currentTime->currentTimeSec) != 0) {
+    return -1;
+  }
+  for (size_t i = 0; i < nodes->size(); i++) {
+    stateVals[i] = sacNodes[i].LZFSC;
+  }
+  if (ncWriter->AppendStateGrid(filepath, stateStrings[3], nodes, &stateVals,
+                                currentTime->currentTimeSec) != 0) {
+    return -1;
+  }
+  for (size_t i = 0; i < nodes->size(); i++) {
+    stateVals[i] = sacNodes[i].LZFPC;
+  }
+  if (ncWriter->AppendStateGrid(filepath, stateStrings[4], nodes, &stateVals,
+                                currentTime->currentTimeSec) != 0) {
+    return -1;
+  }
+  for (size_t i = 0; i < nodes->size(); i++) {
+    stateVals[i] = sacNodes[i].ADIMC;
+  }
+  if (ncWriter->AppendStateGrid(filepath, stateStrings[5], nodes, &stateVals,
+                                currentTime->currentTimeSec) != 0) {
+    return -1;
+  }
+  return 0;
 }
 bool SAC::WaterBalance(float stepHours, std::vector<float> *precip,
                        std::vector<float> *pet, std::vector<float> *fastFlow,

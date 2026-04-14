@@ -35,6 +35,16 @@ void HPModel::InitializeStates(TimeVar *beginTime, char *statePath) {}
 void HPModel::SaveStates(TimeVar *currentTime, char *statePath,
                          GridWriterFull *gridWriter) {}
 
+void HPModel::InitializeStatesFromNetCDF(const char *filepath, TimeVar *initTime)
+{
+}
+
+int HPModel::SaveStatesToNetCDF(const char *filepath, TimeVar *currentTime,
+                                NetCDFStateWriter *ncWriter)
+{
+  return 0;
+}
+
 bool HPModel::WaterBalance(float stepHours, std::vector<float> *precip,
                            std::vector<float> *pet,
                            std::vector<float> *fastFlow,

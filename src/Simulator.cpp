@@ -386,6 +386,7 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
   griddedOutputs = task->GetGriddedOutputs();
   useStates = task->UseStates();
   saveStates = task->SaveStates();
+  stateFileFormat = task->GetStateFileFormat();
 
   // Initialize the storage of contributing precip & PET
   avgPrecip.resize(gauges->size());
@@ -487,6 +488,43 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
   {
     statePath = task->GetState();
     stateTime = *(task->GetTimeState());
+    if (task->HasStateSaveInterval())
+    {
+      stateSaveInterval = *(task->GetStateSaveInterval());
+    }
+    else
+    {
+      stateSaveInterval = *timeStep;
+    }
+    nextStateSaveTime = stateTime;
+    if (task->HasInitStateTimestep())
+    {
+      char initBuffer[CONFIG_MAX_LEN];
+      strncpy(initBuffer, task->GetInitStateTimestep(), CONFIG_MAX_LEN - 1);
+      initBuffer[CONFIG_MAX_LEN - 1] = 0;
+      size_t len = strlen(initBuffer);
+      for (size_t i = 0; i < len; i++)
+      {
+        if (initBuffer[i] == '_')
+        {
+          for (size_t j = i; j < len; j++)
+          {
+            initBuffer[j] = initBuffer[j + 1];
+          }
+          break;
+        }
+      }
+      if (!initStateTime.LoadTime(initBuffer))
+      {
+        WARNING_LOGF("Unable to parse InitStateTimestep '%s', falling back to begin time",
+                     task->GetInitStateTimestep());
+        initStateTime = currentTime;
+      }
+    }
+    else
+    {
+      initStateTime = currentTime;
+    }
   }
 
   if ((task->GetPreloadForcings())[0])
@@ -1687,12 +1725,31 @@ void Simulator::SimulateDistributed(bool trackPeaks)
   }
   if (useStates)
   {
-    wbModel->InitializeStates(&currentTime, statePath);
-    if (rModel)
+    if (stateFileFormat == STATE_FORMAT_NETCDF)
+    {
+      char buffer[CONFIG_MAX_LEN * 2];
+      sprintf(buffer, "%s/%s_states.nc", statePath, wbModel->GetName());
+      wbModel->InitializeStatesFromNetCDF(buffer, &initStateTime);
+      if (rModel)
+      {
+        sprintf(buffer, "%s/%s_states.nc", statePath, routeStrings[task->GetRouting()]);
+        rModel->InitializeStatesFromNetCDF(buffer, &initStateTime);
+      }
+      if (sModel)
+      {
+        sprintf(buffer, "%s/%s_states.nc", statePath, snowStrings[task->GetSnow()]);
+        sModel->InitializeStatesFromNetCDF(buffer, &initStateTime);
+      }
+    }
+    else
+    {
+      wbModel->InitializeStates(&currentTime, statePath);
+    }
+    if (rModel && stateFileFormat != STATE_FORMAT_NETCDF)
     {
       rModel->InitializeStates(&currentTime, statePath, &currentFF, &currentSF);
     }
-    if (sModel)
+    if (sModel && stateFileFormat != STATE_FORMAT_NETCDF)
     {
       sModel->InitializeStates(&currentTime, statePath);
     }
@@ -1838,17 +1895,38 @@ void Simulator::SimulateDistributed(bool trackPeaks)
         currentSF[i] = 0.0;
       }
     }
-    if (saveStates && stateTime == currentTime)
+    if (saveStates && (nextStateSaveTime == currentTime || nextStateSaveTime < currentTime))
     {
-      wbModel->SaveStates(&currentTime, statePath, &gridWriter);
-      if (rModel)
+      if (stateFileFormat == STATE_FORMAT_NETCDF)
       {
-        rModel->SaveStates(&currentTime, statePath, &gridWriter);
+        char buffer[CONFIG_MAX_LEN * 2];
+        sprintf(buffer, "%s/%s_states.nc", statePath, wbModel->GetName());
+        wbModel->SaveStatesToNetCDF(buffer, &currentTime, &stateNcWriter);
+        if (rModel)
+        {
+          sprintf(buffer, "%s/%s_states.nc", statePath,
+                  routeStrings[task->GetRouting()]);
+          rModel->SaveStatesToNetCDF(buffer, &currentTime, &stateNcWriter);
+        }
+        if (sModel)
+        {
+          sprintf(buffer, "%s/%s_states.nc", statePath, snowStrings[task->GetSnow()]);
+          sModel->SaveStatesToNetCDF(buffer, &currentTime, &stateNcWriter);
+        }
       }
-      if (sModel)
+      else
       {
-        sModel->SaveStates(&currentTime, statePath, &gridWriter);
+        wbModel->SaveStates(&currentTime, statePath, &gridWriter);
+        if (rModel)
+        {
+          rModel->SaveStates(&currentTime, statePath, &gridWriter);
+        }
+        if (sModel)
+        {
+          sModel->SaveStates(&currentTime, statePath, &gridWriter);
+        }
       }
+      nextStateSaveTime.Increment(&stateSaveInterval);
     }
 
     // We only output after the warmup period is over

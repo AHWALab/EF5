@@ -1,6 +1,8 @@
 #include "KinematicRoute.h"
 #include "AscGrid.h"
 #include "DatedName.h"
+#include "Messages.h"
+#include "NetCDFStateWriter.h"
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -157,6 +159,46 @@ void KWRoute::SaveStates(TimeVar *currentTime, char *statePath,
     }
     gridWriter->WriteGrid(nodes, &dataVals, buffer, false);
   }
+}
+
+void KWRoute::InitializeStatesFromNetCDF(const char *filepath, TimeVar *initTime)
+{
+  NetCDFStateWriter reader;
+  for (int p = 0; p < STATE_KW_QTY; p++)
+  {
+    std::vector<float> stateVals;
+    if (reader.ReadStateGrid(filepath, stateStrings[p], nodes, &stateVals,
+                             initTime->currentTimeSec) != 0)
+    {
+      WARNING_LOGF("Failed reading KW state %s from %s", stateStrings[p], filepath);
+      return;
+    }
+    for (size_t i = 0; i < nodes->size(); i++)
+    {
+      kwNodes[i].states[p] = stateVals[i];
+    }
+  }
+}
+
+int KWRoute::SaveStatesToNetCDF(const char *filepath, TimeVar *currentTime,
+                                NetCDFStateWriter *ncWriter)
+{
+  for (int p = 0; p < STATE_KW_QTY; p++)
+  {
+    std::vector<float> stateVals(nodes->size());
+    for (size_t i = 0; i < nodes->size(); i++)
+    {
+      stateVals[i] = kwNodes[i].states[p];
+    }
+    if (ncWriter->AppendStateGrid(filepath, stateStrings[p], nodes, &stateVals,
+                                  currentTime->currentTimeSec) != 0)
+    {
+      ERROR_LOGF("Failed writing KW state %s: %s", stateStrings[p],
+                 ncWriter->GetLastError());
+      return -1;
+    }
+  }
+  return 0;
 }
 
 bool KWRoute::Route(float stepHours, std::vector<float> *fastFlow,

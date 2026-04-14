@@ -47,8 +47,11 @@ public:
   void InitializeStates(TimeVar *beginTime, char *statePath,
                         std::vector<float> *fastFlow,
                         std::vector<float> *slowFlow);
+    void InitializeStatesFromNetCDF(const char *filepath, TimeVar *initTime);
   void SaveStates(TimeVar *currentTime, char *statePath,
                   GridWriterFull *gridWriter);
+    int SaveStatesToNetCDF(const char *filepath, TimeVar *currentTime,
+                           NetCDFStateWriter *ncWriter);
   bool Route(float stepHours, std::vector<float> *fastFlow,
              std::vector<float> *slowFlow, std::vector<float> *discharge);
   float GetMaxSpeed() { return maxSpeed; }

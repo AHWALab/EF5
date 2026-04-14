@@ -16,6 +16,7 @@
 #include "RoutingParamSetConfigSection.h"
 #include "SnowCaliParamConfigSection.h"
 #include "SnowParamSetConfigSection.h"
+#include "StateConfigSection.h"
 #include "TempConfigSection.h"
 #include "TimeUnit.h"
 #include "TimeVar.h"
@@ -73,6 +74,11 @@ public:
   GaugeConfigSection *GetDefaultGauge();
   bool UseStates() { return stateSet; }
   bool SaveStates() { return (stateSet && timeStateSet); }
+  STATE_FILE_FORMAT GetStateFileFormat() { return stateFileFormat; }
+  TimeUnit *GetStateSaveInterval() { return &stateSaveInterval; }
+  bool HasStateSaveInterval() { return stateSaveIntervalSet; }
+  bool HasInitStateTimestep() { return initStateTimestepSet; }
+  char *GetInitStateTimestep() { return initStateTimestep; }
   CONFIG_SEC_RET ProcessKeyValue(char *name, char *value);
   CONFIG_SEC_RET ValidateSection();
   int GetGriddedOutputs() { return griddedOutputs; }
@@ -89,7 +95,9 @@ private:
   bool snowParamsSet, snowCaliParamSet, snowSet, tempSet, tempFSet;
   bool inundationParamsSet, inundationCaliParamSet, inundationSet;
   bool timeBeginLRSet, timestepLRSet;
+  bool stateSaveIntervalSet, initStateTimestepSet;
   char output[CONFIG_MAX_LEN], state[CONFIG_MAX_LEN];
+  char initStateTimestep[CONFIG_MAX_LEN];
   char name[CONFIG_MAX_LEN];
   char stdGrid[CONFIG_MAX_LEN], avgGrid[CONFIG_MAX_LEN], scGrid[CONFIG_MAX_LEN];
   char actionGrid[CONFIG_MAX_LEN], minorGrid[CONFIG_MAX_LEN],
@@ -124,6 +132,8 @@ private:
   TimeVar timeEnd;
   TimeVar timeState;
   TimeVar timeBeginLR;
+  TimeUnit stateSaveInterval;
+  STATE_FILE_FORMAT stateFileFormat;
   int griddedOutputs;
   char basinAvgInput[CONFIG_MAX_LEN];
 

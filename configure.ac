@@ -42,6 +42,8 @@ AC_CHECK_HEADERS(gdal/cpl_conv.h)
 AC_CHECK_LIB([gdal], [GDALOpen], [],[
          echo "GDAL library is required for GRIB2 support in EF5"
          exit -1])
+AC_CHECK_HEADERS(netcdf.h)
+AC_CHECK_LIB([netcdf], [nc_open], [],[         echo "netcdf library is optional for netCDF state file support in EF5"])
 if test x"$ac_cv_header_geotiff_xtiffio_h" = x"yes"; then
         CPPFLAGS="-I/usr/include/geotiff $CPPFLAGS";
 else

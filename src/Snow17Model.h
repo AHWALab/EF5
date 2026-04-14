@@ -27,8 +27,11 @@ public:
                        std::map<GaugeConfigSection *, float *> *paramSettings,
                        std::vector<FloatGrid *> *paramGrids);
   void InitializeStates(TimeVar *beginTime, char *statePath);
+  void InitializeStatesFromNetCDF(const char *filepath, TimeVar *initTime);
   void SaveStates(TimeVar *currentTime, char *statePath,
                   GridWriterFull *gridWriter);
+  int SaveStatesToNetCDF(const char *filepath, TimeVar *currentTime,
+                         NetCDFStateWriter *ncWriter);
   bool SnowBalance(float jday, float stepHours, std::vector<float> *precip,
                    std::vector<float> *temp, std::vector<float> *melt,
                    std::vector<float> *swe);

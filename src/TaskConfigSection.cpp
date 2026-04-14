@@ -22,6 +22,7 @@ TaskConfigSection::TaskConfigSection(const char *nameVal)
       paramsSnow(nullptr), caliParamSnow(nullptr), paramsInundation(nullptr), caliParamInundation(nullptr),
       defaultGauge(nullptr),
       timeStep(), timeStepLR(), style(STYLE_QTY), timeBegin(), timeWarmEnd(), timeEnd(), timeState(), timeBeginLR(),
+        stateSaveInterval(), stateFileFormat(STATE_FORMAT_GEOTIFF),
       griddedOutputs(OG_NONE)
 {
   strcpy(name, nameVal);
@@ -42,6 +43,9 @@ TaskConfigSection::TaskConfigSection(const char *nameVal)
   std::fill(daFile, daFile + CONFIG_MAX_LEN, 0);
   std::fill(coFile, coFile + CONFIG_MAX_LEN, 0);
   std::fill(basinAvgInput, basinAvgInput + CONFIG_MAX_LEN, 0);
+  std::fill(initStateTimestep, initStateTimestep + CONFIG_MAX_LEN, 0);
+  stateSaveIntervalSet = false;
+  initStateTimestepSet = false;
 }
 
 TaskConfigSection::~TaskConfigSection() {}
@@ -444,6 +448,39 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char *name, char *value)
   {
     strcpy(state, value);
     stateSet = true;
+  }
+  else if (!strcasecmp(name, "statefileformat"))
+  {
+    if (StateConfigSection::ParseStateFileFormat(value, &stateFileFormat))
+    {
+      return VALID_RESULT;
+    }
+    else
+    {
+      ERROR_LOGF("Unknown state file format option \"%s\"!", value);
+      INFO_LOGF("Valid state file format options are \"%s\"", "GEOTIFF, ASCII, NETCDF");
+      return INVALID_RESULT;
+    }
+  }
+  else if (!strcasecmp(name, "statesaveinterval"))
+  {
+    if (!StateConfigSection::ParseStateSaveInterval(value, &stateSaveInterval))
+    {
+      ERROR_LOGF("Unknown state save interval option \"%s\"", value);
+      return INVALID_RESULT;
+    }
+    stateSaveIntervalSet = true;
+  }
+  else if (!strcasecmp(name, "initstatetimestep"))
+  {
+    if (!StateConfigSection::ParseInitStateTimestep(value, initStateTimestep,
+                                                    sizeof(initStateTimestep)))
+    {
+      ERROR_LOGF("Invalid init state timestep option \"%s\"", value);
+      INFO_LOGF("Expected format is \"%s\"", "YYYYMMDD_HHMM");
+      return INVALID_RESULT;
+    }
+    initStateTimestepSet = true;
   }
   else if (!strcasecmp(name, "output_grids"))
   {
