@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cstring>
 #include <gdal/gdal_priv.h>
+#include <gdal/cpl_conv.h>
 #include <math.h>
 #include <string>
 #include <zlib.h>
@@ -33,6 +34,29 @@ static bool IsGribFile(const char *file) {
 static FloatGrid *ReadFloatGRIB2Grid(const char *file, FloatGrid *grid) {
   static bool gdalInitialized = false;
   if (!gdalInitialized) {
+    // Set GDAL_DATA if not already set, so GDAL can find its data files
+    // (grib2_table_4_5.csv, grib2_center.csv, grib2_subcenter.csv, etc.)
+    const char *gdalData = CPLGetConfigOption("GDAL_DATA", NULL);
+    if (!gdalData) {
+      // Try common GDAL data directory locations on Linux/Unix systems
+      const char *searchPaths[] = {
+        "/usr/share/gdal",
+        "/usr/local/share/gdal",
+        "/opt/gdal/share/gdal",
+        NULL
+      };
+      
+      for (int i = 0; searchPaths[i] != NULL; i++) {
+        std::string testPath = std::string(searchPaths[i]) + "/grib2_table_4_5.csv";
+        FILE *testFile = fopen(testPath.c_str(), "r");
+        if (testFile) {
+          fclose(testFile);
+          CPLSetConfigOption("GDAL_DATA", searchPaths[i]);
+          break;
+        }
+      }
+    }
+    
     GDALAllRegister();
     gdalInitialized = true;
   }
