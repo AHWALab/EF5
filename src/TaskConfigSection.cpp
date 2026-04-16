@@ -8,9 +8,24 @@
 
 std::map<std::string, TaskConfigSection *> g_taskConfigs;
 
+static bool ParseBoolValue(const char *value, bool *out)
+{
+  if (!strcasecmp(value, "true"))
+  {
+    *out = true;
+    return true;
+  }
+  if (!strcasecmp(value, "false"))
+  {
+    *out = false;
+    return true;
+  }
+  return false;
+}
+
 TaskConfigSection::TaskConfigSection(const char *nameVal)
     : styleSet(false), modelSet(false), basinSet(false), precipSet(false), qpfSet(false), petSet(false), outputSet(false),
-      stateSet(false), paramsSet(false), timestepSet(false), timeStateSet(false), timeBeginSet(false),
+      stateSet(false), paramsSet(false), timestepSet(false), timeBeginSet(false),
       timeWarmEndSet(false), timeEndSet(false), caliParamSet(false), routingParamsSet(false),
       routingCaliParamSet(false), defaultParamsSet(false), routeSet(false),
       snowParamsSet(false), snowCaliParamSet(false), snowSet(false), tempSet(false), tempFSet(false),
@@ -21,7 +36,7 @@ TaskConfigSection::TaskConfigSection(const char *nameVal)
       params(nullptr), caliParam(nullptr), paramsRouting(nullptr), caliParamRouting(nullptr),
       paramsSnow(nullptr), caliParamSnow(nullptr), paramsInundation(nullptr), caliParamInundation(nullptr),
       defaultGauge(nullptr),
-      timeStep(), timeStepLR(), style(STYLE_QTY), timeBegin(), timeWarmEnd(), timeEnd(), timeState(), timeBeginLR(),
+      timeStep(), timeStepLR(), style(STYLE_QTY), timeBegin(), timeWarmEnd(), timeEnd(), timeBeginLR(),
         stateSaveInterval(), stateFileFormat(STATE_FORMAT_GEOTIFF),
       griddedOutputs(OG_NONE)
 {
@@ -46,6 +61,8 @@ TaskConfigSection::TaskConfigSection(const char *nameVal)
   std::fill(initStateTimestep, initStateTimestep + CONFIG_MAX_LEN, 0);
   stateSaveIntervalSet = false;
   initStateTimestepSet = false;
+  saveState = false;
+  readStates = false;
 }
 
 TaskConfigSection::~TaskConfigSection() {}
@@ -87,8 +104,6 @@ char *TaskConfigSection::GetCOFile() { return coFile; }
 char *TaskConfigSection::GetBasinAvgInput() { return basinAvgInput; }
 
 TimeVar *TaskConfigSection::GetTimeBegin() { return &timeBegin; }
-
-TimeVar *TaskConfigSection::GetTimeState() { return &timeState; }
 
 TimeVar *TaskConfigSection::GetTimeWarmEnd() { return &timeWarmEnd; }
 
@@ -446,8 +461,41 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char *name, char *value)
   }
   else if (!strcasecmp(name, "states"))
   {
+    ERROR_LOG("STATES has been replaced by STATE_DIR");
+    return INVALID_RESULT;
+  }
+  else if (!strcasecmp(name, "time_state"))
+  {
+    ERROR_LOG("TIME_STATE has been replaced by INITSTATETIMESTEP");
+    return INVALID_RESULT;
+  }
+  else if (!strcasecmp(name, "statesaveinterval"))
+  {
+    ERROR_LOG("STATESAVEINTERVAL has been replaced by STATEINTERVAL");
+    return INVALID_RESULT;
+  }
+  else if (!strcasecmp(name, "state_dir"))
+  {
     strcpy(state, value);
     stateSet = true;
+  }
+  else if (!strcasecmp(name, "save_state"))
+  {
+    if (!ParseBoolValue(value, &saveState))
+    {
+      ERROR_LOGF("Invalid save_state option \"%s\"", value);
+      INFO_LOGF("Valid save_state options are \"%s\"", "true, false");
+      return INVALID_RESULT;
+    }
+  }
+  else if (!strcasecmp(name, "read_states"))
+  {
+    if (!ParseBoolValue(value, &readStates))
+    {
+      ERROR_LOGF("Invalid read_states option \"%s\"", value);
+      INFO_LOGF("Valid read_states options are \"%s\"", "true, false");
+      return INVALID_RESULT;
+    }
   }
   else if (!strcasecmp(name, "statefileformat"))
   {
@@ -462,11 +510,11 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char *name, char *value)
       return INVALID_RESULT;
     }
   }
-  else if (!strcasecmp(name, "statesaveinterval"))
+  else if (!strcasecmp(name, "stateinterval"))
   {
     if (!StateConfigSection::ParseStateSaveInterval(value, &stateSaveInterval))
     {
-      ERROR_LOGF("Unknown state save interval option \"%s\"", value);
+      ERROR_LOGF("Unknown state interval option \"%s\"", value);
       return INVALID_RESULT;
     }
     stateSaveIntervalSet = true;
@@ -552,15 +600,6 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char *name, char *value)
       return INVALID_RESULT;
     }
     timestepLRSet = true;
-  }
-  else if (!strcasecmp(name, "time_state"))
-  {
-    if (!timeState.LoadTime(value))
-    {
-      ERROR_LOGF("Unknown time state option \"%s\"", value);
-      return INVALID_RESULT;
-    }
-    timeStateSet = true;
   }
   else if (!strcasecmp(name, "time_begin"))
   {
@@ -857,6 +896,27 @@ CONFIG_SEC_RET TaskConfigSection::ValidateSection()
   if (!timeWarmEndSet)
   {
     timeWarmEnd = timeBegin;
+  }
+
+  if (!initStateTimestepSet)
+  {
+    tm *t = timeBegin.GetTM();
+    snprintf(initStateTimestep, sizeof(initStateTimestep), "%04d%02d%02d_%02d%02d",
+             t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour,
+             t->tm_min);
+    initStateTimestepSet = true;
+  }
+
+  if ((saveState || readStates) && !stateSet)
+  {
+    ERROR_LOG("STATE_DIR is required when SAVE_STATE or READ_STATES is true");
+    return INVALID_RESULT;
+  }
+
+  if (saveState && !stateSaveIntervalSet)
+  {
+    stateSaveInterval = timeStep;
+    stateSaveIntervalSet = true;
   }
 
   return VALID_RESULT;

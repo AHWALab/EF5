@@ -28,19 +28,22 @@ EF5 supports model state archiving in the traditional raster-per-state format an
 Example task options:
 
 ```ini
-STATES=/path/to/state/output
-TIME_STATE=20260410000000
+STATE_DIR=/path/to/state/output
+SAVE_STATE=true
+READ_STATES=true
 STATEFILEFORMAT=netcdf
-STATESAVEINTERVAL=6h
 INITSTATETIMESTEP=20260410_1200
+STATEINTERVAL=6h
 ```
 
 Notes:
 
 1. `STATEFILEFORMAT=netcdf` writes per-model state files such as `crest_states.nc` with `time` as an unlimited dimension.
-2. `STATESAVEINTERVAL` is independent of the model timestep.
-3. `INITSTATETIMESTEP` selects the timestamp to warm-start from inside the netCDF state archive.
-4. If `STATEFILEFORMAT` is omitted, EF5 keeps using the legacy raster state output path.
+2. `SAVE_STATE` controls whether states are written during a run. Default is `false`.
+3. `READ_STATES` controls whether EF5 loads startup states from files in `STATE_DIR`. Default is `false`.
+4. `INITSTATETIMESTEP` is the first timestamp to save. If omitted, it defaults to `TIME_BEGIN`.
+5. `STATEINTERVAL` controls save cadence after `INITSTATETIMESTEP` and defaults to `TIMESTEP` when `SAVE_STATE=true`.
+6. Reads use `TIME_BEGIN` as the target timestamp.
 
 ### OS X
 

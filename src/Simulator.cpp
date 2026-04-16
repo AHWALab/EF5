@@ -384,7 +384,7 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
   missingQPF = 0;
 
   griddedOutputs = task->GetGriddedOutputs();
-  useStates = task->UseStates();
+  useStates = task->ReadStates();
   saveStates = task->SaveStates();
   stateFileFormat = task->GetStateFileFormat();
 
@@ -484,19 +484,26 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
   }
 
   outputPath = task->GetOutput();
-  if (useStates)
+  if (useStates || saveStates)
   {
     statePath = task->GetState();
-    stateTime = *(task->GetTimeState());
-    if (task->HasStateSaveInterval())
+  }
+
+  // State reads always target time_begin unless future requirements add a
+  // dedicated read timestamp.
+  initStateTime = beginTime;
+
+  if (saveStates)
+  {
+    if (task->HasStateInterval())
     {
-      stateSaveInterval = *(task->GetStateSaveInterval());
+      stateSaveInterval = *(task->GetStateInterval());
     }
     else
     {
       stateSaveInterval = *timeStep;
     }
-    nextStateSaveTime = stateTime;
+
     if (task->HasInitStateTimestep())
     {
       char initBuffer[CONFIG_MAX_LEN];
@@ -514,17 +521,19 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
           break;
         }
       }
-      if (!initStateTime.LoadTime(initBuffer))
+      if (!stateTime.LoadTime(initBuffer))
       {
         WARNING_LOGF("Unable to parse InitStateTimestep '%s', falling back to begin time",
                      task->GetInitStateTimestep());
-        initStateTime = currentTime;
+        stateTime = beginTime;
       }
     }
     else
     {
-      initStateTime = currentTime;
+      stateTime = beginTime;
     }
+
+    nextStateSaveTime = stateTime;
   }
 
   if ((task->GetPreloadForcings())[0])

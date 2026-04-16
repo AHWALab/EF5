@@ -48,7 +48,6 @@ public:
   TimeVar *GetTimeBegin();
   TimeVar *GetTimeWarmEnd();
   TimeVar *GetTimeEnd();
-  TimeVar *GetTimeState();
   TimeUnit *GetTimeStep();
   TimeUnit *GetTimeStepLR();
   TimeVar *GetTimeBeginLR();
@@ -72,11 +71,13 @@ public:
   SNOWS GetSnow();
   INUNDATIONS GetInundation();
   GaugeConfigSection *GetDefaultGauge();
-  bool UseStates() { return stateSet; }
-  bool SaveStates() { return (stateSet && timeStateSet); }
+  bool UseStates() { return readStates; }
+  bool SaveStates() { return saveState; }
+  bool ReadStates() { return readStates; }
+  bool HasStateDir() { return stateSet; }
   STATE_FILE_FORMAT GetStateFileFormat() { return stateFileFormat; }
-  TimeUnit *GetStateSaveInterval() { return &stateSaveInterval; }
-  bool HasStateSaveInterval() { return stateSaveIntervalSet; }
+  TimeUnit *GetStateInterval() { return &stateSaveInterval; }
+  bool HasStateInterval() { return stateSaveIntervalSet; }
   bool HasInitStateTimestep() { return initStateTimestepSet; }
   char *GetInitStateTimestep() { return initStateTimestep; }
   CONFIG_SEC_RET ProcessKeyValue(char *name, char *value);
@@ -89,13 +90,14 @@ public:
 
 private:
   bool styleSet, modelSet, basinSet, precipSet, qpfSet, petSet, outputSet,
-      stateSet, paramsSet, timestepSet, timeStateSet, timeBeginSet,
+      stateSet, paramsSet, timestepSet, timeBeginSet,
       timeWarmEndSet, timeEndSet, caliParamSet, routingParamsSet,
       routingCaliParamSet, defaultParamsSet, routeSet;
   bool snowParamsSet, snowCaliParamSet, snowSet, tempSet, tempFSet;
   bool inundationParamsSet, inundationCaliParamSet, inundationSet;
   bool timeBeginLRSet, timestepLRSet;
   bool stateSaveIntervalSet, initStateTimestepSet;
+  bool saveState, readStates;
   char output[CONFIG_MAX_LEN], state[CONFIG_MAX_LEN];
   char initStateTimestep[CONFIG_MAX_LEN];
   char name[CONFIG_MAX_LEN];
@@ -130,7 +132,6 @@ private:
   TimeVar timeBegin;
   TimeVar timeWarmEnd;
   TimeVar timeEnd;
-  TimeVar timeState;
   TimeVar timeBeginLR;
   TimeUnit stateSaveInterval;
   STATE_FILE_FORMAT stateFileFormat;
