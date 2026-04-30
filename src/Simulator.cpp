@@ -2,6 +2,9 @@
 #include <cstring>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <cctype>
+#include <ctime>
+#include <sys/types.h>
 #if _OPENMP
 #include <omp.h>
 #endif
@@ -38,6 +41,351 @@ bool g_mismatchedFrequencies = false;
 
 // Function to handle NaN values in observed discharge data
 void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate, const char *outputPath, TimeVar *beginTime, TimeUnit *timeStep);
+
+// ============================================================
+// Restart-safety helper utilities (file-scope)
+// ============================================================
+
+// Format a UTC epoch as "YYYYMMDD_HHMM" (backup-tag timestamp).
+static void FormatTagTs(time_t t, char *out, size_t n)
+{
+  struct tm *p = gmtime(&t);
+  strftime(out, n, "%Y%m%d_%H%M", p);
+}
+
+// Format a UTC epoch as "YYYY-MM-DD HH:MM" (matches CSV column-0 format).
+static void FormatCsvTs(time_t t, char *out, size_t n)
+{
+  struct tm *p = gmtime(&t);
+  strftime(out, n, "%Y-%m-%d %H:%M", p);
+}
+
+// Convert a CSV column-0 timestamp "YYYY-MM-DD HH:MM" to "YYYYMMDD_HHMM".
+static void CsvTsToTagTs(const char *csvTs, char *tagTs, size_t tagLen)
+{
+  int y, mo, d, h, mi;
+  if (sscanf(csvTs, "%4d-%2d-%2d %2d:%2d", &y, &mo, &d, &h, &mi) == 5)
+    snprintf(tagTs, tagLen, "%04d%02d%02d_%02d%02d", y, mo, d, h, mi);
+  else
+  {
+    strncpy(tagTs, "unknown", tagLen - 1);
+    tagTs[tagLen - 1] = '\0';
+  }
+}
+
+// Stream-copy src to dst.  Returns true on success; warns and returns false
+// on any I/O error.  The partial dst is removed if writing fails.
+static bool CopyFileBinary(const char *src, const char *dst)
+{
+  FILE *fsrc = fopen(src, "rb");
+  if (!fsrc)
+  {
+    WARNING_LOGF("Backup failed: cannot open source \"%s\"", src);
+    return false;
+  }
+  FILE *fdst = fopen(dst, "wb");
+  if (!fdst)
+  {
+    WARNING_LOGF("Backup failed: cannot create \"%s\"", dst);
+    fclose(fsrc);
+    return false;
+  }
+  char buf[65536];
+  size_t nr;
+  bool ok = true;
+  while ((nr = fread(buf, 1, sizeof(buf), fsrc)) > 0)
+  {
+    if (fwrite(buf, 1, nr, fdst) != nr)
+    {
+      WARNING_LOGF("Backup failed: write error on \"%s\"", dst);
+      ok = false;
+      break;
+    }
+  }
+  fclose(fsrc);
+  fclose(fdst);
+  if (!ok)
+    remove(dst);
+  return ok;
+}
+
+// Read first and last data-row timestamps from a CSV whose column-0 contains
+// "YYYY-MM-DD HH:MM" strings.  Fills firstTs/lastTs (capacity firstLen/lastLen)
+// with those strings.  Returns true when at least one data row was found.
+static bool GetCsvTimestampRange(const char *path,
+                                  char *firstTs, size_t firstLen,
+                                  char *lastTs,  size_t lastLen)
+{
+  FILE *f = fopen(path, "r");
+  if (!f)
+    return false;
+  char line[4096];
+  bool header = true;
+  bool found  = false;
+  firstTs[0]  = '\0';
+  lastTs[0]   = '\0';
+  while (fgets(line, sizeof(line), f))
+  {
+    if (header) { header = false; continue; }
+    const char *comma = strchr(line, ',');
+    if (!comma) continue;
+    size_t tsLen = (size_t)(comma - line);
+    if (tsLen == 0 || tsLen >= 32) continue;
+    char ts[32];
+    strncpy(ts, line, tsLen);
+    ts[tsLen] = '\0';
+    if (!found)
+    {
+      snprintf(firstTs, firstLen, "%s", ts);
+      found = true;
+    }
+    snprintf(lastTs, lastLen, "%s", ts);
+  }
+  fclose(f);
+  return found;
+}
+
+// Rewrite the CSV at path keeping the header row and all data rows whose
+// column-0 timestamp (lexicographic "YYYY-MM-DD HH:MM") is <= cutoffCsvTs.
+// Returns number of data rows retained, or -1 on error.
+static int PruneCsvRowsAfter(const char *path, const char *cutoffCsvTs)
+{
+  FILE *fin = fopen(path, "r");
+  if (!fin) return -1;
+  char tmpPath[CONFIG_MAX_LEN * 2 + 8];
+  snprintf(tmpPath, sizeof(tmpPath), "%s.pruning", path);
+  FILE *fout = fopen(tmpPath, "w");
+  if (!fout) { fclose(fin); return -1; }
+
+  char line[4096];
+  bool header = true;
+  int kept = 0;
+  while (fgets(line, sizeof(line), fin))
+  {
+    if (header)
+    {
+      fputs(line, fout);
+      header = false;
+      continue;
+    }
+    const char *comma = strchr(line, ',');
+    if (!comma) { fputs(line, fout); kept++; continue; } // malformed: keep
+    size_t tsLen = (size_t)(comma - line);
+    if (tsLen == 0 || tsLen >= 32) { fputs(line, fout); kept++; continue; }
+    char ts[32];
+    strncpy(ts, line, tsLen);
+    ts[tsLen] = '\0';
+    if (strcmp(ts, cutoffCsvTs) <= 0)
+    {
+      fputs(line, fout);
+      kept++;
+    }
+  }
+  fclose(fin);
+  fclose(fout);
+  remove(path);
+  if (rename(tmpPath, path) != 0)
+  {
+    WARNING_LOGF("Failed to replace \"%s\" with pruned version", path);
+    return -1;
+  }
+  return kept;
+}
+
+// Return true when a .tif filename contains an embedded YYYYMMDD_HHMM
+// timestamp as the last 13 characters before the ".tif" extension.
+// If found, copies the 13-char tag into tsOut (must hold >= 14 bytes).
+static bool ExtractStateTifTimestamp(const char *name, char *tsOut)
+{
+  size_t nlen = strlen(name);
+  if (nlen < 18) return false;
+  if (strcmp(name + nlen - 4, ".tif") != 0) return false;
+  // Timestamp occupies name[nlen-17 .. nlen-5], preceded by '_'
+  const char *tsStart = name + nlen - 17;
+  if (*(tsStart - 1) != '_') return false;
+  // Validate YYYYMMDD_HHMM pattern
+  for (int i = 0; i < 8; i++)
+    if (!isdigit((unsigned char)tsStart[i])) return false;
+  if (tsStart[8] != '_') return false;
+  for (int i = 9; i < 13; i++)
+    if (!isdigit((unsigned char)tsStart[i])) return false;
+  strncpy(tsOut, tsStart, 13);
+  tsOut[13] = '\0';
+  return true;
+}
+
+// Scan stateDir for .tif state files; fill firstTag/lastTag with the
+// earliest/latest YYYYMMDD_HHMM timestamps found.  Returns true if any found.
+static bool GetStateFileTimestampRange(const char *stateDir,
+                                        char *firstTag, size_t firstLen,
+                                        char *lastTag,  size_t lastLen)
+{
+  DIR *dir = opendir(stateDir);
+  if (!dir) return false;
+  bool found = false;
+  struct dirent *ent;
+  char ts[14];
+  while ((ent = readdir(dir)) != NULL)
+  {
+    if (!ExtractStateTifTimestamp(ent->d_name, ts)) continue;
+    if (!found)
+    {
+      strncpy(firstTag, ts, firstLen - 1); firstTag[firstLen - 1] = '\0';
+      strncpy(lastTag,  ts, lastLen  - 1); lastTag[lastLen  - 1]  = '\0';
+      found = true;
+    }
+    else
+    {
+      if (strcmp(ts, firstTag) < 0) { strncpy(firstTag, ts, firstLen - 1); firstTag[firstLen - 1] = '\0'; }
+      if (strcmp(ts, lastTag)  > 0) { strncpy(lastTag,  ts, lastLen  - 1); lastTag[lastLen  - 1]  = '\0'; }
+    }
+  }
+  closedir(dir);
+  return found;
+}
+
+// Move all .tif state files in stateDir whose embedded timestamp is strictly
+// after cutoffTag into a backup subdirectory named
+// state_backup_<firstTag>_<cutoffTag>.  Creates the subdir as needed.
+static void PruneStateFilesAfter(const char *stateDir, const char *cutoffTag,
+                                   const char *firstTag)
+{
+  char backupDir[CONFIG_MAX_LEN * 2 + 64];
+  snprintf(backupDir, sizeof(backupDir), "%s/state_backup_%s_%s",
+           stateDir, firstTag, cutoffTag);
+  DIR *dir = opendir(stateDir);
+  if (!dir) return;
+  bool madeDir = false;
+  struct dirent *ent;
+  char ts[14];
+  while ((ent = readdir(dir)) != NULL)
+  {
+    if (!ExtractStateTifTimestamp(ent->d_name, ts)) continue;
+    if (strcmp(ts, cutoffTag) <= 0) continue; // retain
+    if (!madeDir) { mkdir(backupDir, 0755); madeDir = true; }
+    char src[CONFIG_MAX_LEN * 2 + 4];
+    char dst[CONFIG_MAX_LEN * 4 + 4];
+    snprintf(src, sizeof(src), "%s/%s", stateDir, ent->d_name);
+    snprintf(dst, sizeof(dst), "%s/%s", backupDir, ent->d_name);
+    if (rename(src, dst) != 0)
+    {
+      if (CopyFileBinary(src, dst)) remove(src);
+      else WARNING_LOGF("Could not move stale state file \"%s\"", src);
+    }
+  }
+  closedir(dir);
+  if (madeDir)
+    INFO_LOGF("Stale state files (after %s) moved to \"%s\"", cutoffTag, backupDir);
+}
+
+// Move ALL .tif state files in stateDir to a backup subdirectory named
+// state_backup_<firstTag>_<lastTag>.
+static void BackupAllStateFiles(const char *stateDir,
+                                  const char *firstTag, const char *lastTag)
+{
+  char backupDir[CONFIG_MAX_LEN * 2 + 64];
+  snprintf(backupDir, sizeof(backupDir), "%s/state_backup_%s_%s",
+           stateDir, firstTag, lastTag);
+  mkdir(backupDir, 0755);
+  DIR *dir = opendir(stateDir);
+  if (!dir) return;
+  struct dirent *ent;
+  char ts[14];
+  while ((ent = readdir(dir)) != NULL)
+  {
+    if (!ExtractStateTifTimestamp(ent->d_name, ts)) continue;
+    char src[CONFIG_MAX_LEN * 2 + 4];
+    char dst[CONFIG_MAX_LEN * 4 + 4];
+    snprintf(src, sizeof(src), "%s/%s", stateDir, ent->d_name);
+    snprintf(dst, sizeof(dst), "%s/%s", backupDir, ent->d_name);
+    if (rename(src, dst) != 0)
+    {
+      if (CopyFileBinary(src, dst)) remove(src);
+    }
+  }
+  closedir(dir);
+  INFO_LOGF("Existing state files backed up to \"%s\"", backupDir);
+}
+
+// Prepare a single NetCDF state file for resume (prune post-cutoff entries)
+// or fresh run (backup and remove so the next write starts clean).
+// ncPath:       full path to the .nc file
+// cutoffEpoch:  time_t cutoff (== beginTime.currentTimeSec)
+// cutoffTag:    cutoff formatted as "YYYYMMDD_HHMM"
+// isResume:     true → prune; false → backup + remove
+static void PrepareNetCDFStateFile(const char *ncPath, time_t cutoffEpoch,
+                                    const char *cutoffTag, bool isResume,
+                                    NetCDFStateWriter *ncWriter)
+{
+  struct stat st;
+  if (stat(ncPath, &st) != 0) return; // file doesn't exist: nothing to do
+
+  time_t firstEpoch = 0, lastEpoch = 0;
+  if (ncWriter->GetTimeRange(ncPath, &firstEpoch, &lastEpoch) != 0)
+  {
+    // Exists but unreadable or empty — remove so next write creates fresh
+    WARNING_LOGF("Removing unreadable/empty state file \"%s\"", ncPath);
+    remove(ncPath);
+    return;
+  }
+
+  char firstTag[16], endTag[16];
+  FormatTagTs(firstEpoch, firstTag, sizeof(firstTag));
+
+  if (isResume)
+  {
+    if (lastEpoch <= cutoffEpoch)
+    {
+      // Nothing after the cutoff — no pruning needed
+      return;
+    }
+    // endTag = cutoff (last retained timestamp)
+    strncpy(endTag, cutoffTag, sizeof(endTag) - 1);
+    endTag[sizeof(endTag) - 1] = '\0';
+
+    char bakPath[CONFIG_MAX_LEN * 2 + 64];
+    snprintf(bakPath, sizeof(bakPath), "%s.%s_%s.bak", ncPath, firstTag, endTag);
+
+    char tmpPath[CONFIG_MAX_LEN * 2 + 16];
+    snprintf(tmpPath, sizeof(tmpPath), "%s.rebuilding", ncPath);
+
+    if (ncWriter->RebuildUpToCutoff(ncPath, tmpPath, cutoffEpoch) == 0)
+    {
+      if (CopyFileBinary(ncPath, bakPath))
+        INFO_LOGF("NetCDF state backup: \"%s\" -> \"%s\"", ncPath, bakPath);
+      remove(ncPath);
+      if (rename(tmpPath, ncPath) == 0)
+        INFO_LOGF("NetCDF state pruned to %s: \"%s\"", cutoffTag, ncPath);
+      else
+        WARNING_LOGF("Could not rename rebuilt state to \"%s\"", ncPath);
+    }
+    else
+    {
+      WARNING_LOGF("Could not rebuild netCDF state \"%s\": %s",
+                   ncPath, ncWriter->GetLastError());
+      remove(tmpPath);
+    }
+  }
+  else
+  {
+    // Fresh run: backup all, then remove original so first save creates clean file
+    FormatTagTs(lastEpoch, endTag, sizeof(endTag));
+    char bakPath[CONFIG_MAX_LEN * 2 + 64];
+    snprintf(bakPath, sizeof(bakPath), "%s.%s_%s.bak", ncPath, firstTag, endTag);
+    if (CopyFileBinary(ncPath, bakPath))
+    {
+      INFO_LOGF("NetCDF state backup: \"%s\" -> \"%s\"", ncPath, bakPath);
+      remove(ncPath);
+    }
+    else
+      WARNING_LOGF("Could not back up netCDF state \"%s\"; existing data may be overwritten",
+                   ncPath);
+  }
+}
+
+// ============================================================
+// End restart-safety helpers
+// ============================================================
 
 bool Simulator::Initialize(TaskConfigSection *taskN)
 {
@@ -447,6 +795,11 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
   // Initialize file handles for all of the gauges we are using! Also load the
   // time series information if appropriate.
   gaugeOutputs.resize(gauges->size());
+  // Format TIME_BEGIN as "YYYY-MM-DD HH:MM" for CSV row comparison and as
+  // "YYYYMMDD_HHMM" for backup-tag generation.
+  char beginCsvTs[32];
+  FormatCsvTs(beginTime.currentTimeSec, beginCsvTs, sizeof(beginCsvTs));
+
   for (size_t i = 0; i < gauges->size(); i++)
   {
     gaugeOutputs[i] = NULL;
@@ -454,33 +807,97 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
     {
       sprintf(buffer, "%s/ts.%s.%s.csv", task->GetOutput(),
               gauges->at(i)->GetName(), wbModel->GetName());
-      gaugeOutputs[i] = fopen(buffer, "w");
-      if (gaugeOutputs[i])
+
+      struct stat tsStat;
+      bool tsExists = (stat(buffer, &tsStat) == 0);
+
+      if (useStates && tsExists)
       {
-        // setvbuf(gaugeOutputs[i], NULL, _IONBF, 0);
-        fprintf(gaugeOutputs[i], "%s",
-                "Time,Discharge(m^3 s^-1),Observed(m^3 s^-1),Precip(mm "
-                "h^-1),PET(mm h^-1),SM(%),Fast Flow(mm*1000),Slow "
-                "Flow(mm*1000)");
-        if (sModel)
+        // Resume run: prune rows after TIME_BEGIN, then open in append mode.
+        int kept = PruneCsvRowsAfter(buffer, beginCsvTs);
+        if (kept < 0)
+          WARNING_LOGF("Could not prune \"%s\"; opening in append mode anyway", buffer);
+        else
+          INFO_LOGF("TS file pruned to %d rows (cutoff %s): \"%s\"",
+                    kept, beginCsvTs, buffer);
+        gaugeOutputs[i] = fopen(buffer, "a");
+        if (!gaugeOutputs[i])
         {
-          fprintf(gaugeOutputs[i], "%s", ",Temperature (C),SWE(mm)");
+          WARNING_LOGF("Failed to open gauge output file \"%s\"", buffer);
         }
-        if (outputRP)
+        else
         {
-          fprintf(gaugeOutputs[i], "%s", ",Return Period(y)");
+          // Write header only if the file ended up empty after pruning.
+          fseek(gaugeOutputs[i], 0, SEEK_END);
+          if (ftell(gaugeOutputs[i]) == 0)
+          {
+            // setvbuf(gaugeOutputs[i], NULL, _IONBF, 0);
+            fprintf(gaugeOutputs[i], "%s",
+                    "Time,Discharge(m^3 s^-1),Observed(m^3 s^-1),Precip(mm "
+                    "h^-1),PET(mm h^-1),SM(%),Fast Flow(mm*1000),Slow "
+                    "Flow(mm*1000)");
+            if (sModel) fprintf(gaugeOutputs[i], "%s", ",Temperature (C),SWE(mm)");
+            if (outputRP) fprintf(gaugeOutputs[i], "%s", ",Return Period(y)");
+            fprintf(gaugeOutputs[i], "%s", "\n");
+          }
         }
-        fprintf(gaugeOutputs[i], "%s", "\n");
+      }
+      else if (!useStates && tsExists)
+      {
+        // Fresh run with an existing file: back it up, then open clean.
+        char firstCsvTs[32], lastCsvTs[32];
+        if (GetCsvTimestampRange(buffer, firstCsvTs, sizeof(firstCsvTs),
+                                  lastCsvTs, sizeof(lastCsvTs)))
+        {
+          char firstTag[16], lastTag[16];
+          CsvTsToTagTs(firstCsvTs, firstTag, sizeof(firstTag));
+          CsvTsToTagTs(lastCsvTs,  lastTag,  sizeof(lastTag));
+          char bakPath[CONFIG_MAX_LEN * 2 + 64];
+          snprintf(bakPath, sizeof(bakPath), "%s.%s_%s.bak",
+                   buffer, firstTag, lastTag);
+          if (CopyFileBinary(buffer, bakPath))
+            INFO_LOGF("TS results backed up: \"%s\" -> \"%s\"", buffer, bakPath);
+          else
+            WARNING_LOGF("Could not back up \"%s\"; existing results may be overwritten",
+                         buffer);
+        }
+        gaugeOutputs[i] = fopen(buffer, "w");
+        if (gaugeOutputs[i])
+        {
+          // setvbuf(gaugeOutputs[i], NULL, _IONBF, 0);
+          fprintf(gaugeOutputs[i], "%s",
+                  "Time,Discharge(m^3 s^-1),Observed(m^3 s^-1),Precip(mm "
+                  "h^-1),PET(mm h^-1),SM(%),Fast Flow(mm*1000),Slow "
+                  "Flow(mm*1000)");
+          if (sModel) fprintf(gaugeOutputs[i], "%s", ",Temperature (C),SWE(mm)");
+          if (outputRP) fprintf(gaugeOutputs[i], "%s", ",Return Period(y)");
+          fprintf(gaugeOutputs[i], "%s", "\n");
+        }
+        else
+          WARNING_LOGF("Failed to open gauge output file \"%s\"", buffer);
       }
       else
       {
-        WARNING_LOGF("Failed to open gauge output file \"%s\"", buffer);
+        // File does not exist (or useStates but no existing file): create fresh.
+        gaugeOutputs[i] = fopen(buffer, "w");
+        if (gaugeOutputs[i])
+        {
+          // setvbuf(gaugeOutputs[i], NULL, _IONBF, 0);
+          fprintf(gaugeOutputs[i], "%s",
+                  "Time,Discharge(m^3 s^-1),Observed(m^3 s^-1),Precip(mm "
+                  "h^-1),PET(mm h^-1),SM(%),Fast Flow(mm*1000),Slow "
+                  "Flow(mm*1000)");
+          if (sModel) fprintf(gaugeOutputs[i], "%s", ",Temperature (C),SWE(mm)");
+          if (outputRP) fprintf(gaugeOutputs[i], "%s", ",Return Period(y)");
+          fprintf(gaugeOutputs[i], "%s", "\n");
+        }
+        else
+          WARNING_LOGF("Failed to open gauge output file \"%s\"", buffer);
       }
     }
 
     // Tell this gauge to load the observed data file
     gauges->at(i)->LoadTS();
-    //   NORMAL_LOGF("%s\n", "Got here!1");
   }
 
   outputPath = task->GetOutput();
@@ -492,6 +909,14 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
   // State reads always target time_begin unless future requirements add a
   // dedicated read timestamp.
   initStateTime = beginTime;
+
+  // Prepare state-output directory: prune stale artifacts on resume, or back up
+  // existing ones on a fresh run.  Must be called after statePath is set, before
+  // any state reads/writes begin.
+  if (saveStates)
+  {
+    PrepareStateDirectory();
+  }
 
   if (saveStates)
   {
@@ -813,6 +1238,68 @@ bool Simulator::InitializeCali(TaskConfigSection *task)
 #endif
 
   return true;
+}
+
+void Simulator::PrepareStateDirectory()
+{
+  if (!statePath || !statePath[0]) return;
+
+  // Format TIME_BEGIN as "YYYYMMDD_HHMM" for backup tags.
+  char cutoffTag[16];
+  FormatTagTs(beginTime.currentTimeSec, cutoffTag, sizeof(cutoffTag));
+
+  bool isResume = useStates; // read_states=true means we are resuming
+
+  // --- NetCDF state files ---
+  if (stateFileFormat == STATE_FORMAT_NETCDF)
+  {
+    char ncPath[CONFIG_MAX_LEN * 2];
+
+    // Water-balance model
+    sprintf(ncPath, "%s/%s_states.nc", statePath, wbModel->GetName());
+    PrepareNetCDFStateFile(ncPath, beginTime.currentTimeSec, cutoffTag,
+                           isResume, &stateNcWriter);
+
+    // Routing model (if present)
+    if (rModel)
+    {
+      sprintf(ncPath, "%s/%s_states.nc", statePath,
+              routeStrings[task->GetRouting()]);
+      PrepareNetCDFStateFile(ncPath, beginTime.currentTimeSec, cutoffTag,
+                             isResume, &stateNcWriter);
+    }
+
+    // Snow model (if present)
+    if (sModel)
+    {
+      sprintf(ncPath, "%s/%s_states.nc", statePath,
+              snowStrings[task->GetSnow()]);
+      PrepareNetCDFStateFile(ncPath, beginTime.currentTimeSec, cutoffTag,
+                             isResume, &stateNcWriter);
+    }
+  }
+  else
+  {
+    // Raster / ASCII state files
+    char firstTag[16], lastTag[16];
+    bool hasFiles = GetStateFileTimestampRange(statePath, firstTag,
+                                               sizeof(firstTag), lastTag,
+                                               sizeof(lastTag));
+    if (hasFiles)
+    {
+      if (isResume)
+      {
+        // Remove stale state snapshots after TIME_BEGIN.
+        if (strcmp(lastTag, cutoffTag) > 0)
+          PruneStateFilesAfter(statePath, cutoffTag, firstTag);
+      }
+      else
+      {
+        // Fresh run: move all existing state files to a backup subdirectory.
+        BackupAllStateFiles(statePath, firstTag, lastTag);
+      }
+    }
+  }
 }
 
 void Simulator::CleanUp()

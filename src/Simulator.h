@@ -39,6 +39,8 @@ private:
     bool InitializeCali(TaskConfigSection *task);
     bool InitializeGridParams(TaskConfigSection *task);
 
+    void PrepareStateDirectory();
+
     void SimulateDistributed(bool trackPeaks);
     void SimulateLumped();
 

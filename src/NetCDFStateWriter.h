@@ -27,6 +27,16 @@ public:
                     const std::vector<GridNode> *nodes,
                     std::vector<float> *values, time_t epochSeconds);
 
+  // Returns first/last epoch timestamps stored in the file's time dimension.
+  // Returns 0 on success, -1 if the file doesn't exist or has no time records.
+  int GetTimeRange(const char *filePath, time_t *firstEpoch, time_t *lastEpoch);
+
+  // Creates dstPath containing only time-steps with epoch <= cutoffEpoch.
+  // All state variables are copied for retained time-steps.
+  // Returns 0 on success, -1 on error (lastError is set).
+  int RebuildUpToCutoff(const char *srcPath, const char *dstPath,
+                        time_t cutoffEpoch);
+
   const char *GetLastError() const;
 
 private:

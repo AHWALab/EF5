@@ -399,3 +399,130 @@ int NetCDFStateWriter::ReadStateGrid(const char *filePath, const char *varName,
   nc_close(ncid);
   return ExtractFromDenseGrid(nodes, &dense, values);
 }
+
+int NetCDFStateWriter::GetTimeRange(const char *filePath, time_t *firstEpoch,
+                                    time_t *lastEpoch)
+{
+  int ncid = -1;
+  int ret = nc_open(filePath, NC_NOWRITE, &ncid);
+  if (ret != NC_NOERR)
+  {
+    snprintf(lastError, sizeof(lastError), "Cannot open %s: %s", filePath,
+             nc_strerror(ret));
+    return -1;
+  }
+
+  int dimTime = -1;
+  nc_inq_dimid(ncid, "time", &dimTime);
+  size_t nTime = 0;
+  nc_inq_dimlen(ncid, dimTime, &nTime);
+  if (nTime == 0)
+  {
+    nc_close(ncid);
+    snprintf(lastError, sizeof(lastError), "State file has no time records: %s",
+             filePath);
+    return -1;
+  }
+
+  int varTime = -1;
+  nc_inq_varid(ncid, "time", &varTime);
+  std::vector<double> tvals(nTime);
+  nc_get_var_double(ncid, varTime, tvals.data());
+  nc_close(ncid);
+
+  *firstEpoch = (time_t)tvals[0];
+  *lastEpoch  = (time_t)tvals[nTime - 1];
+  return 0;
+}
+
+int NetCDFStateWriter::RebuildUpToCutoff(const char *srcPath,
+                                         const char *dstPath,
+                                         time_t cutoffEpoch)
+{
+  // Open source
+  int srcId = -1;
+  int ret = nc_open(srcPath, NC_NOWRITE, &srcId);
+  if (ret != NC_NOERR)
+  {
+    snprintf(lastError, sizeof(lastError), "Cannot open source %s: %s", srcPath,
+             nc_strerror(ret));
+    return -1;
+  }
+
+  // Read time dimension
+  int dimTimeSrc = -1;
+  nc_inq_dimid(srcId, "time", &dimTimeSrc);
+  size_t nTime = 0;
+  nc_inq_dimlen(srcId, dimTimeSrc, &nTime);
+
+  int varTimeSrc = -1;
+  nc_inq_varid(srcId, "time", &varTimeSrc);
+  std::vector<double> tvals(nTime);
+  if (nTime > 0)
+    nc_get_var_double(srcId, varTimeSrc, tvals.data());
+
+  // Determine which time indices are retained (<= cutoffEpoch)
+  std::vector<size_t> kept;
+  for (size_t i = 0; i < nTime; i++)
+  {
+    if ((time_t)tvals[i] <= cutoffEpoch)
+      kept.push_back(i);
+  }
+
+  // Create destination file
+  int dstId = -1;
+  bool created = false;
+  if (EnsureFileAndCoreVariables(dstPath, &dstId, &created) != 0)
+  {
+    nc_close(srcId);
+    return -1;
+  }
+
+  // Write retained time values
+  int varTimeDst = -1;
+  nc_inq_varid(dstId, "time", &varTimeDst);
+  for (size_t ki = 0; ki < kept.size(); ki++)
+  {
+    double tv = tvals[kept[ki]];
+    nc_put_var1_double(dstId, varTimeDst, &ki, &tv);
+  }
+
+  // Iterate all 3D state variables in source and copy retained slices
+  int nvars = 0;
+  nc_inq_nvars(srcId, &nvars);
+  size_t sliceSize = (size_t)g_DEM->numRows * (size_t)g_DEM->numCols;
+  std::vector<float> sliceBuf(sliceSize);
+
+  for (int v = 0; v < nvars; v++)
+  {
+    char varName[NC_MAX_NAME + 1];
+    nc_inq_varname(srcId, v, varName);
+    if (strcmp(varName, "time") == 0)
+      continue;
+
+    int ndims = 0;
+    nc_inq_varndims(srcId, v, &ndims);
+    if (ndims != 3)
+      continue;
+
+    // Ensure variable exists in destination
+    int dstVarId = -1;
+    if (EnsureStateVariable(dstId, varName, &dstVarId) != 0)
+      continue;
+
+    for (size_t ki = 0; ki < kept.size(); ki++)
+    {
+      size_t srcStart[3] = {kept[ki], 0, 0};
+      size_t count[3]    = {1, (size_t)g_DEM->numRows, (size_t)g_DEM->numCols};
+      ret = nc_get_vara_float(srcId, v, srcStart, count, sliceBuf.data());
+      if (ret != NC_NOERR)
+        continue;
+      size_t dstStart[3] = {ki, 0, 0};
+      nc_put_vara_float(dstId, dstVarId, dstStart, count, sliceBuf.data());
+    }
+  }
+
+  nc_close(srcId);
+  nc_close(dstId);
+  return 0;
+}
