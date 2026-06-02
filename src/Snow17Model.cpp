@@ -1,5 +1,7 @@
 #include "Snow17Model.h"
 #include "DatedName.h"
+#include "Messages.h"
+#include "NetCDFStateWriter.h"
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -107,6 +109,40 @@ void Snow17Model::SaveStates(TimeVar *currentTime, char *statePath,
     }
     gridWriter->WriteGrid(nodes, &dataVals, buffer, false);
   }
+}
+
+void Snow17Model::InitializeStatesFromNetCDF(const char *filepath,
+                                             TimeVar *initTime) {
+  NetCDFStateWriter reader;
+  for (int p = 0; p < STATE_SNOW17_QTY; p++) {
+    std::vector<float> stateVals;
+    if (reader.ReadStateGrid(filepath, stateStrings[p], nodes, &stateVals,
+                             initTime->currentTimeSec) != 0) {
+      WARNING_LOGF("Failed reading Snow17 state %s from %s", stateStrings[p],
+                   filepath);
+      return;
+    }
+    for (size_t i = 0; i < nodes->size(); i++) {
+      snowNodes[i].states[p] = stateVals[i];
+    }
+  }
+}
+
+int Snow17Model::SaveStatesToNetCDF(const char *filepath, TimeVar *currentTime,
+                                    NetCDFStateWriter *ncWriter) {
+  for (int p = 0; p < STATE_SNOW17_QTY; p++) {
+    std::vector<float> stateVals(nodes->size());
+    for (size_t i = 0; i < nodes->size(); i++) {
+      stateVals[i] = snowNodes[i].states[p];
+    }
+    if (ncWriter->AppendStateGrid(filepath, stateStrings[p], nodes, &stateVals,
+                                  currentTime->currentTimeSec) != 0) {
+      ERROR_LOGF("Failed writing Snow17 state %s: %s", stateStrings[p],
+                 ncWriter->GetLastError());
+      return -1;
+    }
+  }
+  return 0;
 }
 
 bool Snow17Model::SnowBalance(float jday, float stepHours,

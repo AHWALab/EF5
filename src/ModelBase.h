@@ -7,6 +7,9 @@
 #include "TimeUnit.h"
 #include <vector>
 
+// Forward declaration
+class NetCDFStateWriter;
+
 class Model {
 
 public:
@@ -15,8 +18,11 @@ public:
                   std::map<GaugeConfigSection *, float *> *paramSettings,
                   std::vector<FloatGrid *> *paramGrids) = 0;
   virtual void InitializeStates(TimeVar *beginTime, char *statePath) = 0;
+  virtual void InitializeStatesFromNetCDF(const char *filepath, TimeVar *initTime) {}
   virtual void SaveStates(TimeVar *currentTime, char *statePath,
                           GridWriterFull *gridWriter) = 0;
+  virtual int SaveStatesToNetCDF(const char *filepath, TimeVar *currentTime,
+                                 NetCDFStateWriter *ncWriter) { return 0; }
   virtual bool RunTimeStep(long index, float stepHours,
                            std::vector<float> *precip, std::vector<float> *pet,
                            std::vector<float> *discharge,
@@ -33,8 +39,11 @@ public:
                   std::map<GaugeConfigSection *, float *> *paramSettings,
                   std::vector<FloatGrid *> *paramGrids) = 0;
   virtual void InitializeStates(TimeVar *beginTime, char *statePath) = 0;
+  virtual void InitializeStatesFromNetCDF(const char *filepath, TimeVar *initTime) {}
   virtual void SaveStates(TimeVar *currentTime, char *statePath,
                           GridWriterFull *gridWriter) = 0;
+  virtual int SaveStatesToNetCDF(const char *filepath, TimeVar *currentTime,
+                                 NetCDFStateWriter *ncWriter) { return 0; }
   virtual bool WaterBalance(float stepHours, std::vector<float> *precip,
                             std::vector<float> *pet,
                             std::vector<float> *fastFlow,
@@ -54,8 +63,11 @@ public:
   virtual void InitializeStates(TimeVar *beginTime, char *statePath,
                                 std::vector<float> *fastFlow,
                                 std::vector<float> *slowFlow) = 0;
+    virtual void InitializeStatesFromNetCDF(const char *filepath, TimeVar *initTime) {}
   virtual void SaveStates(TimeVar *currentTime, char *statePath,
                           GridWriterFull *gridWriter) = 0;
+    virtual int SaveStatesToNetCDF(const char *filepath, TimeVar *currentTime,
+                                   NetCDFStateWriter *ncWriter) { return 0; }
   virtual bool Route(float stepHours, std::vector<float> *fastFlow,
                      std::vector<float> *slowFlow,
                      std::vector<float> *discharge) = 0;
@@ -71,8 +83,11 @@ public:
                   std::map<GaugeConfigSection *, float *> *paramSettings,
                   std::vector<FloatGrid *> *paramGrids) = 0;
   virtual void InitializeStates(TimeVar *beginTime, char *statePath) = 0;
+    virtual void InitializeStatesFromNetCDF(const char *filepath, TimeVar *initTime) {}
   virtual void SaveStates(TimeVar *currentTime, char *statePath,
                           GridWriterFull *gridWriter) = 0;
+    virtual int SaveStatesToNetCDF(const char *filepath, TimeVar *currentTime,
+                                   NetCDFStateWriter *ncWriter) { return 0; }
   virtual bool SnowBalance(float jday, float stepHours,
                            std::vector<float> *precip, std::vector<float> *temp,
                            std::vector<float> *melt,

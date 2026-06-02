@@ -1,8 +1,16 @@
 #include "HyMOD.h"
+#include "Messages.h"
+#include "NetCDFStateWriter.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+
+static const char *stateStrings[] = {
+  "xcuz",
+  "xhuz",
+  "xs",
+};
 
 HyMOD::HyMOD() {}
 
@@ -39,6 +47,108 @@ void HyMOD::InitializeStates(TimeVar *beginTime, char *statePath) {}
 
 void HyMOD::SaveStates(TimeVar *currentTime, char *statePath,
                        GridWriterFull *gridWriter) {}
+
+void HyMOD::InitializeStatesFromNetCDF(const char *filepath, TimeVar *initTime)
+{
+  NetCDFStateWriter reader;
+  std::vector<float> stateVals;
+
+  if (reader.ReadStateGrid(filepath, stateStrings[0], nodes, &stateVals,
+                           initTime->currentTimeSec) == 0) {
+    for (size_t i = 0; i < nodes->size(); i++) {
+      hymodNodes[i].XCuz = stateVals[i];
+    }
+  } else {
+    WARNING_LOGF("Failed reading HyMOD state %s from %s", stateStrings[0], filepath);
+    return;
+  }
+  if (reader.ReadStateGrid(filepath, stateStrings[1], nodes, &stateVals,
+                           initTime->currentTimeSec) == 0) {
+    for (size_t i = 0; i < nodes->size(); i++) {
+      hymodNodes[i].XHuz = stateVals[i];
+    }
+  }
+  if (reader.ReadStateGrid(filepath, stateStrings[2], nodes, &stateVals,
+                           initTime->currentTimeSec) == 0) {
+    for (size_t i = 0; i < nodes->size(); i++) {
+      hymodNodes[i].Xs = stateVals[i];
+    }
+  }
+
+  int maxQF = 0;
+  for (size_t i = 0; i < nodes->size(); i++) {
+    if (hymodNodes[i].numQF > maxQF) {
+      maxQF = hymodNodes[i].numQF;
+    }
+  }
+
+  char qName[32];
+  for (int q = 0; q < maxQF; q++) {
+    sprintf(qName, "xq_%d", q);
+    if (reader.ReadStateGrid(filepath, qName, nodes, &stateVals,
+                             initTime->currentTimeSec) != 0) {
+      break;
+    }
+    for (size_t i = 0; i < nodes->size(); i++) {
+      if (q < hymodNodes[i].numQF && hymodNodes[i].Xq) {
+        hymodNodes[i].Xq[q] = stateVals[i];
+      }
+    }
+  }
+}
+
+int HyMOD::SaveStatesToNetCDF(const char *filepath, TimeVar *currentTime,
+                              NetCDFStateWriter *ncWriter)
+{
+  std::vector<float> stateVals(nodes->size());
+
+  for (size_t i = 0; i < nodes->size(); i++) {
+    stateVals[i] = hymodNodes[i].XCuz;
+  }
+  if (ncWriter->AppendStateGrid(filepath, stateStrings[0], nodes, &stateVals,
+                                currentTime->currentTimeSec) != 0) {
+    return -1;
+  }
+
+  for (size_t i = 0; i < nodes->size(); i++) {
+    stateVals[i] = hymodNodes[i].XHuz;
+  }
+  if (ncWriter->AppendStateGrid(filepath, stateStrings[1], nodes, &stateVals,
+                                currentTime->currentTimeSec) != 0) {
+    return -1;
+  }
+
+  for (size_t i = 0; i < nodes->size(); i++) {
+    stateVals[i] = hymodNodes[i].Xs;
+  }
+  if (ncWriter->AppendStateGrid(filepath, stateStrings[2], nodes, &stateVals,
+                                currentTime->currentTimeSec) != 0) {
+    return -1;
+  }
+
+  int maxQF = 0;
+  for (size_t i = 0; i < nodes->size(); i++) {
+    if (hymodNodes[i].numQF > maxQF) {
+      maxQF = hymodNodes[i].numQF;
+    }
+  }
+
+  char qName[32];
+  for (int q = 0; q < maxQF; q++) {
+    for (size_t i = 0; i < nodes->size(); i++) {
+      stateVals[i] = (q < hymodNodes[i].numQF && hymodNodes[i].Xq)
+                         ? hymodNodes[i].Xq[q]
+                         : 0.0f;
+    }
+    sprintf(qName, "xq_%d", q);
+    if (ncWriter->AppendStateGrid(filepath, qName, nodes, &stateVals,
+                                  currentTime->currentTimeSec) != 0) {
+      return -1;
+    }
+  }
+
+  return 0;
+}
 
 bool HyMOD::WaterBalance(float stepHours, std::vector<float> *precip,
                          std::vector<float> *pet, std::vector<float> *fastFlow,

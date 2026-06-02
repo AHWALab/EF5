@@ -21,6 +21,30 @@ Clone the source code from GitHub.
 3. make   
    This compiles the EF5 application!
 
+## State Output
+
+EF5 supports model state archiving in the traditional raster-per-state format and in netCDF.
+
+Example task options:
+
+```ini
+STATE_DIR=/path/to/state/output
+SAVE_STATE=true
+READ_STATES=true
+STATEFILEFORMAT=netcdf
+INITSTATETIMESTEP=20260410_1200
+STATEINTERVAL=6h
+```
+
+Notes:
+
+1. `STATEFILEFORMAT=netcdf` writes per-model state files such as `crest_states.nc` with `time` as an unlimited dimension.
+2. `SAVE_STATE` controls whether states are written during a run. Default is `false`.
+3. `READ_STATES` controls whether EF5 loads startup states from files in `STATE_DIR`. Default is `false`.
+4. `INITSTATETIMESTEP` is the first timestamp to save. If omitted, it defaults to `TIME_BEGIN`.
+5. `STATEINTERVAL` controls save cadence after `INITSTATETIMESTEP` and defaults to `TIMESTEP` when `SAVE_STATE=true`.
+6. Reads use `TIME_BEGIN` as the target timestamp.
+
 ### OS X
 
 Clone the source code from GitHub. Use the EF5 Xcode project found in the EF5 folder and compile the project.

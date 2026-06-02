@@ -6,6 +6,7 @@
 #include "GridNode.h"
 #include "Model.h"
 #include "ModelBase.h"
+#include "NetCDFStateWriter.h"
 #include "PETConfigSection.h"
 #include "PETReader.h"
 #include "PrecipConfigSection.h"
@@ -37,6 +38,8 @@ private:
     bool InitializeSimu(TaskConfigSection *task);
     bool InitializeCali(TaskConfigSection *task);
     bool InitializeGridParams(TaskConfigSection *task);
+
+    void PrepareStateDirectory();
 
     void SimulateDistributed(bool trackPeaks);
     void SimulateLumped();
@@ -102,10 +105,15 @@ private:
     int griddedOutputs;
     bool outputRP;
     bool useStates, saveStates;
+    STATE_FILE_FORMAT stateFileFormat;
     bool preloadedForcings;
     std::vector<RPData> rpData;
     char *outputPath;
     char *statePath;
+    TimeUnit stateSaveInterval;
+    TimeVar nextStateSaveTime;
+    TimeVar initStateTime;
+    NetCDFStateWriter stateNcWriter;
     TimeVar stateTime;
     std::vector<std::vector<float>> peakVals;
     GridWriterFull gridWriter;

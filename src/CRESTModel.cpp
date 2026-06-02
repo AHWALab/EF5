@@ -7,6 +7,8 @@
 #include "AscGrid.h"
 #include "CRESTModel.h"
 #include "DatedName.h"
+#include "Messages.h"
+#include "NetCDFStateWriter.h"
 #include <set>
 #include <iomanip>
 
@@ -101,6 +103,43 @@ void CRESTModel::SaveStates(TimeVar *currentTime, char *statePath,
     gridWriter->WriteGrid(nodes, &dataVals, buffer, false);
   }
 }
+
+  void CRESTModel::InitializeStatesFromNetCDF(const char *filepath, TimeVar *initTime)
+  {
+    NetCDFStateWriter reader;
+    std::vector<float> smVals;
+    if (reader.ReadStateGrid(filepath, "SM", nodes, &smVals,
+                             initTime->currentTimeSec) != 0)
+    {
+      WARNING_LOGF("Failed reading CREST states from %s, continuing with default initial states",
+                   filepath);
+      return;
+    }
+
+    for (size_t i = 0; i < nodes->size(); i++)
+    {
+      crestNodes[i].states[STATE_CREST_SM] = smVals[i];
+    }
+  }
+
+  int CRESTModel::SaveStatesToNetCDF(const char *filepath, TimeVar *currentTime,
+                                     NetCDFStateWriter *ncWriter)
+  {
+    std::vector<float> smVals(nodes->size());
+    for (size_t i = 0; i < nodes->size(); i++)
+    {
+      smVals[i] = crestNodes[i].states[STATE_CREST_SM];
+    }
+
+    if (ncWriter->AppendStateGrid(filepath, "SM", nodes, &smVals,
+                                  currentTime->currentTimeSec) != 0)
+    {
+      ERROR_LOGF("Failed writing CREST state to netCDF: %s", ncWriter->GetLastError());
+      return -1;
+    }
+
+    return 0;
+  }
 
 bool CRESTModel::WaterBalance(float stepHours, std::vector<float> *precip,
                               std::vector<float> *pet,

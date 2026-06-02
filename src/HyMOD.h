@@ -31,8 +31,11 @@ public:
                        std::map<GaugeConfigSection *, float *> *paramSettings,
                        std::vector<FloatGrid *> *paramGrids);
   void InitializeStates(TimeVar *beginTime, char *statePath);
+    void InitializeStatesFromNetCDF(const char *filepath, TimeVar *initTime);
   void SaveStates(TimeVar *currentTime, char *statePath,
                   GridWriterFull *gridWriter);
+    int SaveStatesToNetCDF(const char *filepath, TimeVar *currentTime,
+                           NetCDFStateWriter *ncWriter);
   bool WaterBalance(float stepHours, std::vector<float> *precip,
                     std::vector<float> *pet, std::vector<float> *fastFlow,
                     std::vector<float> *slowFlow,
