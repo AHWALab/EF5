@@ -64,15 +64,26 @@ int main(int argc, char *argv[])
 
 void PrintStartupMessage()
 {
-  printf("\n");
-  printf("\033[38;2;0;206;209m");  // Teal
-  printf("+--------------------------------------------------+\n");
-  printf("|                                                  |\n");
-  printf("|  \033[38;2;255;255;255mEnsemble Framework for Flash Flood Forecasting\033[38;2;0;206;209m  |\n");
-  printf("|                                                  |\n");
-  printf("|                  \033[38;2;255;215;0mVersion %s\033[38;2;0;206;209m                   |\n",
+  // ── Big block-letter ASCII art header ──
+  printf("\033[38;2;0;225;255m");  // Bright Cyan
+  printf(" ███████╗███████╗███████╗    ██╗   ██╗██████╗       ██████╗ \n");
+  printf(" ██╔════╝██╔════╝██╔════╝    ██║   ██║╚════██╗     ██╔═████╗\n");
+  printf(" █████╗  █████╗  ███████╗    ██║   ██║ █████╔╝     ██║██╔██║\n");
+  printf(" ██╔══╝  ██╔══╝  ╚════██║    ╚██╗ ██╔╝██╔═══╝      ████╔╝██║\n");
+  printf(" ███████╗██║     ███████║     ╚████╔╝ ███████╗ ██╗ ╚██████╔╝\n");
+  printf(" ╚══════╝╚═╝     ╚══════╝      ╚═══╝  ╚══════╝ ╚═╝  ╚═════╝ \n\n");
+
+  // ── Border & description ──
+  printf("\033[38;2;0;102;204m");  // Deep Blue
+  printf(" ========================================================== \n");
+
+  printf("\033[38;2;255;255;255m");  // White
+  printf(" |      Ensemble Framework For Flash Flood Forecasting      | \n");
+  printf(" |                      Version %-6s                      | \n",
          EF5_VERSION);
-  printf("|                                                  |\n");
-  printf("+--------------------------------------------------+\n");
+
+  printf("\033[38;2;0;102;204m");  // Deep Blue
+  printf(" ========================================================== \n");
+
   printf("\033[0m\n");
 }
