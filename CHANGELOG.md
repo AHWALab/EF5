@@ -4,13 +4,7 @@
 
 ### Added
 
-- **SimQPE / QPF Outputs for DREAM**: DREAM calibration mode now supports ensemble QPF-driven outputs with full metric score reporting (NSE, KGE, RMSE, bias, correlation) across all lead times and members.
-- **All-metric-scores summary**: Calibration runs now emit a comprehensive metrics table covering all ensemble members and aggregation windows.
-
-### Changed
-
-- **Modernized startup banner**: New teal-and-gold themed `PrintStartupMessage` with a clean, professional look.
-- **Version badge**: Updated to teal styling for a refreshed identity.
+- **All-metric-scores summary**: Simulation runs now emit a comprehensive metrics table covering all ensemble members and aggregation windows, with full metric score reporting (NSE, KGE, RMSE, bias, correlation) across all lead times and members.
 
 ### Improved
 
