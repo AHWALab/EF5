@@ -504,6 +504,7 @@ cNode->ADIMC = 0.0f;
     }
 
     SPERC += PERC; // Time interval summation of PERC
+    (void)SPERC;
 
     // Compute interflow and keep track of time interval sum
     // Note PINC has not yet been added
@@ -635,9 +636,7 @@ cNode->ADIMC = 0.0f;
                                                             // ET from Riparian
                                                             // vegetation
 
-  static int II = 0;
   // printf(" **** %i ****\n",II);
-  II++;
   // printf(" %f %f %f %f %f %f %f\n", TCI, ROIMP, SDRO, SSUR, SIF, BFCC, NINC);
 
   TCI -= E4;

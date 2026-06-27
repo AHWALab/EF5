@@ -218,7 +218,7 @@ void DREAM::CalibrateParams() {
        pointerInput->ParRangeMin, pointerMCMC->seq);
 
   // Step 2: Calculate posterior density associated with each value in x
-  allocate2D(&p, pointerMCMC->seq, 2);
+  allocate2D(&p, pointerMCMC->seq, 2 + OBJECTIVE_QTY);
   MEMORYCHECK(
       p,
       "at dream.c: Memory Allocation for DREAM variable p not successfull\n");
@@ -228,7 +228,7 @@ void DREAM::CalibrateParams() {
   CompDensity(p, log_p, x, pointerMCMC, pointerInput, 3);
 
   // Save the initial population, density and log density in one matrix X
-  allocate2D(&X, pointerMCMC->seq, pointerMCMC->n + 2);
+  allocate2D(&X, pointerMCMC->seq, pointerMCMC->n + 2 + OBJECTIVE_QTY);
   MEMORYCHECK(
       X,
       "at dream.c: Memory Allocation for DREAM variable X not successfull\n");
@@ -238,6 +238,10 @@ void DREAM::CalibrateParams() {
     }
     X[i][pointerInput->nPar] = p[i][0];
     X[i][pointerInput->nPar + 1] = log_p[i];
+    // Copy extra metrics into X (columns n+2 through n+2+OBJECTIVE_QTY-1)
+    for (int k = 0; k < OBJECTIVE_QTY; k++) {
+      X[i][pointerInput->nPar + 2 + k] = p[i][2 + k];
+    }
   }
 
   // Then initialize the sequences
@@ -282,7 +286,7 @@ void DREAM::CalibrateParams() {
   allocate2D(&x_new, pointerMCMC->seq, pointerMCMC->n);
   MEMORYCHECK(x_new, "at dream.c: Memory Allocation for DREAM variable x_new "
                      "not successfull\n");
-  allocate2D(&p_xnew, pointerMCMC->seq, 2);
+  allocate2D(&p_xnew, pointerMCMC->seq, 2 + OBJECTIVE_QTY);
   MEMORYCHECK(p_xnew, "at dream.c: Memory Allocation for DREAM variable p_xnew "
                       "not successfull\n");
   log_p_xnew = (float *)malloc(pointerMCMC->seq * sizeof(float));
@@ -296,10 +300,10 @@ void DREAM::CalibrateParams() {
                       "not successfull\n");
 
   // Preallocate memory needed here
-  allocate2D(&newgen, pointerMCMC->seq, pointerMCMC->n + 2);
+  allocate2D(&newgen, pointerMCMC->seq, pointerMCMC->n + 2 + OBJECTIVE_QTY);
   MEMORYCHECK(newgen, "at dream.c: Memory Allocation for DREAM variable newgen "
                       "not successfull\n");
-  allocate2D(&r, pointerMCMC->seq, pointerMCMC->n + 2);
+  allocate2D(&r, pointerMCMC->seq, pointerMCMC->n + 2 + OBJECTIVE_QTY);
   MEMORYCHECK(
       r,
       "at dream.c: Memory Allocation for DREAM variable r not successfull\n");
@@ -309,10 +313,10 @@ void DREAM::CalibrateParams() {
   delta_normX = (float *)malloc(pointerMCMC->seq * sizeof(float));
   MEMORYCHECK(delta_normX, "at dream.c: Memory Allocation for DREAM variable "
                            "delta_normX not successfull\n");
-  dnX_array = (float *)malloc((pointerMCMC->n + 2) * sizeof(float));
+  dnX_array = (float *)malloc((pointerMCMC->n + 2 + OBJECTIVE_QTY) * sizeof(float));
   MEMORYCHECK(dnX_array, "at dream.c: Memory Allocation for DREAM variable "
                          "dnX_array not successfull\n");
-  allocate2D(&t_newgen, pointerMCMC->n + 2, pointerMCMC->seq);
+  allocate2D(&t_newgen, pointerMCMC->n + 2 + OBJECTIVE_QTY, pointerMCMC->seq);
 
 #ifdef _WIN32
   setIteration(0);
@@ -339,8 +343,28 @@ void DREAM::CalibrateParams() {
       CompDensity(p_xnew, log_p_xnew, x_new, pointerMCMC, pointerInput, 3);
 
       // Now apply the acceptance/rejectance rule for the chain itself
+      // Zero accept array so rejected chains are reliably 0
+      for (i = 0; i < pointerMCMC->seq; i++) {
+        accept[i] = 0.0f;
+      }
       metrop(newgen, alpha12, accept, x_new, p_xnew, log_p_xnew, x_old, p_old,
              log_p_old, pointerInput, pointerMCMC, 3);
+
+      // metrop only copies params/obj/log_p into newgen.
+      // Fill extra metric columns ourselves:
+      for (i = 0; i < pointerMCMC->seq; i++) {
+        if (accept[i] == 1.0f) {
+          // Accepted: use new metric scores from p_xnew
+          for (int k = 0; k < OBJECTIVE_QTY; k++) {
+            newgen[i][pointerInput->nPar + 2 + k] = p_xnew[i][2 + k];
+          }
+        } else {
+          // Rejected: use old metric scores from X
+          for (int k = 0; k < OBJECTIVE_QTY; k++) {
+            newgen[i][pointerInput->nPar + 2 + k] = X[i][pointerInput->nPar + 2 + k];
+          }
+        }
+      }
 
       // Check whether we do delayed rejection or not
       // If DR = "Yes", then do compute several things. For this implementation
@@ -351,8 +375,8 @@ void DREAM::CalibrateParams() {
       pointerRUNvar->iloc = pointerRUNvar->iloc + 1;
 
       // Now update the locations of the Sequences with the current locations
-      transp(newgen, pointerMCMC->seq, pointerMCMC->n + 2, &t_newgen, true);
-      for (i = 0; i < pointerMCMC->n + 2; i++) {
+      transp(newgen, pointerMCMC->seq, pointerMCMC->n + 2 + OBJECTIVE_QTY, &t_newgen, true);
+      for (i = 0; i < pointerMCMC->n + 2 + OBJECTIVE_QTY; i++) {
         for (j = 0; j < pointerMCMC->seq; j++) {
           pointerRUNvar->Sequences[pointerRUNvar->iloc - 1][i][j] =
               t_newgen[i][j];
@@ -360,7 +384,7 @@ void DREAM::CalibrateParams() {
       }
 
       // And update X using current members of Sequences
-      for (i = 0; i < pointerMCMC->n + 2; i++) {
+      for (i = 0; i < pointerMCMC->n + 2 + OBJECTIVE_QTY; i++) {
         for (j = 0; j < pointerMCMC->seq; j++) {
           X[j][i] = newgen[j][i];
         }
@@ -493,14 +517,14 @@ void DREAM::CalibrateParams() {
   free(dnX_array);
 
   // Postprocess output from DREAM before returning arguments
-  post_array = (float *)malloc((pointerMCMC->n + 2) * sizeof(float));
+  post_array = (float *)malloc((pointerMCMC->n + 2 + OBJECTIVE_QTY) * sizeof(float));
   MEMORYCHECK(post_array, "at dream.c: Memory Allocation for DREAM variable "
                           "post_array not successfull\n");
   for (i = 0; i < floorf(1.25 * pointerRUNvar->Nelem); i++) {
-    for (j = 0; j < pointerMCMC->n + 2; j++) {
+    for (j = 0; j < pointerMCMC->n + 2 + OBJECTIVE_QTY; j++) {
       post_array[j] = pointerRUNvar->Sequences[i][j][0];
     }
-    if (sumarray(post_array, pointerMCMC->n + 2, 1) == 0) {
+    if (sumarray(post_array, pointerMCMC->n + 2 + OBJECTIVE_QTY, 1) == 0) {
       post_Sequences = i - 1;
       break;
     }
@@ -589,10 +613,15 @@ void DREAM::WriteOutput(char *outputFile, MODELS model, ROUTES route,
     }
   }
 
-  fprintf(file, ",%s,%s/2%s", objectiveString, objectiveString, "\n");
+  fprintf(file, ",%s,%s/2", objectiveString, objectiveString);
+  // Add all objective metric names as extra columns
+  for (int k = 0; k < OBJECTIVE_QTY; k++) {
+    fprintf(file, ",%s", objectiveStrings[k]);
+  }
+  fprintf(file, "%s", "\n");
 
   // Generate a 2D matrix with samples
-  allocate2D(&ParSet, post_Sequences * pointerMCMC->seq, pointerMCMC->n + 2);
+  allocate2D(&ParSet, post_Sequences * pointerMCMC->seq, pointerMCMC->n + 2 + OBJECTIVE_QTY);
   GenParSet(ParSet, pointerRUNvar, post_Sequences, pointerMCMC, file, bestParams);
 
   deallocate2D(&ParSet, post_Sequences * pointerMCMC->seq);
@@ -642,6 +671,14 @@ void DREAM::CompDensity(float **p, float *log_p, float **x,
       p[i][0] = objScore;
       p[i][1] = i;
       log_p[i] = 0.5 * objScore;
+
+    // Store ALL metrics for CSV output
+    const std::vector<float>& allScores = sim->GetAllScores();
+    for (int k = 0; k < OBJECTIVE_QTY; k++) {
+        p[i][2 + k] = allScores[k];
+    }
+
+
     }
   } else {
     // Ensemble calculate RHRE

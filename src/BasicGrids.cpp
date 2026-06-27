@@ -727,7 +727,7 @@ void FixFlowDir(BasinConfigSection *basin, std::vector<GridNode> *nodes)
         }
       }
     }
-    if (flowDir != g_DDM->data[node->y][node->x])
+    if ((float)flowDir != g_DDM->data[node->y][node->x])
     {
       printf("Old dir %f, new dir %i\n", g_DDM->data[node->y][node->x],
              flowDir);
@@ -1405,8 +1405,7 @@ bool TestUpstream(long nextX, long nextY, FLOW_DIR dir, GridLoc *loc)
 
   if (nextX >= 0 && nextY >= 0 && nextX < g_DDM->numCols &&
       nextY < g_DDM->numRows &&
-      g_DDM->data[nextY][nextX] ==
-          wantDir)
+      g_DDM->data[nextY][nextX] == (float)wantDir)
   { // && g_FAM->data[nextY][nextX] <= currentFAC) {
     loc->x = nextX;
     loc->y = nextY;
@@ -1463,7 +1462,7 @@ bool TestUpstreamBroken(long nextX, long nextY, FLOW_DIR dir, GridLoc *loc) {
       return false;
   }
   
-  if (nextX >= 0 && nextY >= 0 && nextX < g_DDM->numCols && nextY < g_DDM->numRows && g_DDM->data[nextY][nextX] == wantDir && g_FAM->data[nextY][nextX] > currentFAC) {
+  if (nextX >= 0 && nextY >= 0 && nextX < g_DDM->numCols && nextY < g_DDM->numRows && g_DDM->data[nextY][nextX] == (float)wantDir && g_FAM->data[nextY][nextX] > currentFAC) {
     loc->x = nextX;
     loc->y = nextY;
     return true;

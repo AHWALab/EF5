@@ -22,4 +22,8 @@ extern const OBJECTIVE_GOAL objectiveGoals[];
 float CalcObjFunc(std::vector<float> *obs, std::vector<float> *sim,
                   OBJECTIVES obj);
 
+
+std::vector<float> CalcAllObjFunc(std::vector<float> *obs, 
+                                   std::vector<float> *sim);
+
 #endif

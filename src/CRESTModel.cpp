@@ -280,12 +280,10 @@ void CRESTModel::InitializeParameters(
 
   // This pass distributes parameters
   size_t numNodes = nodes->size();
-  size_t unused = 0;
   for (size_t i = 0; i < numNodes; i++) {
     GridNode *node = &nodes->at(i);
     CRESTGridNode *cNode = &(crestNodes[i]);
     if (!node->gauge) {
-      unused++;
       continue;
     }
     /*if (i == 0) {

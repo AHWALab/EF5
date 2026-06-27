@@ -465,7 +465,6 @@ void KWRoute::InitializeParameters(
 {
   // This pass distributes parameters
   size_t numNodes = nodes->size();
-  size_t unused = 0;
 
   // if (paramGrids->at(PARAM_KINEMATIC_ALPHA) && g_DEM->IsSpatialMatch(paramGrids->at(PARAM_KINEMATIC_ALPHA)))
   // {
@@ -483,7 +482,6 @@ void KWRoute::InitializeParameters(
       KWGridNode *cNode = &(kwNodes[i]);
       if (!node->gauge)
       {
-          unused++;
           continue;
       }
       // Copy all of the parameters over

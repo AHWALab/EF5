@@ -1,6 +1,7 @@
 // Simple Functions for DREAM
 #include "dream_functions.h"
 #include "Messages.h"
+#include "ObjectiveFunc.h"
 #include "dream_variables.h"
 #include "misc_functions.h"
 #include <cmath>
@@ -75,8 +76,8 @@ void InitVar(struct DREAM_Parameters *pstPar, struct DREAM_Variables **pstRUN,
       floorf(1.25 * (float)((*pstRUN)->Nelem)) * sizeof(float **));
   for (i = 0; i < (floorf(1.25 * (float)((*pstRUN)->Nelem))); i++) {
     (*pstRUN)->Sequences[i] =
-        (float **)malloc((pstPar->n + 2) * sizeof(float *));
-    for (j = 0; j < (pstPar->n + 2); j++) {
+        (float **)malloc((pstPar->n + 2 + OBJECTIVE_QTY) * sizeof(float *));
+    for (j = 0; j < (pstPar->n + 2 + OBJECTIVE_QTY); j++) {
       (*pstRUN)->Sequences[i][j] = (float *)malloc(pstPar->seq * sizeof(float));
       memset((*pstRUN)->Sequences[i][j], 0, pstPar->seq * sizeof(float));
     }
@@ -224,7 +225,7 @@ void InitSequences(float **X, float ***Sequences,
                    struct DREAM_Parameters *MCMCPar) {
   int qq, kk;
   // Initialize sequences
-  for (kk = 0; kk < MCMCPar->n + 2; kk++) {
+  for (kk = 0; kk < MCMCPar->n + 2 + OBJECTIVE_QTY; kk++) {
     for (qq = 0; qq < MCMCPar->seq; qq++) {
       Sequences[0][kk][qq] = X[qq][kk];
     }
@@ -804,7 +805,7 @@ void RemOutLierChains(float **X, struct DREAM_Variables *RUNvar,
 
       // Jump outlier chain to r_idx -- Sequences
       // Jump outlier chain to r_idx -- X
-      for (i = 0; i < MCMC->n + 2; i++) {
+      for (i = 0; i < MCMC->n + 2 + OBJECTIVE_QTY; i++) {
         RUNvar->Sequences[0][i][chain_id[qq]] = X[r_idx][i];
         X[chain_id[qq]][i] = X[r_idx][i];
       }
@@ -834,32 +835,32 @@ void GenParSet(float **ParSet, struct DREAM_Variables *RUNvar,
   // else
   //{
   // If save in memory -> Yes -- ParSet derived from all sequences
-  allocate2D(&parset, post_Sequences * MCMC->seq, MCMC->n + 3);
-  allocate2D(&sorted, post_Sequences * MCMC->seq, MCMC->n + 3);
+  allocate2D(&parset, post_Sequences * MCMC->seq, MCMC->n + 3 + OBJECTIVE_QTY);
+  allocate2D(&sorted, post_Sequences * MCMC->seq, MCMC->n + 3 + OBJECTIVE_QTY);
   cont = 0;
   for (qq = 0; qq < MCMC->seq; qq++) {
     num = 0;
     for (i = 0; i < post_Sequences; i++) {
-      for (j = 0; j < MCMC->n + 2; j++) {
+      for (j = 0; j < MCMC->n + 2 + OBJECTIVE_QTY; j++) {
         parset[cont][j] = RUNvar->Sequences[i][j][qq];
       }
-      parset[cont][MCMC->n + 2] = num;
+      parset[cont][MCMC->n + 2 + OBJECTIVE_QTY] = num;
       cont = cont + 1;
       num = num + 1;
     }
   }
   //}
   // Sort according to MATLAB DREAM
-  sortrows(parset, cont, MCMC->n + 3, MCMC->n + 2, sorted);
+  sortrows(parset, cont, MCMC->n + 3 + OBJECTIVE_QTY, MCMC->n + 2 + OBJECTIVE_QTY, sorted);
 
   // Sort so the best parameter set is the last
-  sortrows(sorted, cont, MCMC->n + 3, MCMC->n, parset);
+  sortrows(sorted, cont, MCMC->n + 3 + OBJECTIVE_QTY, MCMC->n, parset);
   // Write to disk
   for (i = 0; i < (MCMC->seq * post_Sequences); i++) {
-    for (j = 0; j < MCMC->n + 2; j++) {
+    for (j = 0; j < MCMC->n + 2 + OBJECTIVE_QTY; j++) {
       // ParSet[i][j] = sorted[i][j];
       ParSet[i][j] = parset[i][j];
-      if (j == MCMC->n + 1) {
+      if (j == MCMC->n + 1 + OBJECTIVE_QTY) {
         fprintf(fid, "%f\n", ParSet[i][j]);
       } else {
         fprintf(fid, "%f,", ParSet[i][j]);

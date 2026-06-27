@@ -1,5 +1,24 @@
 # Changelog
 
+## EF5 Version [1.3.0]
+
+### Added
+
+- **SimQPE / QPF Outputs for DREAM**: DREAM calibration mode now supports ensemble QPF-driven outputs with full metric score reporting (NSE, KGE, RMSE, bias, correlation) across all lead times and members.
+- **All-metric-scores summary**: Calibration runs now emit a comprehensive metrics table covering all ensemble members and aggregation windows.
+
+### Changed
+
+- **Modernized startup banner**: New teal-and-gold themed `PrintStartupMessage` with a clean, professional look.
+- **Version badge**: Updated to teal styling for a refreshed identity.
+
+### Improved
+
+- Enhanced output readability for ensemble calibration diagnostics.
+- Cleaner console output formatting throughout the DREAM calibration pathway.
+
+---
+
 ## EF5 Version [1.2.7]
 
 ### Fixed

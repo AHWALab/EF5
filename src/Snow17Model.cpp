@@ -341,12 +341,10 @@ void Snow17Model::InitializeParameters(
 
   // This pass distributes parameters
   size_t numNodes = nodes->size();
-  size_t unused = 0;
   for (size_t i = 0; i < numNodes; i++) {
     GridNode *node = &nodes->at(i);
     Snow17GridNode *cNode = &(snowNodes[i]);
     if (!node->gauge) {
-      unused++;
       continue;
     }
     // Copy all of the parameters over

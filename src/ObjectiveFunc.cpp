@@ -37,6 +37,15 @@ float CalcObjFunc(std::vector<float> *obs, std::vector<float> *sim,
   }
 }
 
+std::vector<float> CalcAllObjFunc(std::vector<float> *obs, 
+                                   std::vector<float> *sim) {
+    std::vector<float> result(OBJECTIVE_QTY);
+    for (int i = 0; i < OBJECTIVE_QTY; i++) {
+        result[i] = CalcObjFunc(obs, sim, static_cast<OBJECTIVES>(i));
+    }
+    return result;
+}
+
 float CalcNSCE(std::vector<float> *obs, std::vector<float> *sim) {
 
   float obsMean = 0, obsAcc = 0, simAcc = 0, validQs = 0;
