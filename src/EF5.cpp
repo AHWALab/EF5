@@ -64,26 +64,11 @@ int main(int argc, char *argv[])
 
 void PrintStartupMessage()
 {
-  // ── Big block-letter ASCII art header ──
-  printf("\033[38;2;0;225;255m");  // Bright Cyan
-  printf(" ███████╗███████╗███████╗    ██╗   ██╗██████╗       ██████╗ \n");
-  printf(" ██╔════╝██╔════╝██╔════╝    ██║   ██║╚════██╗     ██╔═████╗\n");
-  printf(" █████╗  █████╗  ███████╗    ██║   ██║ █████╔╝     ██║██╔██║\n");
-  printf(" ██╔══╝  ██╔══╝  ╚════██║    ╚██╗ ██╔╝██╔═══╝      ████╔╝██║\n");
-  printf(" ███████╗██║     ███████║     ╚████╔╝ ███████╗ ██╗ ╚██████╔╝\n");
-  printf(" ╚══════╝╚═╝     ╚══════╝      ╚═══╝  ╚══════╝ ╚═╝  ╚═════╝ \n\n");
-
-  // ── Border & description ──
-  printf("\033[38;2;0;102;204m");  // Deep Blue
-  printf(" ========================================================== \n");
-
-  printf("\033[38;2;255;255;255m");  // White
-  printf(" |      Ensemble Framework For Flash Flood Forecasting      | \n");
-  printf(" |                      Version %-6s                      | \n",
+  printf("\033[38;2;255;140;0m");
+  printf("********************************************************\n");
+  printf("**   Ensemble Framework For Flash Flood Forecasting   **\n");
+  printf("**                   Version %s                    **\n",
          EF5_VERSION);
-
-  printf("\033[38;2;0;102;204m");  // Deep Blue
-  printf(" ========================================================== \n");
-
-  printf("\033[0m\n");
+  printf("********************************************************\n");
+  printf("\033[0m");
 }
