@@ -14,10 +14,12 @@
 #include "TaskConfigSection.h"
 #include "TempConfigSection.h"
 #include "TempReader.h"
+#include "ZarrGridWriter.h"
 
 class Simulator
 {
 public:
+    Simulator() : zarrGridWriter(NULL) {}
     bool Initialize(TaskConfigSection *taskN);
     void PreloadForcings(char *file, bool cali);
     bool LoadSavedForcings(char *file, bool cali);
@@ -110,10 +112,11 @@ private:
     TimeVar stateTime;
     std::vector<std::vector<float>> peakVals;
     GridWriterFull gridWriter;
+    ZarrGridWriter *zarrGridWriter;
     float numYears;
     int missingQPE, missingQPF;
     std::vector<float> maxGrid, rpMaxGrid, maxDepthGrid, SM;
-    void OutputMaxFiles(const char* prefix);
+    bool OutputMaxFiles(const char* prefix);
 
     // This is for calibrations only
     std::vector<std::vector<float>> currentPrecipCali, currentPETCali,

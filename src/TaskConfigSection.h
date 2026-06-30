@@ -21,6 +21,12 @@
 #include "TimeVar.h"
 #include <map>
 
+enum OUTPUT_TYPE
+{
+  OUTPUT_TYPE_GEOTIFF = 0,
+  OUTPUT_TYPE_ZARR
+};
+
 class TaskConfigSection : public ConfigSection {
 
 public:
@@ -76,6 +82,7 @@ public:
   CONFIG_SEC_RET ProcessKeyValue(char *name, char *value);
   CONFIG_SEC_RET ValidateSection();
   int GetGriddedOutputs() { return griddedOutputs; }
+  OUTPUT_TYPE GetOutputType() { return outputType; }
 
   char *GetBasinAvgInput();
 
@@ -125,6 +132,7 @@ private:
   TimeVar timeState;
   TimeVar timeBeginLR;
   int griddedOutputs;
+  OUTPUT_TYPE outputType;
   char basinAvgInput[CONFIG_MAX_LEN];
 
   bool LoadGriddedOutputs(char *value);

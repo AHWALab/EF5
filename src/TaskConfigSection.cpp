@@ -22,7 +22,7 @@ TaskConfigSection::TaskConfigSection(const char *nameVal)
       paramsSnow(nullptr), caliParamSnow(nullptr), paramsInundation(nullptr), caliParamInundation(nullptr),
       defaultGauge(nullptr),
       timeStep(), timeStepLR(), style(STYLE_QTY), timeBegin(), timeWarmEnd(), timeEnd(), timeState(), timeBeginLR(),
-      griddedOutputs(OG_NONE)
+      griddedOutputs(OG_NONE), outputType(OUTPUT_TYPE_GEOTIFF)
 {
   strcpy(name, nameVal);
   std::fill(output, output + CONFIG_MAX_LEN, 0);
@@ -427,6 +427,22 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char *name, char *value)
   {
     strcpy(output, value);
     outputSet = true;
+  }
+  else if (!strcasecmp(name, "output_type"))
+  {
+    if (!strcasecmp(value, "geotiff"))
+    {
+      outputType = OUTPUT_TYPE_GEOTIFF;
+    }
+    else if (!strcasecmp(value, "zarr"))
+    {
+      outputType = OUTPUT_TYPE_ZARR;
+    }
+    else
+    {
+      ERROR_LOGF("Unknown output type \"%s\". Valid output types are GEOTIFF and ZARR.", value);
+      return INVALID_RESULT;
+    }
   }
   else if (!strcasecmp(name, "preload_file"))
   {

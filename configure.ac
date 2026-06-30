@@ -4,6 +4,12 @@ AC_PREREQ([2.62])
 AC_PROG_CXX
 AC_OPENMP
 AC_SUBST(OPENMP_CFLAGS)
+PKG_PROG_PKG_CONFIG
+PKG_CHECK_MODULES([GDAL], [gdal], [], [
+         AC_MSG_ERROR([GDAL development files are required for Zarr output support])
+])
+AC_SUBST(GDAL_CFLAGS)
+AC_SUBST(GDAL_LIBS)
 
 AC_CANONICAL_HOST
 case $host_os in
@@ -33,7 +39,7 @@ AM_CONDITIONAL(WINDOWS, test x$WINDOWS = xyes)
 #         echo "gomp library is required for this EF5"
 #         exit -1])
 #fi;
-LIBS=-lz -ltiff -lgeotiff
+LIBS="$LIBS -lz -ltiff -lgeotiff"
 AC_CHECK_HEADERS(xtiffio.h)
 AC_CHECK_HEADERS(geotiff/xtiffio.h)
 AC_CHECK_HEADERS(libgeotiff/xtiffio.h)
