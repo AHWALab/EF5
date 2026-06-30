@@ -1725,8 +1725,19 @@ void Simulator::SimulateDistributed(bool trackPeaks)
   }
   if (outputZarr && griddedOutputs != OG_NONE)
   {
+    DatedName zarrStoreName;
+    zarrStoreName.SetNameStr("YYYYMMDD_HHUU");
+    zarrStoreName.ProcessNameLoose(NULL);
+    if (timeStepLR)
+    {
+      zarrStoreName.UpdateName(beginLRTime.GetTM());
+    }
+    else
+    {
+      zarrStoreName.UpdateName(endTime.GetTM());
+    }
     zarrGridWriter = new ZarrGridWriter();
-    if (!zarrGridWriter->Initialize(outputPath, &nodes,
+    if (!zarrGridWriter->Initialize(outputPath, zarrStoreName.GetName(), &nodes,
                                     totalTimeStepsOutsideWarm))
     {
       delete zarrGridWriter;

@@ -20,8 +20,8 @@ public:
   ZarrGridWriter();
   ~ZarrGridWriter();
 
-  bool Initialize(const char *outputPath, std::vector<GridNode> *nodes,
-                  size_t timeSteps);
+  bool Initialize(const char *outputPath, const char *storeName,
+                  std::vector<GridNode> *nodes, size_t timeSteps);
   bool IsInitialized() const { return initialized; }
   bool WriteTimeGrid(const char *name, size_t timeIndex, int64_t epochSeconds,
                      int16_t forcingPhase, std::vector<float> *data);

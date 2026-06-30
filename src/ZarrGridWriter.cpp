@@ -15,7 +15,7 @@ ZarrGridWriter::ZarrGridWriter()
 
 ZarrGridWriter::~ZarrGridWriter() { Close(); }
 
-bool ZarrGridWriter::Initialize(const char *outputPath,
+bool ZarrGridWriter::Initialize(const char *outputPath, const char *storeName,
                                 std::vector<GridNode> *nodesVal,
                                 size_t timeSteps) {
   Close();
@@ -33,12 +33,10 @@ bool ZarrGridWriter::Initialize(const char *outputPath,
   }
 
   char storePath[CONFIG_MAX_LEN * 2];
-  snprintf(storePath, sizeof(storePath), "%s/ef5_grids.zarr", outputPath);
+  snprintf(storePath, sizeof(storePath), "%s/%s.zarr", outputPath, storeName);
 
   char **datasetOptions = NULL;
   datasetOptions = CSLSetNameValue(datasetOptions, "FORMAT", "ZARR_V2");
-  datasetOptions =
-      CSLSetNameValue(datasetOptions, "CREATE_CONSOLIDATED_METADATA", "YES");
   dataset = driver->CreateMultiDimensional(storePath, NULL, datasetOptions);
   CSLDestroy(datasetOptions);
   if (!dataset) {
@@ -183,16 +181,10 @@ bool ZarrGridWriter::WritePhaseMetadata() {
   }
   std::shared_ptr<GDALAttribute> meanings = phaseArray->CreateAttribute(
       "flag_meanings", {}, GDALExtendedDataType::CreateString(), NULL);
-  std::shared_ptr<GDALAttribute> values = phaseArray->CreateAttribute(
-      "flag_values", {2}, GDALExtendedDataType::Create(GDT_Int16), NULL);
   std::shared_ptr<GDALAttribute> description = phaseArray->CreateAttribute(
       "description", {}, GDALExtendedDataType::CreateString(), NULL);
-  int valuesData[2] = {0, 1};
   if (meanings) {
     meanings->Write("QPE QPF");
-  }
-  if (values) {
-    values->Write(valuesData, 2);
   }
   if (description) {
     description->Write("0=QPE timestep, 1=QPF/long-range timestep");
