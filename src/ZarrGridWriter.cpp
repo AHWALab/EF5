@@ -108,10 +108,10 @@ void ZarrGridWriter::Close() {
 
 bool ZarrGridWriter::CreateCoordinateArrays(size_t timeSteps) {
   GDALExtendedDataType float64Type = GDALExtendedDataType::Create(GDT_Float64);
-  GDALExtendedDataType int64Type = GDALExtendedDataType::Create(GDT_Int64);
+  GDALExtendedDataType timeType = GDALExtendedDataType::Create(GDT_Float64);
   GDALExtendedDataType int16Type = GDALExtendedDataType::Create(GDT_Int16);
 
-  timeArray = rootGroup->CreateMDArray("time", {timeDim}, int64Type, NULL);
+  timeArray = rootGroup->CreateMDArray("time", {timeDim}, timeType, NULL);
   phaseArray =
       rootGroup->CreateMDArray("forcing_phase", {timeDim}, int16Type, NULL);
   std::shared_ptr<GDALMDArray> yArray =
@@ -122,6 +122,17 @@ bool ZarrGridWriter::CreateCoordinateArrays(size_t timeSteps) {
   if (!timeArray || !phaseArray || !yArray || !xArray) {
     ERROR_LOG("Failed to create Zarr coordinate arrays.");
     return false;
+  }
+
+  std::shared_ptr<GDALAttribute> timeUnits = timeArray->CreateAttribute(
+      "units", {}, GDALExtendedDataType::CreateString(), NULL);
+  std::shared_ptr<GDALAttribute> timeDescription = timeArray->CreateAttribute(
+      "description", {}, GDALExtendedDataType::CreateString(), NULL);
+  if (timeUnits) {
+    timeUnits->Write("seconds since 1970-01-01 00:00:00 UTC");
+  }
+  if (timeDescription) {
+    timeDescription->Write("EF5 output timestep timestamp");
   }
 
   std::vector<double> xVals(numCols), yVals(numRows);
@@ -137,9 +148,9 @@ bool ZarrGridWriter::CreateCoordinateArrays(size_t timeSteps) {
   size_t yCount[1] = {(size_t)numRows};
   size_t timeCount[1] = {timeSteps};
 
-  std::vector<int64_t> timeVals(timeSteps, 0);
+  std::vector<double> timeVals(timeSteps, 0.0);
   if (timeSteps > 0 &&
-      !timeArray->Write(start1D, timeCount, NULL, NULL, int64Type,
+      !timeArray->Write(start1D, timeCount, NULL, NULL, timeType,
                         timeVals.data())) {
     ERROR_LOG("Failed to initialize Zarr time coordinate array.");
     return false;
@@ -306,9 +317,10 @@ bool ZarrGridWriter::WriteTimeMetadata(size_t timeIndex, int64_t epochSeconds,
   GUInt64 start1D[1] = {(GUInt64)timeIndex};
   size_t count1D[1] = {1};
   phaseValues[timeIndex] = forcingPhase;
+  double epochSecondsValue = (double)epochSeconds;
   if (!timeArray->Write(start1D, count1D, NULL, NULL,
-                        GDALExtendedDataType::Create(GDT_Int64),
-                        &epochSeconds) ||
+                        GDALExtendedDataType::Create(GDT_Float64),
+                        &epochSecondsValue) ||
       !phaseArray->Write(start1D, count1D, NULL, NULL,
                          GDALExtendedDataType::Create(GDT_Int16),
                          &forcingPhase)) {
