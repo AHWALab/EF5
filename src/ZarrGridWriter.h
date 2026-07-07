@@ -3,16 +3,13 @@
 
 #include "Grid.h"
 #include "GridNode.h"
+#include "gdal.h"
 #include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-class GDALDataset;
-class GDALGroup;
-class GDALMDArray;
-class GDALDimension;
 class OGRSpatialReference;
 
 class ZarrGridWriter {
@@ -35,19 +32,19 @@ private:
   std::vector<GridNode> *nodes;
   std::vector<float> denseGrid;
   std::vector<int16_t> phaseValues;
-  GDALDataset *dataset;
-  std::shared_ptr<GDALGroup> rootGroup;
-  std::shared_ptr<GDALDimension> timeDim, yDim, xDim;
-  std::shared_ptr<GDALMDArray> timeArray, phaseArray;
-  std::map<std::string, std::shared_ptr<GDALMDArray>> arrays;
+  GDALDatasetH dataset;
+  GDALGroupH rootGroup;
+  GDALDimensionH timeDim, yDim, xDim;
+  GDALMDArrayH timeArray, phaseArray;
+  std::map<std::string, GDALMDArrayH> arrays;
   std::unique_ptr<OGRSpatialReference> spatialRef;
   long numRows, numCols;
   float noData;
 
   void FillDenseGrid(std::vector<float> *data);
   bool CreateCoordinateArrays(size_t timeSteps);
-  std::shared_ptr<GDALMDArray> GetOrCreateTimeArray(const char *name);
-  std::shared_ptr<GDALMDArray> GetOrCreateStaticArray(const char *name);
+  GDALMDArrayH GetOrCreateTimeArray(const char *name);
+  GDALMDArrayH GetOrCreateStaticArray(const char *name);
   bool WritePhaseMetadata();
 };
 
