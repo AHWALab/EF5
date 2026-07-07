@@ -2,6 +2,7 @@
 #include "Messages.h"
 #include "cpl_conv.h"
 #include "cpl_string.h"
+#include "cpl_vsi.h"
 #include "gdal_priv.h"
 #include "ogr_spatialref.h"
 #include <algorithm>
@@ -35,6 +36,15 @@ bool ZarrGridWriter::Initialize(const char *outputPath, const char *storeName,
   char storePath[CONFIG_MAX_LEN * 2];
   snprintf(storePath, sizeof(storePath), "%s/%s.zarr", outputPath, storeName);
 
+  VSIStatBufL storeStat;
+  if (VSIStatL(storePath, &storeStat) == 0) {
+    if (VSIRmdirRecursive(storePath) != 0) {
+      ERROR_LOGF("Failed to remove existing Zarr output store \"%s\".",
+                 storePath);
+      return false;
+    }
+  }
+
   char **datasetOptions = NULL;
   datasetOptions = CSLSetNameValue(datasetOptions, "FORMAT", "ZARR_V2");
   dataset = driver->CreateMultiDimensional(storePath, NULL, datasetOptions);
@@ -58,11 +68,15 @@ bool ZarrGridWriter::Initialize(const char *outputPath, const char *storeName,
   denseGrid.resize((size_t)numRows * (size_t)numCols, noData);
   phaseValues.resize(timeSteps, -1);
 
-  timeDim = rootGroup->CreateDimension("time", "temporal", "", timeSteps);
-  yDim = rootGroup->CreateDimension("y", "spatial", "northing", numRows);
-  xDim = rootGroup->CreateDimension("x", "spatial", "easting", numCols);
+  timeDim =
+      rootGroup->CreateDimension("time", "temporal", "increasing", timeSteps);
+  yDim = rootGroup->CreateDimension("y", "spatial", "northing",
+                                    (GUInt64)numRows);
+  xDim = rootGroup->CreateDimension("x", "spatial", "easting",
+                                    (GUInt64)numCols);
   if (!timeDim || !yDim || !xDim) {
-    ERROR_LOG("Failed to create Zarr dimensions.");
+    ERROR_LOGF("Failed to create Zarr dimensions time=%lu y=%ld x=%ld.",
+               (unsigned long)timeSteps, numRows, numCols);
     Close();
     return false;
   }
