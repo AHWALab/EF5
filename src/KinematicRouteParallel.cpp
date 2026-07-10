@@ -4,23 +4,12 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
-#if _OPENMP
-#include <omp.h>
-#endif
 
 static const char *stateStrings[] = {
     "pCQ",
     "pOQ",
     "IR",
 };
-
-static float NonnegativePow(float base, float exp) {
-  if (base <= 0.0f || !std::isfinite(base)) {
-    return 0.0f;
-  }
-  float result = pow(base, exp);
-  return std::isfinite(result) ? result : 0.0f;
-}
 
 KWRouteParallel::KWRouteParallel() {}
 
@@ -55,6 +44,7 @@ bool KWRouteParallel::InitializeModel(
   if (kwNodes.size() != nodes->size()) {
     kwNodes.resize(nodes->size());
   }
+  interflowIncomingNext.assign(nodes->size(), 0.0);
 
   // Fill in modelIndex in the gridNodes
   size_t numNodes = nodes->size();
@@ -157,39 +147,24 @@ bool KWRouteParallel::Route(float stepHours, std::vector<float> *fastFlow,
   }
 
   size_t numNodes = nodes->size();
-  int threadCount = 1;
-#if _OPENMP
-  threadCount = omp_get_max_threads();
-#endif
-  std::vector<std::vector<double> > interflowContrib(
-      threadCount, std::vector<double>(numNodes, 0.0));
 
 #if _OPENMP
 #pragma omp parallel for
 #endif
   for (long i = numNodes - 1; i >= 0; i--) {
-    int thread = 0;
-#if _OPENMP
-    thread = omp_get_thread_num();
-#endif
     KWGridNodeParallel *cNode = &(kwNodes[i]);
     RouteInt(stepHours * 3600.0f, &(nodes->at(i)), cNode, fastFlow->at(i),
-             slowFlow->at(i), &interflowContrib[thread]);
-  }
-
-  // Worker threads cannot safely add into shared downstream nodes directly.
-  // Reduce each thread's interflow contributions after the parallel section.
-  for (int thread = 0; thread < threadCount; thread++) {
-    for (size_t i = 0; i < numNodes; i++) {
-      kwNodes[i].incomingWater[KW_PAR_LAYER_INTERFLOW] +=
-          interflowContrib[thread][i];
-    }
+             slowFlow->at(i));
   }
 
   // What is this loop doing? Re-initializing/Re-setting grids?
   for (size_t i = 0; i < numNodes; i++) {
     KWGridNodeParallel *cNode = &(kwNodes[i]);
     GridNode *node = &nodes->at(i);
+
+    cNode->incomingWater[KW_PAR_LAYER_INTERFLOW] +=
+        interflowIncomingNext[i];
+    interflowIncomingNext[i] = 0.0;
 
     slowFlow->at(i) = 0.0; // cNode->incomingWater[KW_PAR_LAYER_INTERFLOW];
     fastFlow->at(i) = 0.0; // cNode->incomingWater[KW_PAR_LAYER_FASTFLOW];
@@ -234,8 +209,7 @@ bool KWRouteParallel::Route(float stepHours, std::vector<float> *fastFlow,
 }
 
 void KWRouteParallel::RouteInt(float stepSeconds, GridNode *node, KWGridNodeParallel *cNode,
-                       float fastFlow, float slowFlow,
-                       std::vector<double> *interflowContrib) {
+                       float fastFlow, float slowFlow) {
 
   if (!cNode->channelGridCell) {
     /**** Overland Routing ***/
@@ -250,15 +224,14 @@ void KWRouteParallel::RouteInt(float stepSeconds, GridNode *node, KWGridNodePara
     float A, B, C, D, E;
 
     // Compute different terms separate for convenience and readibility
-    A = NonnegativePow((1.0 / alpha) * cNode->states[STATE_KW_PAR_PQ],
-                       1.0 / beta);
+    A = pow((1.0 / alpha) * cNode->states[STATE_KW_PAR_PQ], 1.0 / beta);
     B = stepSeconds * newInWater;
     C = stepSeconds / node->horLen;
     D = cNode->states[STATE_KW_PAR_PQ];
     E = cNode->incomingWaterOverland;
 
     float newh = A + B - C * (D - E); // Mean overland flow depth (m/s)
-    float newq = alpha * NonnegativePow(newh, beta);
+    float newq = alpha * pow(newh, beta);
 
     cNode->states[STATE_KW_PAR_PQ] = newq;
     /* if (node->downStreamNode != INVALID_DOWNSTREAM_NODE && !kwNodes[nodes->at(node->downStreamNode).modelIndex].daActive) {
@@ -293,7 +266,10 @@ void KWRouteParallel::RouteInt(float stepSeconds, GridNode *node, KWGridNodePara
       }*/
       long targetIndex =
           cNode->routeNode[0][KW_PAR_LAYER_INTERFLOW]->modelIndex;
-      interflowContrib->at(targetIndex) += leakAmount;
+#if _OPENMP
+#pragma omp atomic update
+#endif
+      interflowIncomingNext[targetIndex] += leakAmount;
     }
 
     if (cNode->routeCNode[1][KW_PAR_LAYER_INTERFLOW]) {
@@ -304,7 +280,10 @@ void KWRouteParallel::RouteInt(float stepSeconds, GridNode *node, KWGridNodePara
       // printf(" 1 got %f ", leakAmount);
       long targetIndex =
           cNode->routeNode[1][KW_PAR_LAYER_INTERFLOW]->modelIndex;
-      interflowContrib->at(targetIndex) += leakAmount;
+#if _OPENMP
+#pragma omp atomic update
+#endif
+      interflowIncomingNext[targetIndex] += leakAmount;
     }
 
   } else {
@@ -323,15 +302,14 @@ void KWRouteParallel::RouteInt(float stepSeconds, GridNode *node, KWGridNodePara
     float A, B, C, D, E;
     
     // Compute different terms separate for convenience and readibility
-    A = NonnegativePow((1.0 / alpha) * cNode->states[STATE_KW_PAR_PO],
-                       1.0 / beta);
+    A = pow((1.0 / alpha) * cNode->states[STATE_KW_PAR_PO], 1.0 / beta);
     B = stepSeconds * newInWater;
     C = stepSeconds / node->horLen;
     D = cNode->states[STATE_KW_PAR_PO];
     E = cNode->incomingWaterOverland;
     
     float newh = A + B - C * (D - E); // Mean overland flow depth (m/s)
-    float newq = alpha * NonnegativePow(newh, beta);
+    float newq = alpha * pow(newh, beta);
 
     // Here we compute channel routing
     // This should be done outside the loop (or outside EF5 even better)
@@ -340,15 +318,14 @@ void KWRouteParallel::RouteInt(float stepSeconds, GridNode *node, KWGridNodePara
 
     // Channel Flow
     // Compute Q at current grid point
-    A = NonnegativePow((1.0 / alpha) * cNode->states[STATE_KW_PAR_PQ],
-                       1.0 / beta);
+    A = pow((1.0 / alpha) * cNode->states[STATE_KW_PAR_PQ], 1.0 / beta);
     B = stepSeconds * cNode->states[STATE_KW_PAR_PO];
     C = stepSeconds / node->horLen;
     D = cNode->states[STATE_KW_PAR_PQ];
     E = cNode->incomingWaterChannel;
 
     float estA = A + B - C * (D - E);
-    float newWater = alpha * NonnegativePow(estA, beta);
+    float newWater = alpha * pow(estA, beta);
 
     /*if (newWater != newWater) {
     printf("New water is %f (%f, %f) %f %f [%f %f %f %f %f] %f %f\n", newWater,

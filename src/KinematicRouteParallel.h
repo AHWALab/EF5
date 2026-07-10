@@ -61,8 +61,7 @@ public:
 
 private:
   void RouteInt(float stepSeconds, GridNode *node, KWGridNodeParallel *cNode,
-                float fastFlow, float slowFlow,
-                std::vector<double> *interflowContrib);
+                float fastFlow, float slowFlow);
   void
   InitializeParameters(std::map<GaugeConfigSection *, float *> *paramSettings,
                        std::vector<FloatGrid *> *paramGrids);
@@ -70,6 +69,8 @@ private:
 
   std::vector<GridNode> *nodes;
   std::vector<KWGridNodeParallel> kwNodes;
+  // Atomically filled during parallel routing and consumed in the serial pass.
+  std::vector<double> interflowIncomingNext;
   float maxSpeed;
   bool initialized;
 };
