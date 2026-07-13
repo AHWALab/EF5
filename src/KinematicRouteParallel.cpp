@@ -148,6 +148,14 @@ bool KWRouteParallel::Route(float stepHours, std::vector<float> *fastFlow,
 
   size_t numNodes = nodes->size();
 
+  // Interflow leaks written last step are available for this step's RouteInt
+  // (especially channel cells that consume them as lateral inflow).
+  for (size_t i = 0; i < numNodes; i++) {
+    kwNodes[i].incomingWater[KW_PAR_LAYER_INTERFLOW] +=
+        interflowIncomingNext[i];
+    interflowIncomingNext[i] = 0.0;
+  }
+
 #if _OPENMP
 #pragma omp parallel for
 #endif
@@ -157,14 +165,10 @@ bool KWRouteParallel::Route(float stepHours, std::vector<float> *fastFlow,
              slowFlow->at(i));
   }
 
-  // What is this loop doing? Re-initializing/Re-setting grids?
+  // Deposit surface outflows for the next timestep and build discharge.
   for (size_t i = 0; i < numNodes; i++) {
     KWGridNodeParallel *cNode = &(kwNodes[i]);
     GridNode *node = &nodes->at(i);
-
-    cNode->incomingWater[KW_PAR_LAYER_INTERFLOW] +=
-        interflowIncomingNext[i];
-    interflowIncomingNext[i] = 0.0;
 
     slowFlow->at(i) = 0.0; // cNode->incomingWater[KW_PAR_LAYER_INTERFLOW];
     fastFlow->at(i) = 0.0; // cNode->incomingWater[KW_PAR_LAYER_FASTFLOW];
@@ -221,17 +225,29 @@ void KWRouteParallel::RouteInt(float stepSeconds, GridNode *node, KWGridNodePara
     fastFlow /= 1000.0;          // mm to m
     float newInWater = fastFlow; // / node->horLen;
 
+    float prevQ = cNode->states[STATE_KW_PAR_PQ];
+    if (!std::isfinite(prevQ) || prevQ < 0.0f) {
+      prevQ = 0.0f;
+      cNode->states[STATE_KW_PAR_PQ] = 0.0f;
+    }
+
     float A, B, C, D, E;
 
     // Compute different terms separate for convenience and readibility
-    A = pow((1.0 / alpha) * cNode->states[STATE_KW_PAR_PQ], 1.0 / beta);
+    A = pow((1.0 / alpha) * prevQ, 1.0 / beta);
     B = stepSeconds * newInWater;
     C = stepSeconds / node->horLen;
-    D = cNode->states[STATE_KW_PAR_PQ];
+    D = prevQ;
     E = cNode->incomingWaterOverland;
 
     float newh = A + B - C * (D - E); // Mean overland flow depth (m/s)
+    if (!std::isfinite(newh) || newh < 0.0f) {
+      newh = 0.0f;
+    }
     float newq = alpha * pow(newh, beta);
+    if (!std::isfinite(newq) || newq < 0.0f) {
+      newq = 0.0f;
+    }
 
     cNode->states[STATE_KW_PAR_PQ] = newq;
     /* if (node->downStreamNode != INVALID_DOWNSTREAM_NODE && !kwNodes[nodes->at(node->downStreamNode).modelIndex].daActive) {
@@ -299,17 +315,34 @@ void KWRouteParallel::RouteInt(float stepSeconds, GridNode *node, KWGridNodePara
     slowFlow /= 1000.0; // mm to m
     float newInWater = (fastFlow + slowFlow);
 
+    float prevPO = cNode->states[STATE_KW_PAR_PO];
+    float prevPQ = cNode->states[STATE_KW_PAR_PQ];
+    if (!std::isfinite(prevPO) || prevPO < 0.0f) {
+      prevPO = 0.0f;
+      cNode->states[STATE_KW_PAR_PO] = 0.0f;
+    }
+    if (!std::isfinite(prevPQ) || prevPQ < 0.0f) {
+      prevPQ = 0.0f;
+      cNode->states[STATE_KW_PAR_PQ] = 0.0f;
+    }
+
     float A, B, C, D, E;
     
     // Compute different terms separate for convenience and readibility
-    A = pow((1.0 / alpha) * cNode->states[STATE_KW_PAR_PO], 1.0 / beta);
+    A = pow((1.0 / alpha) * prevPO, 1.0 / beta);
     B = stepSeconds * newInWater;
     C = stepSeconds / node->horLen;
-    D = cNode->states[STATE_KW_PAR_PO];
+    D = prevPO;
     E = cNode->incomingWaterOverland;
     
     float newh = A + B - C * (D - E); // Mean overland flow depth (m/s)
+    if (!std::isfinite(newh) || newh < 0.0f) {
+      newh = 0.0f;
+    }
     float newq = alpha * pow(newh, beta);
+    if (!std::isfinite(newq) || newq < 0.0f) {
+      newq = 0.0f;
+    }
 
     // Here we compute channel routing
     // This should be done outside the loop (or outside EF5 even better)
@@ -318,14 +351,20 @@ void KWRouteParallel::RouteInt(float stepSeconds, GridNode *node, KWGridNodePara
 
     // Channel Flow
     // Compute Q at current grid point
-    A = pow((1.0 / alpha) * cNode->states[STATE_KW_PAR_PQ], 1.0 / beta);
-    B = stepSeconds * cNode->states[STATE_KW_PAR_PO];
+    A = pow((1.0 / alpha) * prevPQ, 1.0 / beta);
+    B = stepSeconds * newq; // same-cell overland result feeds channel this step
     C = stepSeconds / node->horLen;
-    D = cNode->states[STATE_KW_PAR_PQ];
+    D = prevPQ;
     E = cNode->incomingWaterChannel;
 
     float estA = A + B - C * (D - E);
+    if (!std::isfinite(estA) || estA < 0.0f) {
+      estA = 0.0f;
+    }
     float newWater = alpha * pow(estA, beta);
+    if (!std::isfinite(newWater) || newWater < 0.0f) {
+      newWater = 0.0f;
+    }
 
     /*if (newWater != newWater) {
     printf("New water is %f (%f, %f) %f %f [%f %f %f %f %f] %f %f\n", newWater,

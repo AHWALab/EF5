@@ -69,7 +69,8 @@ private:
 
   std::vector<GridNode> *nodes;
   std::vector<KWGridNodeParallel> kwNodes;
-  // Atomically filled during parallel routing and consumed in the serial pass.
+  // Atomically filled during parallel routing; applied at the start of the
+  // next Route() call so channel cells can consume it in RouteInt.
   std::vector<double> interflowIncomingNext;
   float maxSpeed;
   bool initialized;
