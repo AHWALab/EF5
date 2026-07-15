@@ -73,6 +73,7 @@ public:
   bool Route(float stepHours, std::vector<float> *fastFlow,
              std::vector<float> *slowFlow, std::vector<float> *discharge);
   float GetMaxSpeed() { return maxSpeed; }
+  void SetOutputPath(char *path) { outputPath = path; }
 
 private:
   void RouteInt(float stepSeconds, GridNode *node, KWGridNodeWavefront *cNode,
@@ -93,6 +94,7 @@ private:
   // Downstream cells always appear in a later level than their upstreams.
   std::vector<long> levelCells;
   std::vector<size_t> levelOffsets;
+  char *outputPath;
   float maxSpeed;
   bool initialized;
 };

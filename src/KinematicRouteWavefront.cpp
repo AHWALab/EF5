@@ -24,7 +24,7 @@ static const char *stateStrings[] = {
 static const float OVERLAND_BETA = 0.6f;
 
 KWRouteWavefront::KWRouteWavefront()
-    : nodes(NULL), maxSpeed(1.0f), initialized(false) {}
+    : nodes(NULL), outputPath(NULL), maxSpeed(1.0f), initialized(false) {}
 
 KWRouteWavefront::~KWRouteWavefront() {}
 
@@ -163,8 +163,8 @@ bool KWRouteWavefront::Route(float stepHours, std::vector<float> *fastFlow,
 
   if (!initialized) {
     initialized = true;
-    InitializeRouting(stepHours * 3600.0f);
-    // Debug: dump wavefront levels + serial-order comparison, then stop.
+    // Levels only (skip heavy interflow init), dump, exit.
+    BuildRoutingLevels();
     DumpRoutingScheduleAndExit();
   }
 
@@ -646,84 +646,54 @@ void KWRouteWavefront::BuildRoutingLevels() {
 }
 
 void KWRouteWavefront::DumpRoutingScheduleAndExit() {
-  // Dumps GridNode maps + wavefront level (not kwNodes state).
+  // One GeoTIFF: pixel value = wavefront level. Then exit.
+  const char *outDir = (outputPath && outputPath[0]) ? outputPath : ".";
   const size_t numNodes = nodes->size();
   const size_t numLevels =
       (levelOffsets.size() > 0) ? (levelOffsets.size() - 1) : 0;
+  char path[1024];
 
-  std::vector<float> levelId(numNodes, -1.0f);
-  std::vector<float> serialOrder(numNodes);
-  std::vector<float> nodeIndex(numNodes);
-  std::vector<float> fac(numNodes);
-  std::vector<float> channel(numNodes);
-  std::vector<float> downStream(numNodes);
+  printf("KWRouteWavefront: building level grid (%lu nodes, %lu levels)...\n",
+         static_cast<unsigned long>(numNodes),
+         static_cast<unsigned long>(numLevels));
+  fflush(stdout);
 
+  std::vector<float> levelOfNode(numNodes, -1.0f);
   for (size_t L = 0; L < numLevels; L++) {
-    const size_t begin = levelOffsets[L];
-    const size_t end = levelOffsets[L + 1];
-    for (size_t p = begin; p < end; p++) {
-      const long i = levelCells[p];
+    for (size_t p = levelOffsets[L]; p < levelOffsets[L + 1]; p++) {
+      long i = levelCells[p];
       if (i >= 0 && static_cast<size_t>(i) < numNodes) {
-        levelId[i] = static_cast<float>(L);
+        levelOfNode[i] = static_cast<float>(L);
       }
     }
   }
 
-  for (size_t i = 0; i < numNodes; i++) {
-    GridNode *node = &nodes->at(i);
-    serialOrder[i] = static_cast<float>(numNodes - 1 - i);
-    nodeIndex[i] = static_cast<float>(i);
-    fac[i] = static_cast<float>(node->fac);
-    channel[i] = node->channelGridCell ? 1.0f : 0.0f;
-    downStream[i] = (node->downStreamNode == INVALID_DOWNSTREAM_NODE)
-                        ? -1.0f
-                        : static_cast<float>(node->downStreamNode);
-  }
-
   GridWriterFull writer;
   writer.Initialize();
-  writer.WriteGrid(nodes, &levelId, "kw_debug_wavefront_level.tif", false);
-  writer.WriteGrid(nodes, &serialOrder, "kw_debug_serial_order.tif", false);
-  writer.WriteGrid(nodes, &nodeIndex, "kw_debug_node_index.tif", false);
-  writer.WriteGrid(nodes, &fac, "kw_debug_fac.tif", false);
-  writer.WriteGrid(nodes, &channel, "kw_debug_channel.tif", false);
-  writer.WriteGrid(nodes, &downStream, "kw_debug_downstream.tif", false);
 
-  FILE *widths = fopen("kw_debug_level_widths.csv", "w");
-  if (widths) {
-    fprintf(widths, "level,cell_count\n");
-    for (size_t L = 0; L < numLevels; L++) {
-      const size_t count = levelOffsets[L + 1] - levelOffsets[L];
-      fprintf(widths, "%lu,%lu\n", static_cast<unsigned long>(L),
-              static_cast<unsigned long>(count));
-    }
-    fclose(widths);
-  }
+  sprintf(path, "%s/kw_wavefront_level.tif", outDir);
+  printf("KWRouteWavefront: writing %s (may take a bit on large DEMs)...\n",
+         path);
+  fflush(stdout);
+  writer.WriteGrid(nodes, &levelOfNode, path, false);
 
-  FILE *fp = fopen("kw_debug_wavefront_summary.txt", "w");
+  sprintf(path, "%s/kw_wavefront_summary.txt", outDir);
+  FILE *fp = fopen(path, "w");
   if (fp) {
-    fprintf(fp, "router=KWRouteWavefront\n");
-    fprintf(fp, "numNodes=%lu\n", static_cast<unsigned long>(numNodes));
-    fprintf(fp, "numLevels=%lu\n", static_cast<unsigned long>(numLevels));
-    fprintf(fp, "levelCells.size=%lu\n",
-            static_cast<unsigned long>(levelCells.size()));
-    fprintf(fp, "levelOffsets.size=%lu (numLevels+1)\n",
-            static_cast<unsigned long>(levelOffsets.size()));
-    fprintf(fp,
-            "level L cells = levelCells[levelOffsets[L] .. levelOffsets[L+1])\n");
-    fprintf(fp, "files=\n");
-    fprintf(fp, "  kw_debug_wavefront_level.tif\n");
-    fprintf(fp, "  kw_debug_serial_order.tif\n");
-    fprintf(fp, "  kw_debug_node_index.tif\n");
-    fprintf(fp, "  kw_debug_fac.tif\n");
-    fprintf(fp, "  kw_debug_channel.tif\n");
-    fprintf(fp, "  kw_debug_downstream.tif\n");
-    fprintf(fp, "  kw_debug_level_widths.csv\n");
+    fprintf(fp, "mode=wavefront_KW\n");
+    fprintf(fp, "nodes=%lu\n", static_cast<unsigned long>(numNodes));
+    fprintf(fp, "levels=%lu\n", static_cast<unsigned long>(numLevels));
+    fprintf(fp, "serial_executions_per_timestep=%lu\n",
+            static_cast<unsigned long>(numNodes));
+    fprintf(fp, "wavefront_sequential_waves_per_timestep=%lu\n",
+            static_cast<unsigned long>(numLevels));
+    fprintf(fp, "geotiff=kw_wavefront_level.tif\n");
+    fprintf(fp, "note=pixel value = level (same value = parallel in that wave)\n");
     fclose(fp);
   }
 
-  printf("KWRouteWavefront DEBUG: wrote level/schedule GeoTIFFs + "
-         "kw_debug_level_widths.csv (%lu nodes, %lu levels). Exiting.\n",
+  printf("KWRouteWavefront: done. serial=%lu cell-steps, wavefront=%lu "
+         "waves. Exiting.\n",
          static_cast<unsigned long>(numNodes),
          static_cast<unsigned long>(numLevels));
   fflush(stdout);
