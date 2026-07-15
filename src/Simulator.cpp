@@ -13,6 +13,7 @@
 #include "HyMOD.h"
 #include "KinematicRoute.h"
 #include "KinematicRouteParallel.h"
+#include "KinematicRouteWavefront.h"
 #include "LinearRoute.h"
 #include "Messages.h"
 #include "PETConfigSection.h"
@@ -348,7 +349,7 @@ bool Simulator::InitializeBasic(TaskConfigSection *task)
       rModel = new KWRoute();
       break;
     case ROUTE_KINEMATIC_PARALLEL:
-      rModel = new KWRouteParallel();
+      rModel = new KWRouteWavefront();
       break;
     case ROUTE_QTY:
       rModel = NULL;
@@ -721,7 +722,7 @@ bool Simulator::InitializeCali(TaskConfigSection *task)
       caliRModels[i] = new KWRoute();
       break;
     case ROUTE_KINEMATIC_PARALLEL:
-      caliRModels[i] = new KWRouteParallel();
+      caliRModels[i] = new KWRouteWavefront();
       break;
     case ROUTE_QTY:
       caliRModels[i] = NULL;

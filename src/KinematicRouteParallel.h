@@ -3,20 +3,23 @@
 
 #include "ModelBase.h"
 
-enum KW_PARALLEL_LAYER {
+enum KW_PARALLEL_LAYER
+{
   KW_PAR_LAYER_FASTFLOW,
   KW_PAR_LAYER_INTERFLOW,
   KW_PAR_LAYER_QTY,
 };
 
-enum STATES_KW_PARALLEL {
+enum STATES_KW_PARALLEL
+{
   STATE_KW_PAR_PQ,
   STATE_KW_PAR_PO,
   STATE_KW_PAR_IR,
   STATE_KW_PAR_QTY
 };
 
-struct KWGridNodeParallel : BasicGridNode {
+struct KWGridNodeParallel : BasicGridNode
+{
   float params[PARAM_KINEMATIC_QTY];
   float states[STATE_KW_PAR_QTY];
 
@@ -41,7 +44,8 @@ struct KWGridNodeParallel : BasicGridNode {
   double incomingWaterOverland, incomingWaterChannel;
 };
 
-class KWRouteParallel : public RoutingModel {
+class KWRouteParallel : public RoutingModel
+{
 
 public:
   KWRouteParallel();
