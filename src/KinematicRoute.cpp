@@ -1,9 +1,12 @@
 #include "KinematicRoute.h"
 #include "AscGrid.h"
 #include "DatedName.h"
+#include "GridWriterFull.h"
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <vector>
 
 static const char *stateStrings[] = {
     "pCQ",
@@ -168,6 +171,8 @@ bool KWRoute::Route(float stepHours, std::vector<float> *fastFlow,
   {
     initialized = true;
     InitializeRouting(stepHours * 3600.0f);
+    // Debug: dump serial visit order maps, then stop the run.
+    DumpRoutingScheduleAndExit();
   }
 
   size_t numNodes = nodes->size();
@@ -627,4 +632,55 @@ void KWRoute::InitializeRouting(float timeSeconds)
             cNode->routeAmount[1][KW_LAYER_INTERFLOW] = 0.0;
         }
     }
+}
+
+void KWRoute::DumpRoutingScheduleAndExit() {
+  // Dumps GridNode schedule maps only (not kwNodes state).
+  // serial_order: 0 = first cell visited by the serial loop (high index first).
+  const size_t numNodes = nodes->size();
+  std::vector<float> serialOrder(numNodes);
+  std::vector<float> nodeIndex(numNodes);
+  std::vector<float> fac(numNodes);
+  std::vector<float> channel(numNodes);
+  std::vector<float> downStream(numNodes);
+
+  for (size_t i = 0; i < numNodes; i++) {
+    GridNode *node = &nodes->at(i);
+    serialOrder[i] = static_cast<float>(numNodes - 1 - i);
+    nodeIndex[i] = static_cast<float>(i);
+    fac[i] = static_cast<float>(node->fac);
+    channel[i] = node->channelGridCell ? 1.0f : 0.0f;
+    downStream[i] = (node->downStreamNode == INVALID_DOWNSTREAM_NODE)
+                        ? -1.0f
+                        : static_cast<float>(node->downStreamNode);
+  }
+
+  GridWriterFull writer;
+  writer.Initialize();
+  writer.WriteGrid(nodes, &serialOrder, "kw_debug_serial_order.tif", false);
+  writer.WriteGrid(nodes, &nodeIndex, "kw_debug_node_index.tif", false);
+  writer.WriteGrid(nodes, &fac, "kw_debug_fac.tif", false);
+  writer.WriteGrid(nodes, &channel, "kw_debug_channel.tif", false);
+  writer.WriteGrid(nodes, &downStream, "kw_debug_downstream.tif", false);
+
+  FILE *fp = fopen("kw_debug_serial_summary.txt", "w");
+  if (fp) {
+    fprintf(fp, "router=KWRoute (serial)\n");
+    fprintf(fp, "numNodes=%lu\n", static_cast<unsigned long>(numNodes));
+    fprintf(fp, "serial_loop=i from numNodes-1 down to 0\n");
+    fprintf(fp, "serial_order[i] = numNodes-1-i  (0=first visited)\n");
+    fprintf(fp, "files=\n");
+    fprintf(fp, "  kw_debug_serial_order.tif\n");
+    fprintf(fp, "  kw_debug_node_index.tif\n");
+    fprintf(fp, "  kw_debug_fac.tif\n");
+    fprintf(fp, "  kw_debug_channel.tif\n");
+    fprintf(fp, "  kw_debug_downstream.tif\n");
+    fclose(fp);
+  }
+
+  printf("KWRoute DEBUG: wrote serial schedule GeoTIFFs + "
+         "kw_debug_serial_summary.txt (%lu nodes). Exiting.\n",
+         static_cast<unsigned long>(numNodes));
+  fflush(stdout);
+  exit(0);
 }

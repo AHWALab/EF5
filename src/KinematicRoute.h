@@ -60,6 +60,8 @@ private:
   InitializeParameters(std::map<GaugeConfigSection *, float *> *paramSettings,
                        std::vector<FloatGrid *> *paramGrids);
   void InitializeRouting(float timeSeconds);
+  // One-shot schedule dump for visualization, then exits the process.
+  void DumpRoutingScheduleAndExit();
 
   std::vector<GridNode> *nodes;
   std::vector<KWGridNode> kwNodes;

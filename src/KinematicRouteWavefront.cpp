@@ -1,8 +1,10 @@
 #include "KinematicRouteWavefront.h"
 #include "AscGrid.h"
 #include "DatedName.h"
+#include "GridWriterFull.h"
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <vector>
 
@@ -162,6 +164,8 @@ bool KWRouteWavefront::Route(float stepHours, std::vector<float> *fastFlow,
   if (!initialized) {
     initialized = true;
     InitializeRouting(stepHours * 3600.0f);
+    // Debug: dump wavefront levels + serial-order comparison, then stop.
+    DumpRoutingScheduleAndExit();
   }
 
   const size_t numNodes = nodes->size();
@@ -639,4 +643,89 @@ void KWRouteWavefront::BuildRoutingLevels() {
          static_cast<unsigned long>(numLevels),
          static_cast<unsigned long>(numNodes),
          static_cast<unsigned long>(maxWidth));
+}
+
+void KWRouteWavefront::DumpRoutingScheduleAndExit() {
+  // Dumps GridNode maps + wavefront level (not kwNodes state).
+  const size_t numNodes = nodes->size();
+  const size_t numLevels =
+      (levelOffsets.size() > 0) ? (levelOffsets.size() - 1) : 0;
+
+  std::vector<float> levelId(numNodes, -1.0f);
+  std::vector<float> serialOrder(numNodes);
+  std::vector<float> nodeIndex(numNodes);
+  std::vector<float> fac(numNodes);
+  std::vector<float> channel(numNodes);
+  std::vector<float> downStream(numNodes);
+
+  for (size_t L = 0; L < numLevels; L++) {
+    const size_t begin = levelOffsets[L];
+    const size_t end = levelOffsets[L + 1];
+    for (size_t p = begin; p < end; p++) {
+      const long i = levelCells[p];
+      if (i >= 0 && static_cast<size_t>(i) < numNodes) {
+        levelId[i] = static_cast<float>(L);
+      }
+    }
+  }
+
+  for (size_t i = 0; i < numNodes; i++) {
+    GridNode *node = &nodes->at(i);
+    serialOrder[i] = static_cast<float>(numNodes - 1 - i);
+    nodeIndex[i] = static_cast<float>(i);
+    fac[i] = static_cast<float>(node->fac);
+    channel[i] = node->channelGridCell ? 1.0f : 0.0f;
+    downStream[i] = (node->downStreamNode == INVALID_DOWNSTREAM_NODE)
+                        ? -1.0f
+                        : static_cast<float>(node->downStreamNode);
+  }
+
+  GridWriterFull writer;
+  writer.Initialize();
+  writer.WriteGrid(nodes, &levelId, "kw_debug_wavefront_level.tif", false);
+  writer.WriteGrid(nodes, &serialOrder, "kw_debug_serial_order.tif", false);
+  writer.WriteGrid(nodes, &nodeIndex, "kw_debug_node_index.tif", false);
+  writer.WriteGrid(nodes, &fac, "kw_debug_fac.tif", false);
+  writer.WriteGrid(nodes, &channel, "kw_debug_channel.tif", false);
+  writer.WriteGrid(nodes, &downStream, "kw_debug_downstream.tif", false);
+
+  FILE *widths = fopen("kw_debug_level_widths.csv", "w");
+  if (widths) {
+    fprintf(widths, "level,cell_count\n");
+    for (size_t L = 0; L < numLevels; L++) {
+      const size_t count = levelOffsets[L + 1] - levelOffsets[L];
+      fprintf(widths, "%lu,%lu\n", static_cast<unsigned long>(L),
+              static_cast<unsigned long>(count));
+    }
+    fclose(widths);
+  }
+
+  FILE *fp = fopen("kw_debug_wavefront_summary.txt", "w");
+  if (fp) {
+    fprintf(fp, "router=KWRouteWavefront\n");
+    fprintf(fp, "numNodes=%lu\n", static_cast<unsigned long>(numNodes));
+    fprintf(fp, "numLevels=%lu\n", static_cast<unsigned long>(numLevels));
+    fprintf(fp, "levelCells.size=%lu\n",
+            static_cast<unsigned long>(levelCells.size()));
+    fprintf(fp, "levelOffsets.size=%lu (numLevels+1)\n",
+            static_cast<unsigned long>(levelOffsets.size()));
+    fprintf(fp,
+            "level L cells = levelCells[levelOffsets[L] .. levelOffsets[L+1])\n");
+    fprintf(fp, "files=\n");
+    fprintf(fp, "  kw_debug_wavefront_level.tif\n");
+    fprintf(fp, "  kw_debug_serial_order.tif\n");
+    fprintf(fp, "  kw_debug_node_index.tif\n");
+    fprintf(fp, "  kw_debug_fac.tif\n");
+    fprintf(fp, "  kw_debug_channel.tif\n");
+    fprintf(fp, "  kw_debug_downstream.tif\n");
+    fprintf(fp, "  kw_debug_level_widths.csv\n");
+    fclose(fp);
+  }
+
+  printf("KWRouteWavefront DEBUG: wrote level/schedule GeoTIFFs + "
+         "kw_debug_level_widths.csv (%lu nodes, %lu levels). Exiting.\n",
+         static_cast<unsigned long>(numNodes),
+         static_cast<unsigned long>(numLevels));
+  fflush(stdout);
+  exit(0);
 }

@@ -7,20 +7,23 @@
 // Same layer / state layout as serial KW (KinematicRoute.h).
 // Separate enums keep this router independent of KWRoute / KWRouteParallel.
 
-enum KW_WAVEFRONT_LAYER {
+enum KW_WAVEFRONT_LAYER
+{
   KW_WF_LAYER_FASTFLOW,
   KW_WF_LAYER_INTERFLOW,
   KW_WF_LAYER_QTY,
 };
 
-enum STATES_KW_WAVEFRONT {
+enum STATES_KW_WAVEFRONT
+{
   STATE_KW_WF_PQ,
   STATE_KW_WF_PO,
   STATE_KW_WF_IR,
   STATE_KW_WF_QTY
 };
 
-struct KWGridNodeWavefront : BasicGridNode {
+struct KWGridNodeWavefront : BasicGridNode
+{
   float params[PARAM_KINEMATIC_QTY];
   float states[STATE_KW_WF_QTY];
 
@@ -38,21 +41,22 @@ struct KWGridNodeWavefront : BasicGridNode {
   double incomingWaterOverland, incomingWaterChannel;
 
   // Hot-path caches (filled in InitializeParameters / InitializeRouting).
-  // Avoids repeating divisions and param multiplies inside Newton loops.
-  float invHorLen;       // 1 / node->horLen
-  float alpha0;          // PARAM_KINEMATIC_ALPHA0
-  float alpha0Beta;      // alpha0 * 0.6 (overland)
-  float alphaCh;         // PARAM_KINEMATIC_ALPHA (channel)
-  float betaCh;          // PARAM_KINEMATIC_BETA (channel)
-  float alphaBetaCh;     // alphaCh * betaCh
-  long downStreamIndex;  // cached modelIndex, or INVALID_DOWNSTREAM_NODE
+  // This is to avoid repeating divisions and param multiplies inside Newton loops.
+  float invHorLen;      // 1 / node->horLen
+  float alpha0;         // PARAM_KINEMATIC_ALPHA0
+  float alpha0Beta;     // alpha0 * 0.6 (overland)
+  float alphaCh;        // PARAM_KINEMATIC_ALPHA (channel)
+  float betaCh;         // PARAM_KINEMATIC_BETA (channel)
+  float alphaBetaCh;    // alphaCh * betaCh
+  long downStreamIndex; // cached modelIndex, or INVALID_DOWNSTREAM_NODE
 };
 
 // Wavefront OpenMP kinematic router:
 // - Same Newton physics as KWRoute (serial)
 // - Cells grouped into topological levels from downStreamNode
 // - Parallel only within a level; sync between levels
-class KWRouteWavefront : public RoutingModel {
+class KWRouteWavefront : public RoutingModel
+{
 
 public:
   KWRouteWavefront();
@@ -79,6 +83,8 @@ private:
   void InitializeRouting(float timeSeconds);
   // Build flat levelCells / levelOffsets once from downStreamNode DAG.
   void BuildRoutingLevels();
+  // One-shot schedule dump for visualization, then exits the process.
+  void DumpRoutingScheduleAndExit();
 
   std::vector<GridNode> *nodes;
   std::vector<KWGridNodeWavefront> kwNodes;
