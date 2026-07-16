@@ -507,9 +507,6 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
   }
 
   outputPath = task->GetOutput();
-  if (rModel) {
-    rModel->SetOutputPath(outputPath);
-  }
   if (useStates)
   {
     statePath = task->GetState();

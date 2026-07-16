@@ -4,7 +4,6 @@
 #include "GridWriterFull.h"
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <vector>
 
@@ -24,7 +23,7 @@ static const char *stateStrings[] = {
 static const float OVERLAND_BETA = 0.6f;
 
 KWRouteWavefront::KWRouteWavefront()
-    : nodes(NULL), outputPath(NULL), maxSpeed(1.0f), initialized(false) {}
+    : nodes(NULL), maxSpeed(1.0f), initialized(false) {}
 
 KWRouteWavefront::~KWRouteWavefront() {}
 
@@ -163,9 +162,7 @@ bool KWRouteWavefront::Route(float stepHours, std::vector<float> *fastFlow,
 
   if (!initialized) {
     initialized = true;
-    // Levels only (skip heavy interflow init), dump, exit.
-    BuildRoutingLevels();
-    DumpRoutingScheduleAndExit();
+    InitializeRouting(stepHours * 3600.0f);
   }
 
   const size_t numNodes = nodes->size();
@@ -643,59 +640,4 @@ void KWRouteWavefront::BuildRoutingLevels() {
          static_cast<unsigned long>(numLevels),
          static_cast<unsigned long>(numNodes),
          static_cast<unsigned long>(maxWidth));
-}
-
-void KWRouteWavefront::DumpRoutingScheduleAndExit() {
-  // One GeoTIFF: pixel value = wavefront level. Then exit.
-  const char *outDir = (outputPath && outputPath[0]) ? outputPath : ".";
-  const size_t numNodes = nodes->size();
-  const size_t numLevels =
-      (levelOffsets.size() > 0) ? (levelOffsets.size() - 1) : 0;
-  char path[1024];
-
-  printf("KWRouteWavefront: building level grid (%lu nodes, %lu levels)...\n",
-         static_cast<unsigned long>(numNodes),
-         static_cast<unsigned long>(numLevels));
-  fflush(stdout);
-
-  std::vector<float> levelOfNode(numNodes, -1.0f);
-  for (size_t L = 0; L < numLevels; L++) {
-    for (size_t p = levelOffsets[L]; p < levelOffsets[L + 1]; p++) {
-      long i = levelCells[p];
-      if (i >= 0 && static_cast<size_t>(i) < numNodes) {
-        levelOfNode[i] = static_cast<float>(L);
-      }
-    }
-  }
-
-  GridWriterFull writer;
-  writer.Initialize();
-
-  sprintf(path, "%s/kw_wavefront_level.tif", outDir);
-  printf("KWRouteWavefront: writing %s (may take a bit on large DEMs)...\n",
-         path);
-  fflush(stdout);
-  writer.WriteGrid(nodes, &levelOfNode, path, false);
-
-  sprintf(path, "%s/kw_wavefront_summary.txt", outDir);
-  FILE *fp = fopen(path, "w");
-  if (fp) {
-    fprintf(fp, "mode=wavefront_KW\n");
-    fprintf(fp, "nodes=%lu\n", static_cast<unsigned long>(numNodes));
-    fprintf(fp, "levels=%lu\n", static_cast<unsigned long>(numLevels));
-    fprintf(fp, "serial_executions_per_timestep=%lu\n",
-            static_cast<unsigned long>(numNodes));
-    fprintf(fp, "wavefront_sequential_waves_per_timestep=%lu\n",
-            static_cast<unsigned long>(numLevels));
-    fprintf(fp, "geotiff=kw_wavefront_level.tif\n");
-    fprintf(fp, "note=pixel value = level (same value = parallel in that wave)\n");
-    fclose(fp);
-  }
-
-  printf("KWRouteWavefront: done. serial=%lu cell-steps, wavefront=%lu "
-         "waves. Exiting.\n",
-         static_cast<unsigned long>(numNodes),
-         static_cast<unsigned long>(numLevels));
-  fflush(stdout);
-  exit(0);
 }

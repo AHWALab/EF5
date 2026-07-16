@@ -52,7 +52,6 @@ public:
   bool Route(float stepHours, std::vector<float> *fastFlow,
              std::vector<float> *slowFlow, std::vector<float> *discharge);
   float GetMaxSpeed() { return maxSpeed; }
-  void SetOutputPath(char *path) { outputPath = path; }
 
 private:
   void RouteInt(float stepSeconds, GridNode *node, KWGridNode *cNode,
@@ -61,12 +60,9 @@ private:
   InitializeParameters(std::map<GaugeConfigSection *, float *> *paramSettings,
                        std::vector<FloatGrid *> *paramGrids);
   void InitializeRouting(float timeSeconds);
-  // One-shot schedule dump for visualization, then exits the process.
-  void DumpRoutingScheduleAndExit();
 
   std::vector<GridNode> *nodes;
   std::vector<KWGridNode> kwNodes;
-  char *outputPath;
   float maxSpeed;
   bool initialized;
 };

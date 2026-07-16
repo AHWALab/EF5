@@ -4,7 +4,6 @@
 #include "GridWriterFull.h"
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 
 static const char *stateStrings[] = {
@@ -13,7 +12,7 @@ static const char *stateStrings[] = {
     "IR",
 };
 
-KWRoute::KWRoute() : nodes(NULL), outputPath(NULL), maxSpeed(1.0f), initialized(false) {}
+KWRoute::KWRoute() : nodes(NULL), maxSpeed(1.0f), initialized(false) {}
 
 KWRoute::~KWRoute() {}
 
@@ -169,7 +168,7 @@ bool KWRoute::Route(float stepHours, std::vector<float> *fastFlow,
   if (!initialized)
   {
     initialized = true;
-    DumpRoutingScheduleAndExit();
+    InitializeRouting(stepHours * 3600.0f);
   }
 
   size_t numNodes = nodes->size();
@@ -629,45 +628,4 @@ void KWRoute::InitializeRouting(float timeSeconds)
             cNode->routeAmount[1][KW_LAYER_INTERFLOW] = 0.0;
         }
     }
-}
-
-void KWRoute::DumpRoutingScheduleAndExit() {
-  // One GeoTIFF: serial visit order (0 = first cell). Then exit.
-  const char *outDir = (outputPath && outputPath[0]) ? outputPath : ".";
-  const size_t numNodes = nodes->size();
-  char path[1024];
-
-  printf("KWRoute: building serial_order for %lu nodes...\n",
-         static_cast<unsigned long>(numNodes));
-  fflush(stdout);
-
-  std::vector<float> serialOrder(numNodes);
-  for (size_t i = 0; i < numNodes; i++) {
-    serialOrder[i] = static_cast<float>(numNodes - 1 - i);
-  }
-
-  GridWriterFull writer;
-  writer.Initialize();
-
-  sprintf(path, "%s/kw_serial_order.tif", outDir);
-  printf("KWRoute: writing %s (may take a bit on large DEMs)...\n", path);
-  fflush(stdout);
-  writer.WriteGrid(nodes, &serialOrder, path, false);
-
-  sprintf(path, "%s/kw_serial_summary.txt", outDir);
-  FILE *fp = fopen(path, "w");
-  if (fp) {
-    fprintf(fp, "mode=serial_KW\n");
-    fprintf(fp, "nodes=%lu\n", static_cast<unsigned long>(numNodes));
-    fprintf(fp, "executions_per_timestep=%lu\n",
-            static_cast<unsigned long>(numNodes));
-    fprintf(fp, "geotiff=kw_serial_order.tif\n");
-    fprintf(fp, "note=pixel value = serial_order (0=first visited)\n");
-    fclose(fp);
-  }
-
-  printf("KWRoute: done. executions/timestep=%lu. Exiting.\n",
-         static_cast<unsigned long>(numNodes));
-  fflush(stdout);
-  exit(0);
 }

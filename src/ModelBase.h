@@ -61,8 +61,6 @@ public:
                      std::vector<float> *discharge) = 0;
   virtual float GetMaxSpeed() = 0;
   virtual float SetObsInflow(long index, float inflow) = 0;
-  // Optional: task output directory for debug dumps (default no-op).
-  virtual void SetOutputPath(char *path) { (void)path; }
 };
 
 class SnowModel {
