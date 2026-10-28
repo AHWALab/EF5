@@ -29,7 +29,6 @@ bool PrecipReader::Read(char *file, SUPPORTED_PRECIP_TYPES type,
     strcpy(lastPrecipFile, file);
   }
 
-  // static FloatGrid *precipGrid = NULL;
   FloatGrid *precipGrid = NULL;
 
   switch (type) {
@@ -48,8 +47,6 @@ bool PrecipReader::Read(char *file, SUPPORTED_PRECIP_TYPES type,
   case PRECIP_TRMMRT:
     precipGrid = ReadFloatTRMMRTGrid(file, precipGrid);
     break;
-    // case PRECIP_TRMMV7:
-    //	precipGrid = ReadFloatTRMMV6Grid(file);
     break;
   default:
     ERROR_LOG("Unsupported precip format!");

@@ -321,7 +321,6 @@ CONFIG_PARSE_RESULTS Config::ParseConfig()
         {
           line++;
         }
-        // DEBUG_LOGF("Found %s with value %s", nameBuf, valBuf);
         if (currentSection->ProcessKeyValue(nameBuf, valBuf))
         {
           // ProcessKeyValue is responsible for printing error messages

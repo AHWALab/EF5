@@ -93,10 +93,6 @@ FloatGrid *ReadFloatAscGrid(char *file)
     return NULL;
   }
 
-  // posix_fadvise(fileno(fileH), 0, 0, POSIX_FADV_SEQUENTIAL);
-  // posix_fadvise(fileno(fileH), 0, 0, POSIX_FADV_WILLNEED);
-  // posix_fadvise(fileno(fileH), 0, 0, POSIX_FADV_NOREUSE);
-
   grid = new FloatGrid();
 
   if (fscanf(fileH, "%*s %ld", &grid->numCols) != 1)

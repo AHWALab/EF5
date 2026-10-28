@@ -33,16 +33,6 @@ void DREAM::Initialize(CaliParamConfigSection *caliParamConfigNew,
   goal = objectiveGoals[caliParamConfig->GetObjFunc()];
   objectiveString = objectiveStrings[caliParamConfig->GetObjFunc()];
 
-  /*
-   // Configurable Parameters
-   topNum = caliParamConfig->ARSGetTopNum();
-   minObjScore = caliParamConfig->ARSGetCritObjScore();
-   convergenceCriteria = caliParamConfig->ARSGetConvCriteria();
-   burnInSets = caliParamConfig->ARSGetBurnInSets();
-
-   // Initialize vars & RNG
-   totalSets = 0;
-   goodSets = 0;*/
 #ifdef WIN32
   srand(time(NULL));
 #else
@@ -72,7 +62,6 @@ void DREAM::Initialize(CaliParamConfigSection *caliParamConfigNew,
            snowCaliParamConfig->GetParamMaxs(), sizeof(float) * numParamsS);
   }
 
-  // srand48(0);
   pointerMCMC = new DREAM_Parameters();
   pointerInput = new Model_Input();
 
@@ -248,9 +237,6 @@ void DREAM::CalibrateParams() {
   // if save in memory = Yes
   InitSequences(X, pointerRUNvar->Sequences, pointerMCMC);
 
-  // Reduced sample collection if reduced_sample_collection = Yes
-  // iloc_2 = 0;
-
   // Save N_CR in memory and initialize delta_tot
   pointerOutput->CR[0][0] = pointerRUNvar->Iter;
   for (i = 1; i < pointerMCMC->nCR + 1; i++) {
@@ -327,7 +313,6 @@ void DREAM::CalibrateParams() {
     // Loop a number of times
     for (gen_number = 0; gen_number < pointerMCMC->steps; gen_number++) {
       // Initialize DR properties
-      // accept2 = 0;
       ItExtra = 0;
       pointerRUNvar->new_teller = pointerRUNvar->new_teller + 1;
 
@@ -531,55 +516,7 @@ void DREAM::CalibrateParams() {
   }
   free(post_array);
 
-  /*
-   for (i = 0; i < pointerRUNvar->teller - 1; i++) {
-   printf("T: %i ", i);
-   for (j = 0; j < pointerMCMC->n + 1; j++) {
-   printf("%f ", pointerOutput->R_stat[i][j]);
-   }
-   printf("\n");
-   }*/
 
-  /*
-   //Generate a 2D matrix with samples
-   allocate2D(&ParSet, post_Sequences*pointerMCMC->seq, pointerMCMC->n+2);
-   GenParSet(ParSet, pointerRUNvar, post_Sequences, pointerMCMC);
-
-   //------Deallocating
-   Memory------------------------------------------------------// for (i = 0; i
-   < floorf(1.25 * pointerRUNvar->Nelem); i++) { for (j=0; j < pointerMCMC->n+2;
-   j++) { free(pointerRUNvar->Sequences[i][j]);
-   }
-   free(pointerRUNvar->Sequences[i]);
-   }
-   free(pointerRUNvar->Sequences);
-
-   deallocate2D(&ParSet, post_Sequences*pointerMCMC->seq);
-   */
-
-  /*deallocate2D(&pointerRUNvar->hist_logp, pointerRUNvar->Nelem - 1 + 10);
-   deallocate2D(&pointerRUNvar->pCR, 1);
-   deallocate2D(&pointerRUNvar->CR, pointerMCMC->seq);
-   deallocate2D(&pointerRUNvar->Table_JumpRate, pointerMCMC->n);
-   deallocate2D(&pointerOutput->AR, pointerRUNvar->Nelem+10);
-   deallocate2D(&pointerOutput->CR, floorf(pointerRUNvar->Nelem / steps) + 10);
-   deallocate2D(&pointerOutput->outlier, pointerMCMC->ndraw);
-   deallocate2D(&pointerOutput->R_stat, floorf((pointerRUNvar->Nelem+10) /
-   steps)); free(pointerRUNvar->lCR); free(pointerOutput);
-   //free(pointerRUNvar);
-   deallocate2D(&x, pointerMCMC->seq);
-   deallocate2D(&X, pointerMCMC->seq);
-   deallocate2D(&p, pointerMCMC->seq);
-   deallocate2D(&p_xnew, pointerMCMC->seq);
-   deallocate2D(&x_old, pointerMCMC->seq);
-   deallocate2D(&x_new, pointerMCMC->seq);
-   free(log_p);
-   free(log_p_xnew);
-   free(alpha12);
-   free(accept);
-   free(delta_tot);
-   free(p_old);
-   free(log_p_old);*/
   INFO_LOGF("%s", "End of DREAM Routine");
 }
 
@@ -709,24 +646,17 @@ void DREAM::CompDensity(float **p, float *log_p, float **x,
 
         for (int k = 0; k < numEns; k++) {
           float cVal = dischargeVals[k][j];
-          // printf("d%i: %f\n", k, cVal);
           for (int z = numEns - 1; z >= 0; z--) {
-            // printf("test %f, %f, %i\n", cVal, currentDischargeSet[z], z);
             if (cVal >= currentDischargeSet[z]) {
               float tempVal = currentDischargeSet[z];
               currentDischargeSet[z] = cVal;
-              // printf("dSet%i: %f\n", k, cVal);
               cVal = tempVal;
               if (cVal == -9999) {
                 break;
               }
             }
           }
-          // currentDischargeSet[k] = dischargeVals[k][j];
         }
-
-        // printf("d: %f %f %f\n", currentDischargeSet[0],
-        // currentDischargeSet[1], currentDischargeSet[2]);
 
         float obsVal = obsVals[j];
         int bin;
@@ -745,12 +675,8 @@ void DREAM::CompDensity(float **p, float *log_p, float **x,
           distMax = bin_tally[z];
         }
       }
-      // printf("t: %i %i %i %i\n", bin_tally[0], bin_tally[1], bin_tally[2],
-      // bin_tally[3]);
       distMax /= ((float)(numObs));
       objScore = fabs((distMax - distExpected) / distExpected) * 100.0;
-      // printf("%f %f %f %f\n", distExpected, distMax, objScore,
-      // (float)(numObs));
       p[i][0] = -1 * objScore;
       p[i][1] = i;
       log_p[i] = -0.5 * objScore;

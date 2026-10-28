@@ -27,12 +27,9 @@ struct FAMSearch
   long fa;
 };
 
-// static FAMSearch *NextUnusedGrid(std::vector<FAMSearch *> *gridCells);
 static bool GetDownstreamHeight(long x, long y, long *outsideHeight);
 static bool TestUpstream(GridNode *node, FLOW_DIR dir, GridLoc *loc);
 static bool TestUpstream(long nextX, long nextY, FLOW_DIR dir, GridLoc *loc);
-// static bool TestUpstreamBroken(long nextX, long nextY, FLOW_DIR dir, GridLoc
-// *loc);
 static GaugeConfigSection *
 FindGauge(std::map<unsigned long, GaugeConfigSection *> *gauges,
           GridNode *node);
@@ -45,16 +42,6 @@ static int FlowsOut(long nextX, long nextY, FLOW_DIR dir, long currentHeight);
 static int FlowsIn(long nextX, long nextY, FLOW_DIR dir, long currentHeight,
                    GridLoc *locIn, long maxSearch, GridLoc *locOut);
 static void FixFlowDir(BasinConfigSection *basin, std::vector<GridNode> *nodes);
-/*FLOW_DIR reverseDir[] = {
-  FLOW_SOUTH,
-  FLOW_SOUTHWEST,
-  FLOW_WEST,
-  FLOW_NORTHWEST,
-  FLOW_NORTH,
-  FLOW_NORTHEAST,
-  FLOW_EAST,
-  FLOW_SOUTHEAST,
-  FLOW_QTY };*/
 
 FLOW_DIR reverseDir[] = {FLOW_WEST, FLOW_SOUTHWEST, FLOW_SOUTH,
                          FLOW_SOUTHEAST, FLOW_EAST, FLOW_NORTHEAST,
@@ -326,8 +313,6 @@ void FindIndBasins(float left, float right, float top, float bottom, const char 
               g_DEM->data[nextN->y][nextN->x] != g_DEM->noData &&
               g_FAM->data[nextN->y][nextN->x] != g_FAM->noData)
           {
-            // printf("%i %i %i %i %i %i %i\n", index, nextN->y, nextN->x,
-            // g_FAM->data[nextN->y][nextN->x], minY, minX, maxX);
             if (gcItrs[index] != gridCells.end())
             {
               gridCells.erase(gcItrs[index]);
@@ -337,9 +322,6 @@ void FindIndBasins(float left, float right, float top, float bottom, const char 
           }
           else
           {
-            // printf("Hmm %i (%f, %f, %f)\n", index,
-            // g_DEM->data[nextN->y][nextN->x], g_FAM->data[nextN->y][nextN->x],
-            // g_DDM->data[nextN->y][nextN->x]);
             delete nextN;
           }
         }
@@ -380,7 +362,6 @@ void ClipBasicGrids(long x, long y, long search, const char *output)
   minY = loc.y - search;
 
   FindIndBasins(-124.73, -66.95, 50.00, 24.5, output);
-  // FindIndBasins(-84.84, -67.26, 44.17, 35.76);
 
   printf("Search box is %ld, %ld, %ld, %ld, %ld, %ld\n", minX, maxX, minY, maxY,
          x, y);
@@ -468,9 +449,6 @@ void ClipBasicGrids(BasinConfigSection *basin, std::vector<GridNode> *nodes,
   // We want to be inclusive
   maxX++;
   maxY++;
-
-  // printf("Clipping %zd nodes, %lu maxx, %lu minx, %lu maxy, %lu miny\n",
-  // nodes->size(), maxX, minX, maxY, minY);
 
   long ncols = maxX - minX;
   long nrows = maxY - minY;
@@ -1254,12 +1232,6 @@ void CarveBasin(
             nextN->contribArea = nextN->area;
             nextN->relief = g_DEM->data[nextN->y][nextN->x];
             nextN->riverLen = nextN->horLen;
-            // printf("Pushing node %i %i (%i, %i) from %i %i (%i, %i) %i %i\n",
-            // nextN->x, nextN->y, g_DDM->data[nextN->y][nextN->x],
-            // g_FAM->data[nextN->y][nextN->x], currentN->x, currentN->y,
-            // g_DDM->data[currentN->y][currentN->x],
-            // g_FAM->data[currentN->y][currentN->x], currentNode,
-            // nodes->size());
             walkNodes.push(nextN);
           }
         }
@@ -1287,18 +1259,6 @@ void CarveBasin(
     }
   }
 
-  /*FILE *fp = fopen("gauge_data.txt", "w");
-  FILE *fp2 = fopen("basin_data.txt", "w");
-  for (std::vector<GaugeConfigSection *>::iterator itr = gauges->begin(); itr !=
-  gauges->end(); itr++ ) { GaugeConfigSection *gauge = *(itr); GridLoc *loc =
-  gauge->GetGridLoc(); fprintf(fp, "[Gauge %s] cellx=%li celly=%li basinarea=%f
-  %ld %li wantco=true outputts=false\n", gauge->GetName(), loc->x, loc->y,
-  nodes->at(gauge->GetGridNodeIndex()).contribArea, gauge->GetFlowAccum(),
-  gauge->GetGridNodeIndex()); fprintf(fp2, "gauge=%s\n", gauge->GetName());
-  }
-  fclose(fp);
-  fclose(fp2);
-  */
 }
 
 bool GetDownstreamHeight(long x, long y, long *outsideHeight)
@@ -1359,8 +1319,6 @@ bool TestUpstream(long nextX, long nextY, FLOW_DIR dir, GridLoc *loc)
 {
   FLOW_DIR wantDir;
 
-  // unsigned long currentFAC = g_FAM->data[nextY][nextX];
-
   switch (dir)
   {
   case FLOW_NORTH:
@@ -1415,63 +1373,6 @@ bool TestUpstream(long nextX, long nextY, FLOW_DIR dir, GridLoc *loc)
   return false;
 }
 
-#if 0
-bool TestUpstreamBroken(long nextX, long nextY, FLOW_DIR dir, GridLoc *loc) {
-  FLOW_DIR wantDir;
-  
-  unsigned long currentFAC = g_FAM->data[nextY][nextX];
-  
-  switch (dir) {
-    case FLOW_NORTH:
-      nextY--;
-      wantDir = FLOW_SOUTH;
-      break;
-    case FLOW_NORTHEAST:
-      nextY--;
-      nextX++;
-      wantDir = FLOW_SOUTHWEST;
-      break;
-    case FLOW_EAST:
-      nextX++;
-      wantDir = FLOW_WEST;
-      break;
-    case FLOW_SOUTHEAST:
-      nextY++;
-      nextX++;
-      wantDir = FLOW_NORTHWEST;
-      break;
-    case FLOW_SOUTH:
-      nextY++;
-      wantDir = FLOW_NORTH;
-      break;
-    case FLOW_SOUTHWEST:
-      nextY++;
-      nextX--;
-      wantDir = FLOW_NORTHEAST;
-      break;
-    case FLOW_WEST:
-      nextX--;
-      wantDir = FLOW_EAST;
-      break;
-		case FLOW_NORTHWEST:
-      nextX--;
-      nextY--;
-      wantDir = FLOW_SOUTHEAST;
-      break;
-    default:
-      return false;
-  }
-  
-  if (nextX >= 0 && nextY >= 0 && nextX < g_DDM->numCols && nextY < g_DDM->numRows && g_DDM->data[nextY][nextX] == (float)wantDir && g_FAM->data[nextY][nextX] > currentFAC) {
-    loc->x = nextX;
-    loc->y = nextY;
-    return true;
-  }
-  
-  return false;
-}
-#endif
-
 GaugeConfigSection *
 FindGauge(std::map<unsigned long, GaugeConfigSection *> *gauges,
           GridNode *node)
@@ -1491,18 +1392,6 @@ FindGauge(std::map<unsigned long, GaugeConfigSection *> *gauges,
     return itr->second;
   }
 
-  /*for (std::vector<GaugeConfigSection *>::iterator itr = gauges->begin(); itr
-!= gauges->end(); itr++) {
-
-GaugeConfigSection *gauge = *(itr);
-GridLoc *loc = gauge->GetGridLoc();
-if (loc->x == node->x && loc->y == node->y) {
-printf("Next gauge is %s\n", gauge->GetName());
-return gauge;
-}
-}
-
-return NULL;*/
 }
 
 GaugeConfigSection *NextUnusedGauge(std::vector<GaugeConfigSection *> *gauges)
@@ -1636,7 +1525,6 @@ void ReclassifyDDM()
 
 void FixFAM()
 {
-  // GridLoc locN;
 
   for (long row = 0; row < g_DEM->numRows; row++)
   {
@@ -1655,25 +1543,6 @@ void FixFAM()
 
   return;
 
-  /*
-        for (long row = 0; row < g_FAM->numRows; row++) {
-    for (long col = 0; col < g_FAM->numCols; col++) {
-                        if (g_FAM->data[row][col] != g_FAM->noData) {
-                                for (int i = 1; i < FLOW_QTY; i++) {
-          if (TestUpstreamBroken(col, row, (FLOW_DIR)i, &locN)) {
-                                                INFO_LOGF("Adding %f cells to
-    accumulation for cell (%li, %li; %f)\n", g_FAM->data[row][col], col, row,
-    g_FAM->data[locN.y][locN.x]); g_FAM->data[locN.y][locN.x] +=
-    g_FAM->data[row][col]; if (!g_basicConfig->IsSelfFAM()) {
-                                                        g_FAM->data[locN.y][locN.x]
-    += 1;
-                                                }
-                                        }
-                                }
-                        }
-                }
-
-        }*/
 }
 
 int FlowsOut(long nextX, long nextY, FLOW_DIR dir, long currentHeight)
@@ -1866,13 +1735,6 @@ void MakeBasic()
           }
         }
 
-        // if (col >= 1 && row >= 1)
-        // printf("Found inflow sink %i %i %i (%i %i %i %i %i %i %i %i)!\n",
-        // col, row, g_DEM->data[row][col], g_DEM->data[row-1][col-1],
-        // g_DEM->data[row-1][col], g_DEM->data[row-1][col+1],
-        // g_DEM->data[row][col-1], g_DEM->data[row][col+1],
-        // g_DEM->data[row+1][col-1], g_DEM->data[row+1][col],
-        // g_DEM->data[row+1][col+1]);
       }
     }
   }

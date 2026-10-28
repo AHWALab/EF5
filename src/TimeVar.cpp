@@ -179,12 +179,6 @@ bool TimeVar::LoadTimeExcel(char *time) {
                                               // (while setting TZ environmental
                                               // variable) instead of timegm
 
-  /*INFO_LOGF(
-      "Input \"%s\", year %i, month %i, day %i, hour %i, minutes %i, epoch %li",
-      time, currentTime.tm_year + 1900, currentTime.tm_mon + 1,
-      currentTime.tm_mday, currentTime.tm_min, currentTime.tm_sec,
-      currentTimeSec);*/
-
   return true;
 }
 
@@ -267,130 +261,18 @@ bool operator==(const TimeVar &lhs, const TimeVar &rhs) {
 
   return lhs.currentTimeSec == rhs.currentTimeSec;
 
-  /*if (lhs.currentTime.tm_min != rhs.currentTime.tm_min) {
-    return false;
-  }
-
-  if (lhs.currentTime.tm_hour != rhs.currentTime.tm_hour) {
-    return false;
-  }
-
-  if (lhs.currentTime.tm_mday != rhs.currentTime.tm_mday) {
-    return false;
-  }
-
-  if (lhs.currentTime.tm_year != rhs.currentTime.tm_year) {
-    return false;
-  }
-
-  if (lhs.currentTime.tm_mon != rhs.currentTime.tm_mon) {
-    return false;
-  }
-
-  if (lhs.currentTime.tm_sec != rhs.currentTime.tm_sec) {
-    return false;
-  }
-
-  return true;*/
 }
 
 bool operator<(const TimeVar &lhs, const TimeVar &rhs) {
 
   return lhs.currentTimeSec < rhs.currentTimeSec;
 
-  /*
-   int diff = lhs.currentTime.tm_year - rhs.currentTime.tm_year;
-   if (diff > 0) {
-     return false;
-   } else if (diff < 0) {
-     return true;
-   }
-
-   diff = lhs.currentTime.tm_mon - rhs.currentTime.tm_mon;
-   if (diff > 0) {
-     return false;
-   } else if (diff < 0) {
-     return true;
-   }
-
-   diff = lhs.currentTime.tm_mday - rhs.currentTime.tm_mday;
-   if (diff > 0) {
-     return false;
-   } else if (diff < 0) {
-     return true;
-   }
-
-   diff = lhs.currentTime.tm_hour - rhs.currentTime.tm_hour;
-   if (diff > 0) {
-     return false;
-   } else if (diff < 0) {
-     return true;
-   }
-
-   diff = lhs.currentTime.tm_min - rhs.currentTime.tm_min;
-   if (diff > 0) {
-     return false;
-   } else if (diff < 0) {
-     return true;
-   }
-
-   diff = lhs.currentTime.tm_sec - rhs.currentTime.tm_sec;
-   if (diff > 0) {
-     return false;
-   } else if (diff < 0) {
-     return true;
-   }
-
-   return false;*/
 }
 
 bool operator<=(const TimeVar &lhs, const TimeVar &rhs) {
 
   return lhs.currentTimeSec <= rhs.currentTimeSec;
 
-  /*int diff = lhs.currentTime.tm_year - rhs.currentTime.tm_year;
-  if (diff > 0) {
-    return false;
-  } else if (diff < 0) {
-    return true;
-  }
-
-  diff = lhs.currentTime.tm_mon - rhs.currentTime.tm_mon;
-  if (diff > 0) {
-    return false;
-  } else if (diff < 0) {
-    return true;
-  }
-
-  diff = lhs.currentTime.tm_mday - rhs.currentTime.tm_mday;
-  if (diff > 0) {
-    return false;
-  } else if (diff < 0) {
-    return true;
-  }
-
-  diff = lhs.currentTime.tm_hour - rhs.currentTime.tm_hour;
-  if (diff > 0) {
-    return false;
-  } else if (diff < 0) {
-    return true;
-  }
-
-  diff = lhs.currentTime.tm_min - rhs.currentTime.tm_min;
-  if (diff > 0) {
-    return false;
-  } else if (diff < 0) {
-    return true;
-  }
-
-  diff = lhs.currentTime.tm_sec - rhs.currentTime.tm_sec;
-  if (diff > 0) {
-    return false;
-  } else if (diff < 0) {
-    return true;
-  }
-
-  return true;*/
 }
 
 time_t TimeVar::port_timegm(struct tm *tm) {
@@ -398,17 +280,12 @@ time_t TimeVar::port_timegm(struct tm *tm) {
 #ifdef _WIN32
   time_t result = mktime(tm);
   struct tm *newtm = gmtime(&result);
-  // if (!newtm) {
-  //	ERROR_LOGF("Got null from gmtime! %i, %i %i %i %i %i %i", result,
-  //tm->tm_year, tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
-  // } else {
   tm->tm_year = newtm->tm_year;
   tm->tm_mon = newtm->tm_mon;
   tm->tm_mday = newtm->tm_mday;
   tm->tm_hour = newtm->tm_hour;
   tm->tm_min = newtm->tm_min;
   tm->tm_sec = newtm->tm_sec;
-  //	}
   return result; // internal_timegm(tm);
 #else
   return timegm(tm);

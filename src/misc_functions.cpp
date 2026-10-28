@@ -37,7 +37,6 @@ void allocate2D(float ***array, int nrows, int ncols) {
       exit(1);
     }
   }
-  // INFO_LOGF("Allocated %p to %i", *array, nrows);
   for (i = 0; i < nrows; i++) {
     for (int j = 0; j < ncols; j++) {
       vals[i][j] = 0.0;
@@ -49,7 +48,6 @@ void deallocate2D(float ***array, int nrows) {
   // Corresponding function to dynamically deallocate 2-dimensional array using
   // malloc. Source: http://www.dreamincode.net/code/snippet1328.htm
   /*  deallocate each row  */
-  // INFO_LOGF("Deallocating %p to %i", *array, nrows);
   int i;
   for (i = 0; i < nrows; i++) {
     free((*array)[i]);
@@ -133,12 +131,7 @@ float sumarray(float *array, int nrows, int ncols) {
   } else {
     // 2D array
     for (i = 0; i < nrows * ncols; i++) {
-      // for (j = 0;j < ncols;j++)
-      //{
       suma = suma + (array[i] + cont);
-      // cont = cont + 1;
-      //}
-      // cont = cont + 1;
     }
   }
   return (suma);

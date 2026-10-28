@@ -13,18 +13,6 @@
 #define PI 3.1415926
 
 // This is here because both grids & projections need to know about it!
-/*
-enum FLOW_DIR {
-        FLOW_NORTH = 1,
-        FLOW_NORTHEAST,
-        FLOW_EAST,
-        FLOW_SOUTHEAST,
-        FLOW_SOUTH,
-        FLOW_SOUTHWEST,
-        FLOW_WEST,
-        FLOW_NORTHWEST,
-        FLOW_QTY,
-};*/
 
 enum FLOW_DIR
 {

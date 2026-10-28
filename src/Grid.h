@@ -38,16 +38,6 @@ public:
     bool nxnyMatch =
         ((numCols == testGrid->numCols) && (numRows == testGrid->numRows));
     return nxnyMatch;
-    /*if (!nxnyMatch) {
-            return false;
-    }
-    bool cellSize = (fabsf(cellSize - testGrid->cellSize) < 0.001);
-    return cellSize;*/
-    //    return ((numCols == testGrid->numCols) && (numRows ==
-    //    testGrid->numRows)
-    //            && (extent.left == testGrid->extent.left) && (extent.bottom ==
-    //            testGrid->extent.bottom)
-    //           && (cellSize == testGrid->cellSize));
   }
 
   bool GetGridLoc(float lon, float lat, GridLoc *pt)

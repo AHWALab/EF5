@@ -26,12 +26,6 @@ struct KWGridNode : BasicGridNode {
   GridNode *routeNode[2][KW_LAYER_QTY];
   double routeAmount[2][KW_LAYER_QTY];
   double incomingWater[KW_LAYER_QTY];
-
-  // double reservoirs[KW_LAYER_QTY]; // CREST has two excess storage reservoirs
-  // (overland & interflow)
-
-  // double previousStreamflow; //cms
-  // double previousOverland;
   double incomingWaterOverland, incomingWaterChannel;
 };
 

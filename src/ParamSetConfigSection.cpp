@@ -75,7 +75,6 @@ CONFIG_SEC_RET ParamSetConfigSection::ProcessKeyValue(char *name, char *value) {
 
     // Lets see if this belongs to a parameter scalar
     for (int i = 0; i < numParams; i++) {
-      // printf("%i %i %s %s\n", model, i, modelParamStrings[model][i], name);
       if (strcasecmp(name, modelParamStrings[model][i]) == 0) {
 
         if (currentParamsSet[i]) {

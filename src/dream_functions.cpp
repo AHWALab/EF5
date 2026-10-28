@@ -128,7 +128,6 @@ void GenCR(struct DREAM_Parameters **ppPar, float ***pppCR, float ****ptCR) {
   for (i = 0; i < ((*ppPar)->nCR + 1); i++) {
     if (i != 0) {
       sumL = sumL + L[i - 1];
-      // printf("i %i %i\n", i, L[i-1]);
     }
     L2[i] = sumL;
   }
@@ -138,11 +137,9 @@ void GenCR(struct DREAM_Parameters **ppPar, float ***pppCR, float ****ptCR) {
   for (zz = 0; zz < (*ppPar)->nCR; zz++) {
     i_start = L2[zz];
     i_end = L2[zz + 1];
-    // printf("start %i, end %i\n", i_start, i_end);
     for (i = i_start; i < i_end; i++) {
       idx = r[i] - 1;
       CRarray[idx] = (float)(zz + 1) / (float)((*ppPar)->nCR);
-      // printf("blah %i %i %f\n", zz+1, (*ppPar)->nCR, CRarray[idx]);
     }
   }
   // Reshape CR 1D array into 2D array of "(*ppPar)->seq" rows and
@@ -164,7 +161,6 @@ void multrnd(int **X, int n, float ***p, int ncols, int m) {
   float sums;
   float o[n], r[n], s[ncols];
   sums = 0;
-  // P = sumarray(**p,1,ncols);
   for (i = 0; i < m; i++) {
     for (in = 0; in < n; in++) {
       o[in] = 1;            // assign 1 to every element of array o
@@ -175,7 +171,6 @@ void multrnd(int **X, int n, float ***p, int ncols, int m) {
     for (in = 0; in < ncols; in++) {
       sums = sums + (*p)[0][in];
       s[in] = sums;
-      // printf("index %i s %f\n", in, sums);
       // Initialize Ouput Vector
       (*X)[in] = 0;
     }
@@ -191,11 +186,8 @@ void multrnd(int **X, int n, float ***p, int ncols, int m) {
         if (o[in] == j + 1) {
           // X - multinomial random deviates (default output).
           (*X)[j] = (*X)[j] + 1;
-          // printf("X is %i o is %f %i\n", (*X)[j], o[in], j);
         }
       }
-      // Y - multinomial probabilities of the generated random deviates
-      // (optional output)  Y[j] = (float)((*X)[j]) / (float)(n);
     }
   }
 }
@@ -460,7 +452,6 @@ void offde(float **x_new, float **x_old, float **X, float **CR,
       NrDim = 0;
       for (i = 0; i < MCMC->n; i++) {
         if (D[qq][i] > (1 - CR[qq][0])) {
-          // printf("Updating dim %i %f %f\n", i, D[qq][i], (1 - CR[qq][0]));
           p_i[NrDim] = i;
           NrDim++; // Determine the number of dimensions that are going to be
                    // updated
@@ -492,9 +483,6 @@ void offde(float **x_new, float **x_old, float **X, float **CR,
         for (i = 0; i < NrDim; i++) {
           delta_x[qq][p_i[i]] =
               (1 + noise_x[qq][p_i[i]]) * Jump_Rate * delta[p_i[i]];
-          // printf("delta_x(%i, %i) %f %f %f %f\n", qq, p_i[i],
-          // delta_x[qq][p_i[i]], (1 + noise_x[qq][p_i[i]]), Jump_Rate,
-          // delta[p_i[i]]);  checker[j] = powf(delta_x[qq][j],2);
         }
       } else {
         // Set the JumpRate to 1 and overwrite CR and DEversion
@@ -510,8 +498,6 @@ void offde(float **x_new, float **x_old, float **X, float **CR,
         // dimensions
         for (j = 0; j < MCMC->n; j++) {
           delta_x[qq][j] = Jump_Rate * delta[j];
-          // printf("delta_x1(%i, %i) %f\n", qq, j, delta_x[qq][j]);
-          // checker[j] = powf(delta_x[qq][j],2);
         }
       }
       ii[qq] = 1;
@@ -599,7 +585,6 @@ void metrop(float **newgen, float *alpha, float *accept, float **x, float **p_x,
   if (option == 1) {
     for (i = 0; i < NrChains; i++) {
       pre_alpha = (p_x[i][0] - 1.0) / (p_old[i] - 1.0);
-      // printf("p %f %i %f %f\n", pre_alpha, i, p_x[i][0], p_old[i]);
       if (pre_alpha < 1.0) {
         alpha[i] = pre_alpha;
       } else {
@@ -621,8 +606,6 @@ void metrop(float **newgen, float *alpha, float *accept, float **x, float **p_x,
       expt *= -1;
       expt *= ((1 + pointerMCMC->Gamma) / 2);
       pre_alpha = powf(((p_x[i][0] - 1.0) / (p_old[i] - 1.0)), expt);
-      // pre_alpha = powf((p_x[i][0]/p_old[i]), expt);
-      // printf("Weee %f %f %f %f\n", pre_alpha, expt, p_x[i][0], p_old[i]);
       if (pre_alpha < 1.0) {
         alpha[i] = pre_alpha;
       } else {
@@ -640,7 +623,6 @@ void metrop(float **newgen, float *alpha, float *accept, float **x, float **p_x,
   // Generate random numbers
   for (i = 0; i < NrChains; i++) {
     Z = UNIFORM_RAND;
-    // printf("a %f %f %i\n", Z, alpha[i], i);
     if (Z < alpha[i]) // Find which alpha's are greater than Z
     {
       accept[i] = 1; // indicate that these chains have been accepted
@@ -828,12 +810,6 @@ void GenParSet(float **ParSet, struct DREAM_Variables *RUNvar,
   float **parset, **sorted;
   // Generates ParSet
   // If save in memory -> No -- ParSet is empty
-  // if (post_Sequences == 1)
-  //{
-  // Do nothing
-  //}
-  // else
-  //{
   // If save in memory -> Yes -- ParSet derived from all sequences
   allocate2D(&parset, post_Sequences * MCMC->seq, MCMC->n + 3 + OBJECTIVE_QTY);
   allocate2D(&sorted, post_Sequences * MCMC->seq, MCMC->n + 3 + OBJECTIVE_QTY);
@@ -849,7 +825,6 @@ void GenParSet(float **ParSet, struct DREAM_Variables *RUNvar,
       num = num + 1;
     }
   }
-  //}
   // Sort according to MATLAB DREAM
   sortrows(parset, cont, MCMC->n + 3 + OBJECTIVE_QTY, MCMC->n + 2 + OBJECTIVE_QTY, sorted);
 
@@ -858,7 +833,6 @@ void GenParSet(float **ParSet, struct DREAM_Variables *RUNvar,
   // Write to disk
   for (i = 0; i < (MCMC->seq * post_Sequences); i++) {
     for (j = 0; j < MCMC->n + 2 + OBJECTIVE_QTY; j++) {
-      // ParSet[i][j] = sorted[i][j];
       ParSet[i][j] = parset[i][j];
       if (j == MCMC->n + 1 + OBJECTIVE_QTY) {
         fprintf(fid, "%f\n", ParSet[i][j]);

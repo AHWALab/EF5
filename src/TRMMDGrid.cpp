@@ -12,8 +12,6 @@ FloatGrid *ReadFloatTRMMDGrid(char *file, FloatGrid *grid) {
     return NULL;
   }
 
-  // gzread(fileH, unprocessed, 2880);
-
   if (!grid) {
     grid = new FloatGrid();
     grid->numCols = 1440;

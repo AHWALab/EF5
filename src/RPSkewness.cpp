@@ -142,15 +142,6 @@ void CalcLP3Vals(std::vector<float> *stdGrid, std::vector<float> *avgGrid,
     int index = (int)(scGrid->at(i) * 10.0 + 30.0);
     if (index < 0) {
       index = 0;
-      /*rpData->at(i).q1 = -1;
-      rpData->at(i).q2 = -1;
-      rpData->at(i).q5 = -1;
-      rpData->at(i).q10 = -1;
-      rpData->at(i).q25 = -1;
-      rpData->at(i).q50 = -1;
-      rpData->at(i).q100 = -1;
-      rpData->at(i).q200 = -1;
-      continue;*/
     } else if (index >= 60) {
       index = 59;
     }
@@ -199,9 +190,6 @@ void CalcLP3Vals(std::vector<float> *stdGrid, std::vector<float> *avgGrid,
     lerp = lut200[index] + diff_cs * diff_q;
     rpData->at(i).q200 = powf(10.0, avg + lerp * std);
   }
-  // GridWriter gridWriter;
-  // gridWriter.Initialize(nodes);
-  // gridWriter.WriteGrid(nodes, &count2, "2qflow.asc");
 }
 #ifdef LOGNORMAL
 void CalcLP3Vals(std::vector<float> *stdGrid, std::vector<float> *avgGrid,

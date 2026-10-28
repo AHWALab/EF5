@@ -36,10 +36,6 @@ bool Snow17Model::InitializeModel(
     for (int p = 0; p < STATE_SNOW17_QTY; p++) {
       snowNodes[i].states[p] = 0.0;
     }
-    // snowNodes[i].states[STATE_SNOW17_ATI] = 0.0;
-    // snowNodes[i].states[STATE_SNOW17_WI] = 0.0;
-    // snowNodes[i].states[STATE_SNOW17_WQ] = 0.0;
-    // snowNodes[i].states[STATE_SNOW17_DEFICIT] = 0.0;
   }
 
   InitializeParameters(paramSettings, paramGrids);
@@ -122,8 +118,6 @@ bool Snow17Model::SnowBalance(float jday, float stepHours,
     Snow17GridNode *cNode = &(snowNodes[i]);
     SnowBalanceInt(node, cNode, stepHours, jday, precip->at(i), temp->at(i),
                    &(melt->at(i)), &(swe->at(i)));
-    // soilMoisture->at(i) = cNode->soilMoisture * 100.0 /
-    // cNode->params[PARAM_CREST_WM];
   }
 
   return true;
@@ -327,10 +321,6 @@ void Snow17Model::SnowBalanceInt(GridNode *node, Snow17GridNode *cNode,
 
   // End of model execution
 
-  /*if (SWE == 0.0) {
-          printf("pIn %f, pOut %f\n", cNode->pIn, cNode->pOut);
-  }*/
-
   *swe = SWE; // total SWE (mm) at this time step
   *melt = E / stepHours;
 }
@@ -351,11 +341,6 @@ void Snow17Model::InitializeParameters(
     memcpy(cNode->params, (*paramSettings)[node->gauge],
            sizeof(float) * PARAM_SNOW17_QTY);
 
-    // Some of the parameters are special, deal with that here
-    /*if (!paramGrids->at(PARAM_CREST_IM)) {
-     cNode->params[PARAM_CREST_IM] /= 100.0;
-     }*/
-
     // Deal with the distributed parameters here
     GridLoc pt;
     for (size_t paramI = 0; paramI < PARAM_SNOW17_QTY; paramI++) {
@@ -369,40 +354,10 @@ void Snow17Model::InitializeParameters(
                  grid->GetGridLoc(node->refLoc.x, node->refLoc.y, &pt)) {
         if (grid->data[pt.y][pt.x] == 0) {
           grid->data[pt.y][pt.x] = 0.01;
-          // printf("Using nodata value in param %s\n",
-          // modelParamStrings[MODEL_CREST][paramI]);
         }
         cNode->params[paramI] *= grid->data[pt.y][pt.x];
       }
     }
 
-    /*if (!paramGrids->at(PARAM_CREST_IWU)) {
-      cNode->soilMoisture = cNode->params[PARAM_CREST_IWU] *
-    cNode->params[PARAM_CREST_WM] / 100.0;
-    }
-
-    if (cNode->soilMoisture < 0.0) {
-      printf("Node Soil Moisture(%f) is less than 0, setting to 0.\n",
-    cNode->soilMoisture); cNode->soilMoisture = 0.0; } else if
-    (cNode->soilMoisture > cNode->params[PARAM_CREST_WM]) { printf("Node Soil
-    Moisture(%f) is greater than WM, setting to %f.\n", cNode->soilMoisture,
-    cNode->params[PARAM_CREST_WM]);
-    }
-
-    if (cNode->params[PARAM_CREST_IM] < 0.0) {
-      printf("Node Impervious Area(%f) is less than 0, setting to 0.\n",
-    cNode->params[PARAM_CREST_IM]); cNode->params[PARAM_CREST_IM] = 0.0; } else
-    if (cNode->params[PARAM_CREST_IM] > 1.0) { printf("Node Impervious Area(%f)
-    is greater than 1, setting to 1.\n", cNode->params[PARAM_CREST_IM]);
-      cNode->params[PARAM_CREST_IM] = 1.0;
-    }
-
-    if (cNode->params[PARAM_CREST_B] < 0.0) {
-      printf("Node B (%f) is less than 0, setting to 0.\n",
-    cNode->params[PARAM_CREST_B]); cNode->params[PARAM_CREST_B] = 0.0; } else if
-    (cNode->params[PARAM_CREST_B] != cNode->params[PARAM_CREST_B]) {
-      printf("Node B (%f) NaN, setting to %f.\n", cNode->params[PARAM_CREST_B],
-    0.0); cNode->params[PARAM_CREST_B] = 0.0;
-    }*/
   }
 }

@@ -50,7 +50,6 @@ bool DatedName::ProcessName(TimeUnit *freq)
 
 bool DatedName::ProcessNameLoose(TimeUnit *freq)
 {
-  // resolution = freq->GetTimeUnit();
   resolution = SECONDS;
 
   // Verify that our name string has all of the necessary variables

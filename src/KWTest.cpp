@@ -114,7 +114,6 @@ void SimulateRouting()
       inflow = inflowHydrograph[i];
     }
     rModel->SetObsInflow(NUM_GRID_CELLS - 1, inflow);
-    // currentFF[NUM_GRID_CELLS-1] = inflow * 3.6 / nodes[0].area;
 
     rModel->Route(stepHoursReal, &currentFF, &currentSF, &currentQ);
     totalIn += inflow;

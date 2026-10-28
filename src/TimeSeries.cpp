@@ -15,16 +15,6 @@ void TimeSeries::LoadTimeSeries(char *file)
     return;
   }
 
-  // printf("struct size is %i\n", sizeof(TSDataPoint));
-
-  // Get number of file lines
-  /*int fileLines = 0, temp;
-  while ( (temp = fgetc(tsFile)) != EOF) {
-          fileLines += (temp == 10);
-  }
-  fseek(tsFile, 0, SEEK_SET);
-
-  for (int i = 0; i < fileLines; i++) {*/
   while (!feof(tsFile))
   {
     char buffer[CONFIG_MAX_LEN];
@@ -70,11 +60,6 @@ float TimeSeries::GetValueAtTime(TimeVar *wantTime)
       return std::numeric_limits<float>::quiet_NaN();
     }
   }
-  /*for (std::vector<TSDataPoint>::iterator itr = timeSeries.begin(); itr !=
-  timeSeries.end(); itr++) { TSDataPoint *pt = &(*itr); if (pt->time ==
-  (*wantTime)) { return pt->value;
-          }
-  }*/
 
   return std::numeric_limits<float>::quiet_NaN();
 }

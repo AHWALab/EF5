@@ -178,8 +178,6 @@ void LRRoute::InitializeParameters(
                  grid->GetGridLoc(node->refLoc.x, node->refLoc.y, &pt)) {
         if (grid->data[pt.y][pt.x] == 0) {
           grid->data[pt.y][pt.x] = 0.01;
-          // printf("Using nodata value in param %s\n",
-          // modelParamStrings[MODEL_CREST][paramI]);
         }
         cNode->params[paramI] *= grid->data[pt.y][pt.x];
       }

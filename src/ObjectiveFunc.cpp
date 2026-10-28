@@ -63,7 +63,6 @@ float CalcNSCE(std::vector<float> *obs, std::vector<float> *sim) {
   for (size_t tsIndex = 0; tsIndex < totalTimeSteps; tsIndex++) {
     if ((*obs)[tsIndex] == (*obs)[tsIndex] &&
         (*sim)[tsIndex] == (*sim)[tsIndex]) {
-      // printf("%f %f\n", (*obs)[tsIndex], (*sim)[tsIndex]);
       obsAcc += powf((*obs)[tsIndex] - obsMean, 2.0);
       simAcc += powf((*obs)[tsIndex] - (*sim)[tsIndex], 2.0);
     }

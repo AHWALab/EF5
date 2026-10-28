@@ -244,11 +244,6 @@ bool SAC::WaterBalance(float stepHours, std::vector<float> *precip,
     if (!std::isfinite(soilMoisture->at(i))) {
       soilMoisture->at(i) = 0;
     }
-    // soilMoisture->at(i) = (cNode->UZTWC + cNode->UZFWC) /
-    // (cNode->params[PARAM_SAC_UZTWM] + cNode->params[PARAM_SAC_UZFWM]);
-    // discharge->at(i) = (cNode->dischargeF + cNode->dischargeS) * node->area *
-    // 0.277777777777778f; // Convert from mm/time to cms;  printf(" Q %f\n",
-    // discharge->at(i));  LocalRouteQF(node, cNode);  LocalRouteSF(node, cNode);
   }
 
   return true;
@@ -256,10 +251,6 @@ bool SAC::WaterBalance(float stepHours, std::vector<float> *precip,
 
 void SAC::WaterBalanceInt(GridNode *node, SACGridNode *cNode, float stepHours,
                           float precipIn, float petIn) {
-
-  /*float precip = 0.0f; //precipIn * stepHours; // precipIn is mm/hr, precip is
-mm float pet = 20.0f; //petIn * stepHours; // petIn in mm/hr, pet is mm float DT
-= 3.0f / 24.0f; //stepHours / 24.0f;*/
 
   float precip =
       precipIn *
@@ -446,12 +437,6 @@ mm float pet = 20.0f; //petIn * stepHours; // petIn in mm/hr, pet is mm float DT
 
     // Compute Percolation, If no water is available then skip
     if ((PINC + cNode->UZFWC) <= 0.01f) {
-      /*cNode->UZFWC += PINC;
-cNode->ADIMC = cNode->params[PARAM_SAC_UZTWM] + cNode->params[PARAM_SAC_LZTWM];
-SDRO = SDRO + ADDRO * cNode->params[PARAM_SAC_ADIMP];
-if (cNode->ADIMC < 0.00001f) {
-cNode->ADIMC = 0.0f;
-}*/
 
       cNode->ADIMC = cNode->ADIMC + PINC - ADDRO - ADSUR;
       if (cNode->ADIMC >
@@ -479,7 +464,6 @@ cNode->ADIMC = 0.0f;
                           cNode->params[PARAM_SAC_LZFSM]));
     float FR = 1.0f; // Change in percolation withdrawal due to frozen ground.
     float FI = 1.0f; // Change in interflow withdrawal due to frozen ground.
-    // float IFRZE = 0.0f;
 
     PERC = PERC *
            (1.0f + cNode->params[PARAM_SAC_ZPERC] *
@@ -636,9 +620,6 @@ cNode->ADIMC = 0.0f;
                                                             // ET from Riparian
                                                             // vegetation
 
-  // printf(" **** %i ****\n",II);
-  // printf(" %f %f %f %f %f %f %f\n", TCI, ROIMP, SDRO, SSUR, SIF, BFCC, NINC);
-
   TCI -= E4;
   if (TCI < 0.0f) {
     E4 += TCI;
@@ -663,10 +644,6 @@ cNode->ADIMC = 0.0f;
   cNode->dischargeF = SURF;
   cNode->dischargeS = GRND;
 
-  // printf(" %f %f %f %f %f\n", EUSED, E5, E4, pet,
-  // cNode->params[PARAM_SAC_RIVA]);  printf(" %f %f %f\n", SURF, GRND, TET);
-  // printf("1: %f %f %f %f %f %f", cNode->UZTWC, cNode->UZFWC, cNode->LZTWC,
-  // cNode->LZFSC, cNode->LZFPC, cNode->ADIMC);
 }
 
 void SAC::InitializeParameters(

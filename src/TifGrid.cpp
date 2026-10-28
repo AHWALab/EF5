@@ -217,8 +217,6 @@ void WriteFloatTifGrid(const char *file, FloatGrid *grid, const char *artist,
   tiepoints[5] = 0;
   tiepoints[4] = grid->extent.top;
   tiepoints[3] = grid->extent.left;
-  // grid->extent.bottom = tiepoints[4]-(pixscale[1] * float(height));
-  // grid->extent.right = tiepoints[3]+(pixscale[0] * float(width));*/
 
   TIFFSetField(tif, TIFFTAG_GEOTIEPOINTS, 6, tiepoints);
   TIFFSetField(tif, TIFFTAG_GEOPIXELSCALE, 3, pixscale);

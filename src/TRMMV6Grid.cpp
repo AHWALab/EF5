@@ -16,17 +16,6 @@ void change_endian(unsigned int &val) {
 
 FloatGrid *ReadFloatTRMMV6Grid(char *file, FloatGrid *grid) {
 
-  /*FILE *fileH;
-
-  fileH = fopen(file, "rb");
-  if (fileH == NULL) {
-          return NULL;
-  }*/
-  // printf("Size is %i\n", sizeof(FloatInt));
-
-  // char unprocessed[298];
-
-  // fread(unprocessed, 298, 1, fileH);
 
   if (!grid) {
     grid = new FloatGrid();
@@ -43,7 +32,6 @@ FloatGrid *ReadFloatTRMMV6Grid(char *file, FloatGrid *grid) {
   }
 
   int sd_id, sds_id, sds_index;
-  // int status;
   int start[3];
 
   sd_id = SDstart(file, DFACC_READ);
@@ -54,13 +42,11 @@ FloatGrid *ReadFloatTRMMV6Grid(char *file, FloatGrid *grid) {
   if (sds_index == -1) {
     printf("Failed to find precipitation field!\n");
   } else {
-    // printf("Index is %i\n", sds_index);
   }
   sds_id = SDselect(sd_id, sds_index);
   if (sds_id == -1) {
     printf("Failed to select index!\n");
   } else {
-    // printf("SDS id is %i\n", sds_index);
   }
   start[0] = 0;
   start[1] = 0;
@@ -70,13 +56,10 @@ FloatGrid *ReadFloatTRMMV6Grid(char *file, FloatGrid *grid) {
   int number_type, dimsizes[3], rank, n_attributes;
 
   SDgetinfo(sds_id, sd_name, &rank, dimsizes, &number_type, &n_attributes);
-  // printf("Dim sizes are %i %i %i %s\n", dimsizes[0], dimsizes[1],
-  // dimsizes[2], sd_name);
 
   float testData[1][1440][400];
 
   SDreaddata(sds_id, start, NULL, dimsizes, testData);
-  // printf("Status is %i\n", status);
   SDendaccess(sds_id);
   SDend(sd_id);
 
@@ -85,25 +68,10 @@ FloatGrid *ReadFloatTRMMV6Grid(char *file, FloatGrid *grid) {
       grid->data[399 - y][x] = testData[0][x][y];
     }
   }
-  // printf("Got here!\n");
-
-  /*FloatInt *shortData = new FloatInt[grid->numCols];
-
-  for (long i = 0; i < grid->numRows; i++) {
-          fread(shortData, sizeof(FloatInt), grid->numCols, fileH);
-          for (int j = 0; j < grid->numCols; j++) {
-                  change_endian(shortData[j].data);
-                  grid->data[i][j] = shortData[j].floatVal;
-          }
-  }
-
-  delete [] shortData;*/
 
   // Fill in the rest of the BoundingBox
   grid->extent.top = grid->extent.bottom + grid->numRows * grid->cellSize;
   grid->extent.right = grid->extent.left + grid->numCols * grid->cellSize;
-
-  // fclose(fileH);
 
   return grid;
 }

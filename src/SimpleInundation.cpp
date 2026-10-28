@@ -90,7 +90,6 @@ bool SimpleInundation::Inundation(std::vector<float> *discharge,
   {
     GridNode *node = &nodes->at(i);
     InundationGridNode *cNode = &(iNodes[i]);
-    // InundationGridNode *channelNode = &(iNodes[cNode->channelIndex]);
     InundationInt(node, cNode, discharge->at(cNode->channelIndex),
                   &(depth->at(i)));
   }
@@ -102,20 +101,9 @@ void SimpleInundation::InundationInt(GridNode *node, InundationGridNode *cNode,
                                      float dischargeIn, float *depth)
 {
 
-  // float area =
-  // powf(dischargeIn/cNode->params[PARAM_SI_ALPHA], 1.0/cNode->params[PARAM_SI_BETA]);
-  // float z1 = 3.0, z2 = 3.0, b = 100.0;
-  // float b= 50.0;
   float height = cNode->params[PARAM_SI_ALPHA] *
                  powf(dischargeIn,
-                      cNode->params[PARAM_SI_BETA]); // area/b; //(-b +
-                                                     // sqrtf(powf(b, 2.0) - 4.0
-                                                     // * area * (z1+z2))) / (2.0
-                                                     // * (z1+z2));
-  // if (node->channelGridCell && dischargeIn != 0.0) {
-  //	printf("Have Q %f, area %f, height %f, elev %f\n", dischargeIn, area,
-  // height, cNode->elevDiff);
-  //}
+                      cNode->params[PARAM_SI_BETA]);
   float d = height - cNode->elevDiff;
   if (d < 0.0)
   {
@@ -162,8 +150,6 @@ void SimpleInundation::InitializeParameters(
         if (grid->data[pt.y][pt.x] == 0)
         {
           grid->data[pt.y][pt.x] = 0.01;
-          // printf("Using nodata value in param %s\n",
-          // modelParamStrings[MODEL_CREST][paramI]);
         }
         cNode->params[paramI] *= grid->data[pt.y][pt.x];
       }

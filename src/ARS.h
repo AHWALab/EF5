@@ -12,8 +12,6 @@ struct ARS_INFO {
 
 class ARS : public Calibrate {
 public:
-  // ARS(int numParamsNew, int topNumNew, float *currentParamsNew, float
-  // *minParamsNew, float *maxParamsNew, OBJECTIVE_GOAL goalNew);
   void Initialize(CaliParamConfigSection *caliParamConfigNew,
                   RoutingCaliParamConfigSection *routingCaliParamConfigNew,
                   SnowCaliParamConfigSection *snowCaliParamConfigNew,

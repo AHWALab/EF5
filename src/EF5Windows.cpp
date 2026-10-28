@@ -153,10 +153,6 @@ int CreateWindows(HINSTANCE hInstance) {
   }
   SendMessage(hTime, WM_SETTEXT, NULL, (LPARAM) "Current Timestep: ");
 
-  // hSend = CreateWindowEx(0, RICHEDIT_CLASS, "", WS_CHILD  , 20, 180, 290, 30,
-  // hMainWindow, NULL, hInstance, NULL);  if (!hSend) {
-  //		return 0;
-  //	}
   pf.cbSize = sizeof(PARAFORMAT2);
   SendMessage(hInfo, EM_GETPARAFORMAT, 0, (LPARAM)&pf);
   pf.dwMask = PFM_OFFSET;
@@ -165,7 +161,6 @@ int CreateWindows(HINSTANCE hInstance) {
   SendMessage(hInfo, EM_AUTOURLDETECT, TRUE, 0);
   SendMessage(hInfo, EM_SETEVENTMASK, 0, ENM_LINK);
   SendMessage(hInfo, EM_SETBKGNDCOLOR, FALSE, 0x00000000);
-  //	SendMessage(hSend, EM_SETBKGNDCOLOR, FALSE, 0x00000000);
   cfFormat.cbSize = sizeof(CHARFORMAT);
   cfFormat.dwMask = CFM_COLOR | CFM_FACE | CFM_SIZE;
   cfFormat.dwEffects = CFE_PROTECTED;
@@ -176,12 +171,8 @@ int CreateWindows(HINSTANCE hInstance) {
   cfFormat.bPitchAndFamily = DEFAULT_PITCH;
   strncpy(cfFormat.szFaceName, "Tahoma", 31);
   cfFormat.szFaceName[31] = 0;
-  //	SendMessage(hSend, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cfFormat);
-  //	SendMessage(hSend, EM_EXLIMITTEXT, (WPARAM)0, (LPARAM)200);
   wpInfo = (WNDPROC)(LONG_PTR)SetWindowLong(hInfo, GWLP_WNDPROC,
                                             (LONG)(LONG_PTR)InfoSubclass);
-  //	wpSend = (WNDPROC)(LONG_PTR)SetWindowLong(hSend, GWL_WNDPROC,
-  //(LONG)(LONG_PTR)SendSubclass);
   ShowWindow(hMainWindow, SW_SHOWNORMAL);
   ShowWindow(hInfo, SW_SHOWNORMAL);
   ShowWindow(hTime, SW_SHOWNORMAL);
@@ -190,7 +181,6 @@ int CreateWindows(HINSTANCE hInstance) {
 
 void DestroyWindows() {
   SetWindowLong(hInfo, GWLP_WNDPROC, (LONG)(LONG_PTR)wpInfo);
-  // SetWindowLong(hSend, GWL_WNDPROC, (LONG)(LONG_PTR)wpSend);
   DestroyWindow(hMainWindow); // Children get killed automatically
   UnregisterClass("EF5Class", hProgram);
   FreeLibrary(hREDLL);
@@ -245,8 +235,6 @@ void AddText(const char *szFmt, ...) {
   va_end(vaArg);
   szTxtToAppend[4095] = 0;
   textToAppendSize = strlen(szTxtToAppend);
-  // if (nStopLoop == 1)
-  //	return;
   ZeroMemory(&SI, sizeof(SI));
   SI.cbSize = sizeof(SI);
   SI.fMask = 7;
@@ -263,7 +251,6 @@ void AddText(const char *szFmt, ...) {
   SendMessage(hInfo, WM_SETREDRAW, 0, 0);
   SendMessage(hInfo, EM_GETSCROLLPOS, 0, (LPARAM)&p);
   GetScrollInfo(hInfo, SB_VERT, &SI);
-  // linecount = (LONG)SendMessage(hInfo, EM_GETLINECOUNT, 0, 0);
   SendMessage(hInfo, EM_EXGETSEL, 0, (LPARAM)&Range);
   SendMessage(hInfo, EM_EXSETSEL, 0, (LPARAM)&Range2);
   SendMessage(hInfo, EM_EXGETSEL, 0, (LPARAM)&Range3);
@@ -284,11 +271,7 @@ void AddText(const char *szFmt, ...) {
   SendMessage(hInfo, EM_EXSETSEL, 0, (LPARAM)&Range);
   SendMessage(hInfo, EM_SETSCROLLPOS, 0, (LPARAM)&p);
 
-  // if(linecount == 1 || SI.nMax == SI.nPos + (int)SI.nPage) {
   SendMessage(hInfo, WM_VSCROLL, SB_BOTTOM, 0);
-  //} else if (linecount2 > 2000) {
-  //	SendMessage(hInfo, EM_LINESCROLL, 0, -1);
-  //}
   SendMessage(hInfo, WM_SETREDRAW, 1, 0);
   InvalidateRect(hInfo, 0, 1);
 }
@@ -323,7 +306,6 @@ void addConsoleText(CONSOLEMESSAGETYPE type, const char *szFmt, ...) {
   _vsnprintf(txtToAppend, 4096, szFmt, vaArg);
   va_end(vaArg);
   szTxtToAppend[4095] = 0;
-  // TimeStamp();
   switch (type) {
   case NORMAL:
     SetColor(COLOR_LIGHTBLUE);
@@ -361,20 +343,6 @@ void setIteration(int current) {
   sprintf(txt, "Current Iteration: %i", current);
   SendMessage(hTime, WM_SETTEXT, NULL, (LPARAM)txt);
 }
-
-/*int main(int argc, char *argv[]) {
-
-        PrintStartupMessage();
-
-        g_config = new Config((argc == 2) ? argv[1] : "control.txt");
-        if (g_config->ParseConfig() != CONFIG_SUCCESS) {
-                return 1;
-        }
-
-        ExecuteTasks();
-
-        return ERROR_SUCCESS;
-}*/
 
 void PrintStartupMessage() {
   addConsoleText(NORMAL, "%s",

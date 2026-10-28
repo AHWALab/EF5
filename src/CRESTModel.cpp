@@ -135,12 +135,6 @@ void CRESTModel::WaterBalanceInt(GridNode *node, CRESTGridNode *cNode,
   double adjPET = pet * cNode->params[PARAM_CREST_KE];
   double temX = 0.0;
 
-  // If we aren't a channel cell, add routed in overland to precip
-  /*if (!node->channelGridCell) {
-    precip += *fastFlow;
-    *fastFlow = 0.0;
-  }*/
-
   // We have more water coming in than leaving via ET.
   if (precip > adjPET) {
     double precipSoil =
@@ -236,9 +230,6 @@ void CRESTModel::WaterBalanceInt(GridNode *node, CRESTGridNode *cNode,
   } else {               // All the incoming precip goes straight to ET
     cNode->excess[CREST_LAYER_OVERLAND] = 0.0;
 
-    // cNode->states[STATE_CREST_SM] += *slowFlow;
-    //*slowFlow = 0.0;
-
     double interflowExcess =
         cNode->states[STATE_CREST_SM] - cNode->params[PARAM_CREST_WM];
     if (interflowExcess < 0.0) {
@@ -270,8 +261,6 @@ void CRESTModel::WaterBalanceInt(GridNode *node, CRESTGridNode *cNode,
   // Add Interflow Excess Water to slowFlow
   *slowFlow += (cNode->excess[CREST_LAYER_INTERFLOW] / (stepHours * 3600.0f));
 
-  // Calculate Discharge as the sum of the leaks
-  //*discharge = (overlandLeak + interflowLeak) * node->area / 3.6;
 }
 
 void CRESTModel::InitializeParameters(
@@ -286,11 +275,6 @@ void CRESTModel::InitializeParameters(
     if (!node->gauge) {
       continue;
     }
-    /*if (i == 0) {
-            float *paramsBlah = (*paramSettings)[node->gauge];
-            printf("Thread %i, %f\n", omp_get_thread_num(),
-    paramsBlah[PARAM_CREST_QTY-1]);
-    }*/
     // Copy all of the parameters over
     memcpy(cNode->params, (*paramSettings)[node->gauge],
            sizeof(float) * PARAM_CREST_QTY);
@@ -313,8 +297,6 @@ void CRESTModel::InitializeParameters(
                  grid->GetGridLoc(node->refLoc.x, node->refLoc.y, &pt)) {
         if (grid->data[pt.y][pt.x] == 0) {
           grid->data[pt.y][pt.x] = 0.01;
-          // printf("Using nodata value in param %s\n",
-          // modelParamStrings[MODEL_CREST][paramI]);
         }
         cNode->params[paramI] *= grid->data[pt.y][pt.x];
       }
@@ -351,12 +333,8 @@ void CRESTModel::InitializeParameters(
     }
 
     if (cNode->params[PARAM_CREST_IM] < 0.0) {
-      // printf("Node Impervious Area(%f) is less than 0, setting to 0.\n",
-      // cNode->params[PARAM_CREST_IM]);
       cNode->params[PARAM_CREST_IM] = 0.0;
     } else if (cNode->params[PARAM_CREST_IM] > 1.0) {
-      // printf("Node Impervious Area(%f) is greater than 1, setting to 1.\n",
-      // cNode->params[PARAM_CREST_IM]);
       cNode->params[PARAM_CREST_IM] = 1.0;
     }
 
@@ -365,14 +343,10 @@ void CRESTModel::InitializeParameters(
       // cNode->params[PARAM_CREST_B]);
       cNode->params[PARAM_CREST_B] = 1.0;
     } else if (cNode->params[PARAM_CREST_B] != cNode->params[PARAM_CREST_B]) {
-      // printf("Node B (%f) NaN, setting to %f.\n",
-      // cNode->params[PARAM_CREST_B], 0.0);
       cNode->params[PARAM_CREST_B] = 0.0;
     }
 
     if (cNode->params[PARAM_CREST_FC] < 0.0) {
-      // printf("Node B (%f) is less than 0, setting to 0.\n",
-      // cNode->params[PARAM_CREST_B]);
       cNode->params[PARAM_CREST_FC] = 1.0;
     }
   }

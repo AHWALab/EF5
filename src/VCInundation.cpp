@@ -75,8 +75,6 @@ void VCInundation::ComputeLayers(size_t nodeIndex, GridNode *node,
   std::sort(upstreamNodes.begin(), upstreamNodes.end(), SortByHeight);
 
   int upstreamCount = (int)(upstreamNodes.size()) - 1;
-  // printf("Found %i upstream cells for node %i, FAM is %f\n", upstreamCount,
-  // (int)nodeIndex, g_FAM->data[node->y][node->x]);
   cNode->layers.reserve(upstreamNodes.size());
   for (int i = 0; i < upstreamCount; i++) {
     GridNode *current = upstreamNodes[i];
@@ -88,7 +86,6 @@ void VCInundation::ComputeLayers(size_t nodeIndex, GridNode *node,
         g_DEM->data[up->y][up->x] - g_DEM->data[current->y][current->x];
     if (heightDiff <= 0.01) {
       continue;
-      // heightDiff = 0.01;
     }
     float layerVolume = current->area * (i + 1) * heightDiff * 1000000.0;
     VCILayer *layer = new VCILayer;
@@ -181,8 +178,6 @@ void VCInundation::InitializeParameters(
                  grid->GetGridLoc(node->refLoc.x, node->refLoc.y, &pt)) {
         if (grid->data[pt.y][pt.x] == 0) {
           grid->data[pt.y][pt.x] = 0.01;
-          // printf("Using nodata value in param %s\n",
-          // modelParamStrings[MODEL_CREST][paramI]);
         }
         cNode->params[paramI] *= grid->data[pt.y][pt.x];
       }
@@ -199,8 +194,6 @@ bool SortByHeight(GridNode *d1, GridNode *d2) {
 
 bool TestUpstream(long nextX, long nextY, FLOW_DIR dir, GridLoc *loc) {
   FLOW_DIR wantDir;
-
-  // unsigned long currentFAC = g_FAM->data[nextY][nextX];
 
   switch (dir) {
   case FLOW_NORTH:

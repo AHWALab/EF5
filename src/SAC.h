@@ -32,8 +32,6 @@ public:
 private:
   void WaterBalanceInt(GridNode *node, SACGridNode *cNode, float stepHours,
                        float precipIn, float petIn);
-  // void LocalRouteQF(GridNode *node, HyMODGridNode *cNode);
-  // void LocalRouteSF(GridNode *node, HyMODGridNode *cNode);
   void
   InitializeParameters(std::map<GaugeConfigSection *, float *> *paramSettings,
                        std::vector<FloatGrid *> *paramGrids);

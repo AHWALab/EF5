@@ -128,9 +128,6 @@ int ComputeFlowAcc(char *flowAccFile) {
       }
       g_FAM->data[downY][downX] =
           g_FAM->data[downY][downX] + g_FAM->data[node->y][node->x] + 1;
-      // printf("Processing node z %f, current fac %f, down (%f) is %f (%f)\n",
-      // node->dem, g_FAM->data[node->y][node->x], g_DDM->data[node->y][node->x],
-      // g_FAM->data[downY][downX], g_DEM->data[downY][downX]);
     }
   }
 

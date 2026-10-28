@@ -58,14 +58,6 @@ FloatGrid *ReadFloatMRMSGrid(char *file, FloatGrid *grid) {
   float *__restrict__ backingStore = new float[num];
   const float scalef = (float)header.var_scale;
   int li = 0;
-  /*#pragma omp parallel for
-   for (li = 0; li < num; li += 4) {
-   backingStore[li] = ((float)binary_data[li]) / scalef;
-   backingStore[li+1] = ((float)binary_data[li+1]) / scalef;
-   backingStore[li+2] = ((float)binary_data[li+2]) / scalef;
-   backingStore[li+3] = ((float)binary_data[li+3]) / scalef;
-   }
-   */
 
   bool badFile = false;
 
@@ -74,15 +66,7 @@ FloatGrid *ReadFloatMRMSGrid(char *file, FloatGrid *grid) {
     backingStore[li] = ((float)binary_data[li]) / scalef;
   }
 
-  /*#pragma omp parallel for
-   for (li = 0; li < num; li++) {
-   if (backingStore[li] > 500.0) {
-   badFile = true;
-   }
-   }*/
-
   dx = header.dx / float(header.dxy_scale);
-  // dy = header.dy/float(header.dxy_scale);
   nw_lon = (float)header.nw_lon / (float)header.map_scale - (dx / 2.0);
   nw_lat = (float)header.nw_lat / (float)header.map_scale - (dx / 2.0);
   if (!grid) {
@@ -110,21 +94,6 @@ FloatGrid *ReadFloatMRMSGrid(char *file, FloatGrid *grid) {
       grid->data[i] = &(backingStore[index]);
     }
   }
-
-  /*#pragma omp parallel for
-   for (long i = 0; i < grid->numRows; i++) {
-   #pragma omp parallel for
-   for (int j = 0; j < grid->numCols; j++) {
-   int realI = grid->numRows - i - 1;
-   int index = realI*nx + j;
-   float floatData = 0;
-   floatData = ((float)binary_data[index]) / (float)var_scale;
-   grid->data[i][j] = floatData;
-   if (floatData > 500.0) {
-   badFile = true;
-   }
-   }
-   }*/
 
   delete[] binary_data;
 

@@ -206,8 +206,6 @@ bool KWRoute::Route(float stepHours, std::vector<float> *fastFlow,
         0.0; // Zero here so we can save states
   }
 
-  // InitializeRouting(stepHours * 3600.0f);
-
   return true;
 }
 
@@ -288,7 +286,6 @@ void KWRoute::RouteInt(float stepSeconds, GridNode *node, KWGridNode *cNode,
     cNode->states[STATE_KW_IR] += slowFlow;
     double interflowLeak =
         cNode->states[STATE_KW_IR] * cNode->params[PARAM_KINEMATIC_LEAKI];
-    // printf(" %f ", interflowLeak);
     cNode->states[STATE_KW_IR] -= interflowLeak;
     if (cNode->states[STATE_KW_IR] < 0)
     {
@@ -301,10 +298,6 @@ void KWRoute::RouteInt(float stepSeconds, GridNode *node, KWGridNode *cNode,
           interflowLeak * cNode->routeAmount[0][KW_LAYER_INTERFLOW] *
           node->area / cNode->routeNode[0][KW_LAYER_INTERFLOW]->area;
       double leakAmount = interflowLeak0;
-      /*if (cNode->routeNode[0][KW_LAYER_INTERFLOW]->channelGridCell) {
-      printf(" 0 got %f ",
-      cNode->routeCNode[0][KW_LAYER_INTERFLOW]->incomingWater[KW_LAYER_INTERFLOW]);
-      }*/
       cNode->routeCNode[0][KW_LAYER_INTERFLOW]
           ->incomingWater[KW_LAYER_INTERFLOW] += leakAmount;
       //*res += leakAmount; // Make this an atomic add for parallelization
@@ -316,7 +309,6 @@ void KWRoute::RouteInt(float stepSeconds, GridNode *node, KWGridNode *cNode,
           interflowLeak * cNode->routeAmount[1][KW_LAYER_INTERFLOW] *
           node->area / cNode->routeNode[1][KW_LAYER_INTERFLOW]->area;
       double leakAmount = interflowLeak1;
-      // printf(" 1 got %f ", leakAmount);
       double *res = &(cNode->routeCNode[1][KW_LAYER_INTERFLOW]
                           ->incomingWater[KW_LAYER_INTERFLOW]);
       *res += leakAmount; // Make this an atomic add for parallelization
@@ -330,7 +322,6 @@ void KWRoute::RouteInt(float stepSeconds, GridNode *node, KWGridNode *cNode,
     float beta = 0.6;
     float alpha = cNode->params[PARAM_KINEMATIC_ALPHA0];
     slowFlow += cNode->incomingWater[KW_LAYER_INTERFLOW];
-    // printf(" %f ", cNode->incomingWater[KW_LAYER_INTERFLOW]);
     fastFlow /= 1000.0; // mm to m
     slowFlow /= 1000.0; // mm to m
     float newInWater = (fastFlow + slowFlow);
@@ -442,11 +433,6 @@ void KWRoute::RouteInt(float stepSeconds, GridNode *node, KWGridNode *cNode,
       estQ = 0.0;
     }
     float newWater = estQ;
-    /*if (newWater != newWater) {
-    printf("New water is %f (%f, %f) %f %f [%f %f %f %f %f] %f %f\n", newWater,
-    cNode->incomingWaterChannel, cNode->states[STATE_KW_PQ], newq,
-    cNode->incomingWaterOverland, A, B, C, D, E, alpha, 0.0);
-    }*/
     cNode->states[STATE_KW_PQ] =
         newWater; // Update previous Q for further routing if "steps" > 1
     if (node->downStreamNode != INVALID_DOWNSTREAM_NODE && !kwNodes[nodes->at(node->downStreamNode).modelIndex].daActive)
@@ -467,15 +453,6 @@ void KWRoute::InitializeParameters(
   // This pass distributes parameters
   size_t numNodes = nodes->size();
 
-  // if (paramGrids->at(PARAM_KINEMATIC_ALPHA) && g_DEM->IsSpatialMatch(paramGrids->at(PARAM_KINEMATIC_ALPHA)))
-  // {
-  //     printf("Alpha grid is match!\n");
-  // }
-
-  // if (paramGrids->at(PARAM_KINEMATIC_BETA) && g_DEM->IsSpatialMatch(paramGrids->at(PARAM_KINEMATIC_BETA)))
-  // {
-  //     printf("Beta grid is match!\n");
-  // }
 
   for (size_t i = 0; i < numNodes; i++)
   {
@@ -513,7 +490,6 @@ void KWRoute::InitializeParameters(
               if (grid->data[pt.y][pt.x] == 0)
               {
                   grid->data[pt.y][pt.x] = 0.01;
-                  // printf("Using nodata value in param %s\n", modelParamStrings[MODEL_CREST][paramI]);
               }
               cNode->params[paramI] *= grid->data[pt.y][pt.x];
           }

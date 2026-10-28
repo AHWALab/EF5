@@ -479,7 +479,6 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
       gaugeOutputs[i] = fopen(buffer, "w");
       if (gaugeOutputs[i])
       {
-        // setvbuf(gaugeOutputs[i], NULL, _IONBF, 0);
         fprintf(gaugeOutputs[i], "%s",
                 "Time,Discharge(m^3 s^-1),Observed(m^3 s^-1),Precip(mm "
                 "h^-1),PET(mm h^-1),SM(%),Fast Flow(mm*1000),Slow "
@@ -502,7 +501,6 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
 
     // Tell this gauge to load the observed data file
     gauges->at(i)->LoadTS();
-    //   NORMAL_LOGF("%s\n", "Got here!1");
   }
 
   outputPath = task->GetOutput();
@@ -1077,7 +1075,6 @@ void Simulator::BasinAvgPrecip()
     areaUsed = (areaUsed < 3.0) ? 3.0 : areaUsed;
     avgVals[i] = 0.001995269 * powf(areaUsed, -0.47) * powf(currentPrecipSimu[i], 1.25) * nodes[i].contribArea;
     avgVals[i] = 0.3012 * powf(avgVals[i], 1.1894);
-    // avgVals[i] = 8.24*powf(areaUsed, -0.57)*nodes[i].contribArea;
   }
   sprintf(buffer, "%s/majorFloodThresPrecip.tif", outputPath);
   gridWriter.WriteGrid(&nodes, &avgVals, buffer, false);
@@ -1091,19 +1088,6 @@ void Simulator::BasinAvgPrecip()
   sprintf(buffer, "%s/minorFloodThres.tif", outputPath);
   gridWriter.WriteGrid(&nodes, &avgVals, buffer, false);
 
-  /*std::vector<float> rpavgVals, stdVals, scVals;
-   rpavgVals.resize(nodes.size());
-   stdVals.resize(nodes.size());
-   scVals.resize(nodes.size());
-   if (ReadLP3File(task->GetStdGrid(), &nodes, &stdVals) && ReadLP3File(task->GetAvgGrid(), &nodes, &rpavgVals) && ReadLP3File(task->GetScGrid(), &nodes, &scVals)) {
-   rpData.resize(nodes.size());
-   CalcLP3Vals(&stdVals, &rpavgVals, &scVals, &rpData, &nodes);
-   for (long i = numNodes - 1; i >= 0; i--) {
-   avgVals[i] = rpData[i].q5;
-   }
-   sprintf(buffer, "%s/q_5.tif", outputPath);
-   gridWriter.WriteGrid(&nodes, &avgVals, buffer, false);
-   }*/
 }
 
 void Simulator::Simulate(bool trackPeaks)
@@ -1457,11 +1441,9 @@ void Simulator::AssimilateData()
     if (obs == obs && obs > 0.0)
     {
       float oldValue = rModel->SetObsInflow(gauge->GetGridNodeIndex(), obs);
-      // if (!gaugesUsed[i]) {
       fprintf(fp, "%s,%s,%f,%f\n", gauge->GetName(), currentTimeText.GetName(),
               oldValue, obs);
       gaugesUsed[i] = true;
-      //}
     }
   }
   fclose(fp);
@@ -1635,7 +1617,6 @@ void Simulator::SimulateDistributed(bool trackPeaks)
   bool outputZarr = (task->GetOutputType() == OUTPUT_TYPE_ZARR);
   bool zarrHandcatchmentWritten = false;
   bool outputTS = IsOutputTS();
-  // NORMAL_LOGF("%s\n", "Got here!3");
   // Peak tracking variables
   numYears = 0;
   int currentYear = -1;
@@ -1707,14 +1688,11 @@ void Simulator::SimulateDistributed(bool trackPeaks)
   }
 
   // Initialize our models
-  // NORMAL_LOGF("%s\n", "Got here!4");
   wbModel->InitializeModel(&nodes, &fullParamSettings, &paramGrids);
-  //	NORMAL_LOGF("%s\n", "Got here!5");
   if (rModel)
   {
     rModel->InitializeModel(&nodes, &fullParamSettingsRoute, &paramGridsRoute);
   }
-  //	NORMAL_LOGF("%s\n", "Got here!6");
   if (sModel)
   {
     currentPrecipSnow.resize(currentPrecipSimu.size());
@@ -2018,13 +1996,6 @@ void Simulator::SimulateDistributed(bool trackPeaks)
         }
       }
 
-      /*int month = currentTime.GetTM()->tm_mon;
-       for (size_t i = 0; i < currentFF.size(); i++) {
-       if (currentQ[i] > monthlyMaxGrid[month][i]) {
-       monthlyMaxGrid[month][i] = currentQ[i];
-       }
-       }*/
-
       if (griddedOutputs != OG_NONE)
       {
         currentTimeTextOutput.UpdateName(currentTime.GetTM());
@@ -2251,7 +2222,6 @@ void Simulator::SimulateDistributed(bool trackPeaks)
           currentDepth[i] =
               ComputeThresValue(currentQ[i], actionVals[i], minorVals[i],
                                 moderateVals[i], majorVals[i]);
-          // computeVec[i] = ComputeThresValue(currentQ[i], actionVals[i], minorVals[i], moderateVals[i], majorVals[i]);
         }
         if (outputZarr)
         {
@@ -3102,11 +3072,6 @@ float Simulator::SimulateForCali(float *testParams)
                                 &currentPrecipSnow, &currentSWECali);
       precipVec = &currentPrecipSnow;
     }
-    /*if (tsIndex == 0) {
-     gaugeMap.GaugeAverage(&nodes, precipVec, &avgPrecip);
-     gaugeMap.GaugeAverage(&nodes, petVec, &avgPET);
-     printf("%f %f\n", precipVec->at(300), petVec->at(300));
-     }*/
     runModel->WaterBalance(timeStepHours, precipVec, petVec, &currentFFCali,
                            &currentSFCali, &SMCali);
 
@@ -3123,18 +3088,7 @@ float Simulator::SimulateForCali(float *testParams)
   }
   float skill = CalcObjFunc(&obsQ, &simQCali, objectiveFunc);
   lastAllScores = CalcAllObjFunc(&obsQ, &simQCali);
-#if _OPENMP
-  // printf("%i: %f %f\n", thread, skill, rP[0]);
-  /*if (skill < -2000.0) {
-   for (unsigned int i = 0; i < tsIndexWarm; i++) {
-   printf("dump %i: %f %f\n", thread, obsQ[i], simQCali[i]);
-   }
-   }*/
-#else
-  // printf("%f\n", skill);
-#endif
   return skill;
-  // return CalcObjFunc(&obsQ, &simQCali, objectiveFunc);
 }
 
 float *Simulator::SimulateForCaliTS(float *testParams)
@@ -3354,27 +3308,6 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate, con
     }
   }
 
-  // INFO_LOGF("After NaN count: %zu NaNs in %zu values", nanCount, n);
-
-  // // If no NaN values, still save comparison file but no interpolation needed
-  // if (nanCount == 0) {
-  //   INFO_LOGF("%s", "Observed discharge data is complete - no interpolation needed");
-
-  //   // Save comparison file showing original data (no changes)
-  //   const char* hardcodedPath = "/Users/nammehta/EF5Data/1_GhanaEF5_90m/outputs/test/obsQ_validation.csv";
-  //   FILE* csvFile = fopen(hardcodedPath, "w");
-  //   if (csvFile) {
-  //     fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge,Status\n");
-  //     for (size_t i = 0; i < n; i++) {
-  //       fprintf(csvFile, "%zu,%.6f,%.6f,Valid\n", i, originalData[i], obsQ[i]);
-  //     }
-  //     fclose(csvFile);
-  //     INFO_LOGF("Saved comparison data to: %s", hardcodedPath);
-  //   } else {
-  //     WARNING_LOGF("Failed to create comparison file: %s", hardcodedPath);
-  //   }
-  //   return;
-  // }
 
   // Check if we have NaN values and set flag accordingly
   if (nanCount > 0)
@@ -3409,22 +3342,9 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate, con
   {
     firstValid++;
   }
-  // INFO_LOGF("After finding firstValid: %zu", firstValid);
 
   if (firstValid >= n)
   {
-    // ERROR_LOGF("%s", "All observed discharge values are NaN - cannot calibrate");
-    // Save comparison file showing the problem
-    // const char* hardcodedPath = "/Users/nammehta/EF5Data/1_GhanaEF5_90m/outputs/test/obsQ_validation.csv";
-    // FILE* csvFile = fopen(hardcodedPath, "w");
-    // if (csvFile) {
-    //   fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge,Status\n");
-    //   for (size_t i = 0; i < n; i++) {
-    //     fprintf(csvFile, "%zu,NaN,NaN,All_NaN_Error\n", i);
-    //   }
-    //   fclose(csvFile);
-    //   INFO_LOGF("Saved error comparison data to: %s", hardcodedPath);
-    // }
     return;
   }
 
@@ -3433,11 +3353,9 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate, con
   {
     lastValid--;
   }
-  // INFO_LOGF("After finding lastValid: %zu", lastValid);
   // Safety: lastValid should never be < firstValid
   if (lastValid < firstValid || lastValid >= n)
   {
-    // ERROR_LOGF("Invalid lastValid index: %zu (firstValid: %zu, n: %zu)", lastValid, firstValid, n);
     return;
   }
 
@@ -3449,7 +3367,6 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate, con
     {
       obsQ[i] = firstValidValue;
     }
-    // INFO_LOGF("Filled leading NaNs up to index %zu with value %.6f", firstValid-1, firstValidValue);
   }
 
   // Fill trailing NaN values with last valid value
@@ -3460,7 +3377,6 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate, con
     {
       obsQ[i] = lastValidValue;
     }
-    // INFO_LOGF("Filled trailing NaNs from index %zu to %zu with value %.6f", lastValid+1, n-1, lastValidValue);
   }
 
   // Linear interpolation for gaps between valid values
@@ -3480,30 +3396,11 @@ void FixNaNsInObservedData(std::vector<float> &obsQ, bool shouldInterpolate, con
           float fraction = (float)j / (float)gap;
           obsQ[lastValidIdx + j] = startValue + (endValue - startValue) * fraction;
         }
-        // INFO_LOGF("Interpolated gap from %zu to %zu (%.6f to %.6f)", lastValidIdx+1, i-1, startValue, endValue);
       }
       lastValidIdx = i;
     }
   }
-  // INFO_LOGF("%s", "Finished interpolation loop");
 
-  // Save original and interpolated data to the hardcoded path
-  // const char* hardcodedPath = "/Users/nammehta/EF5Data/1_GhanaEF5_90m/outputs/test/obsQ_validation.csv";
-  // FILE* csvFile = fopen(hardcodedPath, "w");
-  // if (csvFile) {
-  //   fprintf(csvFile, "Index,Original_Discharge,Interpolated_Discharge\n");
-  //   for (size_t i = 0; i < n; i++) {
-  //     if (std::isnan(originalData[i]) || !std::isfinite(originalData[i])) {
-  //       fprintf(csvFile, "%zu,NaN,%.6f\n", i, obsQ[i]);
-  //     } else {
-  //       fprintf(csvFile, "%zu,%.6f,%.6f\n", i, originalData[i], obsQ[i]);
-  //     }
-  //   }
-  //   fclose(csvFile);
-  //   INFO_LOGF("Saved original and interpolated data to: %s", hardcodedPath);
-  // } else {
-  //   WARNING_LOGF("Failed to create CSV file: %s", hardcodedPath);
-  // }
   INFO_LOGF("%s", "Successfully applied smooth interpolation to observed discharge data");
 
   // Create CSV output file with interpolation results

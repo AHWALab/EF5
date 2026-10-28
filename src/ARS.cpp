@@ -60,7 +60,6 @@ void ARS::CalibrateParams() {
     }
 
     objScore = sim->SimulateForCali(currentParams);
-    // printf("%f\n", objScore);
 
     totalSets++;
 
