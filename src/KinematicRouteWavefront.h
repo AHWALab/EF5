@@ -5,7 +5,7 @@
 #include <vector>
 
 // Same layer / state layout as serial KW (KinematicRoute.h).
-// Separate enums keep this router independent of KWRoute / KWRouteParallel.
+// Separate enums keep this router independent of KWRoute.
 
 enum KW_WAVEFRONT_LAYER
 {

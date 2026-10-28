@@ -12,7 +12,6 @@
 #include "HPModel.h"
 #include "HyMOD.h"
 #include "KinematicRoute.h"
-#include "KinematicRouteParallel.h"
 #include "KinematicRouteWavefront.h"
 #include "LinearRoute.h"
 #include "Messages.h"
