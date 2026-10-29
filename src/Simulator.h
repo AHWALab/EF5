@@ -117,6 +117,10 @@ private:
     int missingQPE, missingQPF;
     std::vector<float> maxGrid, rpMaxGrid, maxDepthGrid, SM;
     bool OutputMaxFiles(const char* prefix);
+    bool WriteTimeStepGrid(const char *name, const char *modelName,
+                           size_t zarrTimeIndex, std::vector<float> *grid);
+    bool WriteEndOfRunGrid(const char *prefix, const char *name,
+                           std::vector<float> *grid);
 
     // This is for calibrations only
     std::vector<std::vector<float>> currentPrecipCali, currentPETCali,
