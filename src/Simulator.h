@@ -116,6 +116,10 @@ private:
     float numYears;
     int missingQPE, missingQPF;
     std::vector<float> maxGrid, rpMaxGrid, maxDepthGrid, SM;
+    std::vector<float> rpGrid;             // return period of this step
+    std::vector<float> qpeAccum, qpfAccum; // precip totals since warm-up
+    size_t zarrTimeIndex;                  // next time slot in the Zarr store
+    bool zarrHandcatchmentWritten;
 
     // Flood-threshold grids for the thres, maxthres and maxthresp outputs,
     // one value per node (see ReadThresholdGrids)
@@ -130,6 +134,9 @@ private:
     void ReadThresholdGrids();
 
     bool OutputMaxFiles(const char* prefix);
+    bool WriteTimeStepOutputs();
+    bool WriteEndOfRunOutputs();
+    void WriteResultsJson(double runTimeSeconds);
     bool WriteTimeStepGrid(const char *name, const char *modelName,
                            size_t zarrTimeIndex, std::vector<float> *grid);
     bool WriteEndOfRunGrid(const char *prefix, const char *name,

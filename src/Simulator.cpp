@@ -1701,11 +1701,10 @@ void Simulator::SimulateDistributed(bool trackPeaks)
   TempReader tempReader;
   std::vector<float> currentPrecipSnow;
   std::vector<float> *currentPrecip = &currentPrecipSimu;
-  char buffer[CONFIG_MAX_LEN * 2];
   size_t tsIndex = 0;
-  size_t zarrTimeIndex = 0;
+  zarrTimeIndex = 0;
   bool outputZarr = (task->GetOutputType() == OUTPUT_TYPE_ZARR);
-  bool zarrHandcatchmentWritten = false;
+  zarrHandcatchmentWritten = false;
   bool outputTS = IsOutputTS();
   // Peak tracking variables
   numYears = 0;
@@ -1725,11 +1724,10 @@ void Simulator::SimulateDistributed(bool trackPeaks)
   ReadThresholdGrids();
 
   bool savePrecip = false;
-  std::vector<float> qpeAccum, qpfAccum;
   if ((griddedOutputs & OG_PRECIPACCUM) == OG_PRECIPACCUM)
   {
-    qpeAccum.resize(nodes.size());
-    qpfAccum.resize(nodes.size());
+    qpeAccum.assign(nodes.size(), 0.0f);
+    qpfAccum.assign(nodes.size(), 0.0f);
     savePrecip = true;
   }
 
@@ -1813,7 +1811,6 @@ void Simulator::SimulateDistributed(bool trackPeaks)
   }
 
   // Hard coded RP counting
-  std::vector<float> rpGrid;
   rpGrid.resize(currentFF.size());
   rpMaxGrid.resize(currentFF.size());
   maxGrid.resize(currentFF.size());
@@ -2039,152 +2036,9 @@ void Simulator::SimulateDistributed(bool trackPeaks)
         }
       }
 
-      if (griddedOutputs != OG_NONE)
+      if (!WriteTimeStepOutputs())
       {
-        currentTimeTextOutput.UpdateName(currentTime.GetTM());
-        if (outputZarr)
-        {
-          int16_t forcingPhase = inLR ? 1 : 0;
-          if (!zarrGridWriter->WriteTimeMetadata(
-                  zarrTimeIndex, (int64_t)currentTime.currentTimeSec,
-                  forcingPhase))
-          {
-            return;
-          }
-        }
-      }
-
-      if ((griddedOutputs & OG_Q) == OG_Q)
-      {
-        for (size_t i = 0; i < currentQ.size(); i++)
-        {
-          float val = floorf(currentQ[i] * 10.0f + 0.5f) / 10.0f;
-          currentDepth[i] = val;
-        }
-        if (!WriteTimeStepGrid("q", wbModel->GetName(), zarrTimeIndex,
-                               &currentDepth))
-        {
-          return;
-        }
-      }
-      if ((griddedOutputs & OG_SM) == OG_SM)
-      {
-        if (!WriteTimeStepGrid("sm", wbModel->GetName(), zarrTimeIndex,
-                               &SM))
-        {
-          return;
-        }
-      }
-      if (outputRP && ((griddedOutputs & OG_QRP) == OG_QRP))
-      {
-        if (!WriteTimeStepGrid("rp", wbModel->GetName(), zarrTimeIndex,
-                               &rpGrid))
-        {
-          return;
-        }
-      }
-      if ((griddedOutputs & OG_PRECIP) == OG_PRECIP)
-      {
-        if (!WriteTimeStepGrid("precip", wbModel->GetName(), zarrTimeIndex,
-                               &currentPrecipSimu))
-        {
-          return;
-        }
-      }
-      if ((griddedOutputs & OG_PET) == OG_PET)
-      {
-        if (!WriteTimeStepGrid("pet", wbModel->GetName(), zarrTimeIndex,
-                               &currentPETSimu))
-        {
-          return;
-        }
-      }
-      if (sModel && (griddedOutputs & OG_SWE) == OG_SWE)
-      {
-        if (!WriteTimeStepGrid("swe", wbModel->GetName(), zarrTimeIndex,
-                               &currentSWE))
-        {
-          return;
-        }
-      }
-      if (sModel && (griddedOutputs & OG_TEMP) == OG_TEMP)
-      {
-        if (!WriteTimeStepGrid("temp", wbModel->GetName(), zarrTimeIndex,
-                               &currentTempSimu))
-        {
-          return;
-        }
-      }
-      if (iModel && (griddedOutputs & OG_DEPTH) == OG_DEPTH)
-      {
-        iModel->Inundation(&currentQ, &currentDepth);
-        if (!WriteTimeStepGrid("depth", iModel->GetName(), zarrTimeIndex,
-                               &currentDepth))
-        {
-          return;
-        }
-      }
-      if (iModel && (griddedOutputs & OG_HANDCATCHMENT) == OG_HANDCATCHMENT &&
-          (!outputZarr || !zarrHandcatchmentWritten))
-      {
-        // Cast iModel to SimpleInundation to access iNodes
-        SimpleInundation *siModel = dynamic_cast<SimpleInundation *>(iModel);
-        if (siModel)
-        {
-          std::vector<float> handcatchment(nodes.size());
-          for (size_t i = 0; i < nodes.size(); i++)
-          {
-            handcatchment[i] = static_cast<float>(siModel->GetChannelIndex(i));
-          }
-          if (outputZarr)
-          {
-            if (!zarrGridWriter->WriteStaticGrid("handcatchment",
-                                                &handcatchment))
-            {
-              return;
-            }
-            zarrHandcatchmentWritten = true;
-          }
-          else
-          {
-            sprintf(buffer, "%s/handcatchment.%s.tif", outputPath,
-                    iModel->GetName());
-            gridWriter.WriteGrid(&nodes, &handcatchment, buffer, false);
-          }
-        }
-      }
-      if ((griddedOutputs & OG_UNITQ) == OG_UNITQ)
-      {
-        for (size_t i = 0; i < currentQ.size(); i++)
-        {
-          currentDepth[i] = currentQ[i] / nodes[i].contribArea;
-          float val = floorf(currentDepth[i] * 10.0f + 0.5f) / 10.0f;
-          currentDepth[i] = val;
-        }
-        if (!WriteTimeStepGrid("unitq", wbModel->GetName(), zarrTimeIndex,
-                               &currentDepth))
-        {
-          return;
-        }
-      }
-      if (thresholds.loaded && (griddedOutputs & OG_THRES) == OG_THRES)
-      {
-        const ThresholdGrids &t = thresholds;
-        for (size_t i = 0; i < currentQ.size(); i++)
-        {
-          currentDepth[i] = ComputeThresValue(currentQ[i], t.action[i],
-                                              t.minor[i], t.moderate[i],
-                                              t.major[i]);
-        }
-        if (!WriteTimeStepGrid("thres", wbModel->GetName(), zarrTimeIndex,
-                               &currentDepth))
-        {
-          return;
-        }
-      }
-      if (outputZarr && griddedOutputs != OG_NONE)
-      {
-        zarrTimeIndex++;
+        return;
       }
     }
 
@@ -2229,6 +2083,178 @@ void Simulator::SimulateDistributed(bool trackPeaks)
     SaveLP3Params();
   }
 
+  if (!WriteEndOfRunOutputs())
+  {
+    return;
+  }
+
+  double runTimeSeconds = 0.0;
+#if _OPENMP
+  runTimeSeconds = omp_get_wtime() - simStartTime;
+#endif
+  WriteResultsJson(runTimeSeconds);
+}
+
+// Write the time-step grids asked for in OUTPUT_GRIDS for the current step
+bool Simulator::WriteTimeStepOutputs()
+{
+  bool outputZarr = (task->GetOutputType() == OUTPUT_TYPE_ZARR);
+  char buffer[CONFIG_MAX_LEN * 2];
+
+  if (griddedOutputs != OG_NONE)
+  {
+    currentTimeTextOutput.UpdateName(currentTime.GetTM());
+    if (outputZarr)
+    {
+      int16_t forcingPhase = inLR ? 1 : 0;
+      if (!zarrGridWriter->WriteTimeMetadata(
+              zarrTimeIndex, (int64_t)currentTime.currentTimeSec,
+              forcingPhase))
+      {
+        return false;
+      }
+    }
+  }
+
+  if ((griddedOutputs & OG_Q) == OG_Q)
+  {
+    for (size_t i = 0; i < currentQ.size(); i++)
+    {
+      float val = floorf(currentQ[i] * 10.0f + 0.5f) / 10.0f;
+      currentDepth[i] = val;
+    }
+    if (!WriteTimeStepGrid("q", wbModel->GetName(), zarrTimeIndex,
+                           &currentDepth))
+    {
+      return false;
+    }
+  }
+  if ((griddedOutputs & OG_SM) == OG_SM)
+  {
+    if (!WriteTimeStepGrid("sm", wbModel->GetName(), zarrTimeIndex,
+                           &SM))
+    {
+      return false;
+    }
+  }
+  if (outputRP && ((griddedOutputs & OG_QRP) == OG_QRP))
+  {
+    if (!WriteTimeStepGrid("rp", wbModel->GetName(), zarrTimeIndex,
+                           &rpGrid))
+    {
+      return false;
+    }
+  }
+  if ((griddedOutputs & OG_PRECIP) == OG_PRECIP)
+  {
+    if (!WriteTimeStepGrid("precip", wbModel->GetName(), zarrTimeIndex,
+                           &currentPrecipSimu))
+    {
+      return false;
+    }
+  }
+  if ((griddedOutputs & OG_PET) == OG_PET)
+  {
+    if (!WriteTimeStepGrid("pet", wbModel->GetName(), zarrTimeIndex,
+                           &currentPETSimu))
+    {
+      return false;
+    }
+  }
+  if (sModel && (griddedOutputs & OG_SWE) == OG_SWE)
+  {
+    if (!WriteTimeStepGrid("swe", wbModel->GetName(), zarrTimeIndex,
+                           &currentSWE))
+    {
+      return false;
+    }
+  }
+  if (sModel && (griddedOutputs & OG_TEMP) == OG_TEMP)
+  {
+    if (!WriteTimeStepGrid("temp", wbModel->GetName(), zarrTimeIndex,
+                           &currentTempSimu))
+    {
+      return false;
+    }
+  }
+  if (iModel && (griddedOutputs & OG_DEPTH) == OG_DEPTH)
+  {
+    iModel->Inundation(&currentQ, &currentDepth);
+    if (!WriteTimeStepGrid("depth", iModel->GetName(), zarrTimeIndex,
+                           &currentDepth))
+    {
+      return false;
+    }
+  }
+  if (iModel && (griddedOutputs & OG_HANDCATCHMENT) == OG_HANDCATCHMENT &&
+      (!outputZarr || !zarrHandcatchmentWritten))
+  {
+    // Cast iModel to SimpleInundation to access iNodes
+    SimpleInundation *siModel = dynamic_cast<SimpleInundation *>(iModel);
+    if (siModel)
+    {
+      std::vector<float> handcatchment(nodes.size());
+      for (size_t i = 0; i < nodes.size(); i++)
+      {
+        handcatchment[i] = static_cast<float>(siModel->GetChannelIndex(i));
+      }
+      if (outputZarr)
+      {
+        if (!zarrGridWriter->WriteStaticGrid("handcatchment",
+                                            &handcatchment))
+        {
+          return false;
+        }
+        zarrHandcatchmentWritten = true;
+      }
+      else
+      {
+        sprintf(buffer, "%s/handcatchment.%s.tif", outputPath,
+                iModel->GetName());
+        gridWriter.WriteGrid(&nodes, &handcatchment, buffer, false);
+      }
+    }
+  }
+  if ((griddedOutputs & OG_UNITQ) == OG_UNITQ)
+  {
+    for (size_t i = 0; i < currentQ.size(); i++)
+    {
+      currentDepth[i] = currentQ[i] / nodes[i].contribArea;
+      float val = floorf(currentDepth[i] * 10.0f + 0.5f) / 10.0f;
+      currentDepth[i] = val;
+    }
+    if (!WriteTimeStepGrid("unitq", wbModel->GetName(), zarrTimeIndex,
+                           &currentDepth))
+    {
+      return false;
+    }
+  }
+  if (thresholds.loaded && (griddedOutputs & OG_THRES) == OG_THRES)
+  {
+    const ThresholdGrids &t = thresholds;
+    for (size_t i = 0; i < currentQ.size(); i++)
+    {
+      currentDepth[i] = ComputeThresValue(currentQ[i], t.action[i],
+                                          t.minor[i], t.moderate[i],
+                                          t.major[i]);
+    }
+    if (!WriteTimeStepGrid("thres", wbModel->GetName(), zarrTimeIndex,
+                           &currentDepth))
+    {
+      return false;
+    }
+  }
+  if (outputZarr && griddedOutputs != OG_NONE)
+  {
+    zarrTimeIndex++;
+  }
+  return true;
+}
+
+// Write the end-of-run grids: max grids, threshold classes of the max
+// discharge and precipitation totals
+bool Simulator::WriteEndOfRunOutputs()
+{
   // Output max files: if in LR mode, qpf_ prefix (includes both QPE+QPF);
   // if not in LR mode, no prefix (existing behavior).
   // The qpe_ output is triggered at the LR switch point inside the main loop.
@@ -2236,14 +2262,14 @@ void Simulator::SimulateDistributed(bool trackPeaks)
   {
     if (!OutputMaxFiles("qpf_"))
     {
-      return;
+      return false;
     }
   }
   else
   {
     if (!OutputMaxFiles(""))
     {
-      return;
+      return false;
     }
   }
 
@@ -2265,7 +2291,7 @@ void Simulator::SimulateDistributed(bool trackPeaks)
     }
     if (!WriteEndOfRunGrid("", "maxthres", &currentDepth))
     {
-      return;
+      return false;
     }
   }
 
@@ -2285,30 +2311,31 @@ void Simulator::SimulateDistributed(bool trackPeaks)
     }
     if (!WriteEndOfRunGrid("", "maxthresp", &currentDepth))
     {
-      return;
+      return false;
     }
   }
 
-  if (savePrecip)
+  if ((griddedOutputs & OG_PRECIPACCUM) == OG_PRECIPACCUM)
   {
     if (!WriteEndOfRunGrid("", "qpeaccum", &qpeAccum) ||
         !WriteEndOfRunGrid("", "qpfaccum", &qpfAccum))
     {
-      return;
+      return false;
     }
   }
+  return true;
+}
 
-#if _OPENMP
-  double simEndTime = omp_get_wtime();
-  double timeDiff = simEndTime - simStartTime;
-#endif
-
+// Write results.json: missing forcing counts and (OpenMP builds) run time
+void Simulator::WriteResultsJson(double runTimeSeconds)
+{
+  char buffer[CONFIG_MAX_LEN * 2];
   sprintf(buffer, "%s/results.json", task->GetOutput());
   FILE *fp = fopen(buffer, "w");
   fprintf(fp, "{\n\"missingQPE\": %i,\n\"missingQPF\": %i", missingQPE,
           missingQPF);
 #if _OPENMP
-  fprintf(fp, ",\n\"runTimeSeconds\": %f", timeDiff);
+  fprintf(fp, ",\n\"runTimeSeconds\": %f", runTimeSeconds);
 #endif
   fprintf(fp, "\n%s", "}");
   fclose(fp);
