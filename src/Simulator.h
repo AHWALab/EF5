@@ -116,6 +116,19 @@ private:
     float numYears;
     int missingQPE, missingQPF;
     std::vector<float> maxGrid, rpMaxGrid, maxDepthGrid, SM;
+
+    // Flood-threshold grids for the thres, maxthres and maxthresp outputs,
+    // one value per node (see ReadThresholdGrids)
+    struct ThresholdGrids
+    {
+        bool loaded;   // action..major were read
+        bool loadedSD; // the four *SD grids were read too
+        std::vector<float> action, minor, moderate, major;
+        std::vector<float> actionSD, minorSD, moderateSD, majorSD;
+    };
+    ThresholdGrids thresholds;
+    void ReadThresholdGrids();
+
     bool OutputMaxFiles(const char* prefix);
     bool WriteTimeStepGrid(const char *name, const char *modelName,
                            size_t zarrTimeIndex, std::vector<float> *grid);

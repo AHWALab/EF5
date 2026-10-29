@@ -1604,6 +1604,57 @@ float Simulator::CalcProb(float discharge, float mean, float sd)
   return 0.5f * (1.0 + erf((discharge - mean) / (logf(sd) * sqrtf(2))));
 }
 
+// Read the ACTION/MINOR/MODERATE/MAJOR grids if a threshold output is
+// requested and all four are given, then their *_SD grids if MAXTHRESP is.
+void Simulator::ReadThresholdGrids()
+{
+  ThresholdGrids &t = thresholds;
+  t.loaded = false;
+  t.loadedSD = false;
+  if (((griddedOutputs & OG_THRES) == OG_THRES ||
+       (griddedOutputs & OG_MAXTHRES) == OG_MAXTHRES) &&
+      (task->GetActionGrid())[0] && (task->GetMinorGrid())[0] &&
+      (task->GetModerateGrid())[0] && (task->GetMajorGrid())[0])
+  {
+    t.action.assign(nodes.size(), 0.0f);
+    t.minor.assign(nodes.size(), 0.0f);
+    t.moderate.assign(nodes.size(), 0.0f);
+    t.major.assign(nodes.size(), 0.0f);
+    if (ReadThresFile(task->GetActionGrid(), &nodes, &t.action) &&
+        ReadThresFile(task->GetMinorGrid(), &nodes, &t.minor) &&
+        ReadThresFile(task->GetModerateGrid(), &nodes, &t.moderate) &&
+        ReadThresFile(task->GetMajorGrid(), &nodes, &t.major))
+    {
+      t.loaded = true;
+
+      if (((griddedOutputs & OG_MAXTHRESP) == OG_MAXTHRESP) &&
+          (task->GetActionSDGrid())[0] && (task->GetMinorSDGrid())[0] &&
+          (task->GetModerateSDGrid())[0] && (task->GetMajorSDGrid())[0])
+      {
+        t.actionSD.assign(nodes.size(), 0.0f);
+        t.minorSD.assign(nodes.size(), 0.0f);
+        t.moderateSD.assign(nodes.size(), 0.0f);
+        t.majorSD.assign(nodes.size(), 0.0f);
+        if (ReadThresFile(task->GetActionSDGrid(), &nodes, &t.actionSD) &&
+            ReadThresFile(task->GetMinorSDGrid(), &nodes, &t.minorSD) &&
+            ReadThresFile(task->GetModerateSDGrid(), &nodes, &t.moderateSD) &&
+            ReadThresFile(task->GetMajorSDGrid(), &nodes, &t.majorSD))
+        {
+          t.loadedSD = true;
+          // The SD values read above are replaced by 3.67 * contributing area
+          for (size_t i = 0; i < currentFF.size(); i++)
+          {
+            t.actionSD[i] = 3.67 * nodes[i].contribArea;
+            t.minorSD[i] = 3.67 * nodes[i].contribArea;
+            t.moderateSD[i] = 3.67 * nodes[i].contribArea;
+            t.majorSD[i] = 3.67 * nodes[i].contribArea;
+          }
+        }
+      }
+    }
+  }
+}
+
 // Write one time-step grid, either into the Zarr store at zarrTimeIndex or as
 // <output>/<name>.<current time>.<modelName>.tif
 bool Simulator::WriteTimeStepGrid(const char *name, const char *modelName,
@@ -1671,51 +1722,7 @@ void Simulator::SimulateDistributed(bool trackPeaks)
     tempReader.SetNullDEM();
   }
 
-  std::vector<float> actionVals, minorVals, moderateVals, majorVals;
-  std::vector<float> actionSDVals, minorSDVals, moderateSDVals, majorSDVals;
-  bool outputThres = false, outputThresP = false;
-
-  if (((griddedOutputs & OG_THRES) == OG_THRES ||
-       (griddedOutputs & OG_MAXTHRES) == OG_MAXTHRES) &&
-      (task->GetActionGrid())[0] && (task->GetMinorGrid())[0] &&
-      (task->GetModerateGrid())[0] && (task->GetMajorGrid())[0])
-  {
-    actionVals.resize(nodes.size());
-    minorVals.resize(nodes.size());
-    moderateVals.resize(nodes.size());
-    majorVals.resize(nodes.size());
-    if (ReadThresFile(task->GetActionGrid(), &nodes, &actionVals) &&
-        ReadThresFile(task->GetMinorGrid(), &nodes, &minorVals) &&
-        ReadThresFile(task->GetModerateGrid(), &nodes, &moderateVals) &&
-        ReadThresFile(task->GetMajorGrid(), &nodes, &majorVals))
-    {
-      outputThres = true;
-
-      if (((griddedOutputs & OG_MAXTHRESP) == OG_MAXTHRESP) &&
-          (task->GetActionSDGrid())[0] && (task->GetMinorSDGrid())[0] &&
-          (task->GetModerateSDGrid())[0] && (task->GetMajorSDGrid())[0])
-      {
-        actionSDVals.resize(nodes.size());
-        minorSDVals.resize(nodes.size());
-        moderateSDVals.resize(nodes.size());
-        majorSDVals.resize(nodes.size());
-        if (ReadThresFile(task->GetActionSDGrid(), &nodes, &actionSDVals) &&
-            ReadThresFile(task->GetMinorSDGrid(), &nodes, &minorSDVals) &&
-            ReadThresFile(task->GetModerateSDGrid(), &nodes, &moderateSDVals) &&
-            ReadThresFile(task->GetMajorSDGrid(), &nodes, &majorSDVals))
-        {
-          outputThresP = true;
-          for (size_t i = 0; i < currentFF.size(); i++)
-          {
-            actionSDVals[i] = 3.67 * nodes[i].contribArea;
-            minorSDVals[i] = 3.67 * nodes[i].contribArea;
-            moderateSDVals[i] = 3.67 * nodes[i].contribArea;
-            majorSDVals[i] = 3.67 * nodes[i].contribArea;
-          }
-        }
-      }
-    }
-  }
+  ReadThresholdGrids();
 
   bool savePrecip = false;
   std::vector<float> qpeAccum, qpfAccum;
@@ -2160,13 +2167,14 @@ void Simulator::SimulateDistributed(bool trackPeaks)
           return;
         }
       }
-      if (outputThres && (griddedOutputs & OG_THRES) == OG_THRES)
+      if (thresholds.loaded && (griddedOutputs & OG_THRES) == OG_THRES)
       {
+        const ThresholdGrids &t = thresholds;
         for (size_t i = 0; i < currentQ.size(); i++)
         {
-          currentDepth[i] =
-              ComputeThresValue(currentQ[i], actionVals[i], minorVals[i],
-                                moderateVals[i], majorVals[i]);
+          currentDepth[i] = ComputeThresValue(currentQ[i], t.action[i],
+                                              t.minor[i], t.moderate[i],
+                                              t.major[i]);
         }
         if (!WriteTimeStepGrid("thres", wbModel->GetName(), zarrTimeIndex,
                                &currentDepth))
@@ -2239,11 +2247,17 @@ void Simulator::SimulateDistributed(bool trackPeaks)
     }
   }
 
-  if (outputThres && (griddedOutputs & OG_MAXTHRES) == OG_MAXTHRES)
+  if (thresholds.loaded && (griddedOutputs & OG_MAXTHRES) == OG_MAXTHRES)
   {
+    const ThresholdGrids &t = thresholds;
     for (size_t i = 0; i < currentQ.size(); i++)
     {
-      currentDepth[i] = floorf(ComputeThresValue(maxGrid[i], actionVals[i], minorVals[i], moderateVals[i], majorVals[i]) * 10.0f + 0.5f) / 10.0f;
+      currentDepth[i] =
+          floorf(ComputeThresValue(maxGrid[i], t.action[i], t.minor[i],
+                                   t.moderate[i], t.major[i]) *
+                     10.0f +
+                 0.5f) /
+          10.0f;
       if (currentDepth[i] < 1.0)
       {
         currentDepth[i] = 0.0;
@@ -2255,15 +2269,16 @@ void Simulator::SimulateDistributed(bool trackPeaks)
     }
   }
 
-  if (outputThresP && (griddedOutputs & OG_MAXTHRESP) == OG_MAXTHRESP)
+  if (thresholds.loadedSD && (griddedOutputs & OG_MAXTHRESP) == OG_MAXTHRESP)
   {
+    const ThresholdGrids &t = thresholds;
     for (size_t i = 0; i < currentQ.size(); i++)
     {
       currentDepth[i] =
-          floorf(ComputeThresValueP(maxGrid[i], actionVals[i], actionSDVals[i],
-                                    minorVals[i], minorSDVals[i],
-                                    moderateVals[i], moderateSDVals[i],
-                                    majorVals[i], majorSDVals[i]) *
+          floorf(ComputeThresValueP(maxGrid[i], t.action[i], t.actionSD[i],
+                                    t.minor[i], t.minorSD[i], t.moderate[i],
+                                    t.moderateSD[i], t.major[i],
+                                    t.majorSD[i]) *
                      10.0f +
                  0.5f) /
           10.0f;
