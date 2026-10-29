@@ -1767,9 +1767,7 @@ void Simulator::SimulateDistributed(bool trackPeaks)
   }
 
   // Hard coded RP counting
-  std::vector<float> count2, rpGrid;
-  std::vector<float> dailyMaxQ, dailyMinSM, dailyMaxQHour;
-  count2.resize(currentFF.size());
+  std::vector<float> rpGrid;
   rpGrid.resize(currentFF.size());
   rpMaxGrid.resize(currentFF.size());
   maxGrid.resize(currentFF.size());
@@ -1778,7 +1776,6 @@ void Simulator::SimulateDistributed(bool trackPeaks)
 
   for (size_t i = 0; i < currentFF.size(); i++)
   {
-    count2[i] = 0.0;
     rpGrid[i] = 0.0;
     rpMaxGrid[i] = 0.0;
     maxGrid[i] = 0.0;
