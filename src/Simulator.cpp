@@ -1699,8 +1699,6 @@ void Simulator::SimulateDistributed(bool trackPeaks)
   PrecipReader precipReader;
   PETReader petReader;
   TempReader tempReader;
-  std::vector<float> currentPrecipSnow;
-  std::vector<float> *currentPrecip = &currentPrecipSimu;
   size_t tsIndex = 0;
   zarrTimeIndex = 0;
   bool outputZarr = (task->GetOutputType() == OUTPUT_TYPE_ZARR);
@@ -1739,7 +1737,7 @@ void Simulator::SimulateDistributed(bool trackPeaks)
   }
   if (sModel)
   {
-    currentPrecipSnow.resize(currentPrecipSimu.size());
+    currentPrecipSnow.assign(currentPrecipSimu.size(), 0.0f);
     sModel->InitializeModel(&nodes, &fullParamSettingsSnow, &paramGridsSnow);
   }
   if (iModel)
@@ -1854,86 +1852,12 @@ void Simulator::SimulateDistributed(bool trackPeaks)
     if (!preloadedForcings)
     {
       qpf = LoadForcings(&precipReader, &petReader, &tempReader);
-      currentPrecip = &currentPrecipSimu;
     }
 
     float stepHoursReal = timeStep->GetTimeInSec() / 3600.0f;
 
-    if (sModel)
-    {
-      if (preloadedForcings)
-      {
-        sModel->SnowBalance((float)currentTime.GetTM()->tm_yday, stepHoursReal,
-                            &(currentPrecipCali[tsIndex]),
-                            &(currentTempCali[tsIndex]),
-                            &(currentPrecipCali[tsIndex]), &currentSWE);
-      }
-      else
-      {
-        sModel->SnowBalance((float)currentTime.GetTM()->tm_yday, stepHoursReal,
-                            currentPrecip, &currentTempSimu, &currentPrecipSnow,
-                            &currentSWE);
-        currentPrecip = &currentPrecipSnow;
-      }
-    }
-
-    // Integrate the models for this timestep
-    if (!preloadedForcings)
-    {
-      wbModel->WaterBalance(stepHoursReal, currentPrecip, &currentPETSimu,
-                            &currentFF, &currentSF, &SM);
-    }
-    else
-    {
-      wbModel->WaterBalance(stepHoursReal, &(currentPrecipCali[tsIndex]),
-                            &(currentPETCali[tsIndex]), &currentFF, &currentSF,
-                            &SM);
-    }
-    if (outputTS)
-    {
-      gaugeMap.GaugeAverage(&nodes, &currentFF, &avgFF);
-      gaugeMap.GaugeAverage(&nodes, &currentSF, &avgSF);
-    }
-
-    if (rModel && wantsDA)
-    {
-      AssimilateData();
-    }
-    if (rModel)
-    {
-#if _OPENMP
-#ifndef _WIN32
-      double beginTimeR = omp_get_wtime();
-#endif
-#endif
-      rModel->Route(stepHoursReal, &currentFF, &currentSF, &currentQ);
-#if _OPENMP
-#ifndef _WIN32
-      double endTimeR = omp_get_wtime();
-      NORMAL_LOGF(" %f routing sec", endTimeR - beginTimeR);
-#endif
-#endif
-    }
-    else
-    {
-      for (size_t i = 0; i < currentFF.size(); i++)
-      {
-        currentFF[i] = 0.0;
-        currentSF[i] = 0.0;
-      }
-    }
-    if (saveStates && stateTime == currentTime)
-    {
-      wbModel->SaveStates(&currentTime, statePath, &gridWriter);
-      if (rModel)
-      {
-        rModel->SaveStates(&currentTime, statePath, &gridWriter);
-      }
-      if (sModel)
-      {
-        sModel->SaveStates(&currentTime, statePath, &gridWriter);
-      }
-    }
+    std::vector<float> *currentPrecip =
+        RunModelsForStep(stepHoursReal, tsIndex, outputTS);
 
     // We only output after the warmup period is over
     if (warmEndTime <= currentTime)
@@ -1941,18 +1865,7 @@ void Simulator::SimulateDistributed(bool trackPeaks)
 
       if (savePrecip)
       {
-        for (size_t i = 0; i < currentFF.size(); i++)
-        {
-          float precip = currentPrecip->at(i) * stepHoursReal;
-          if (qpf)
-          {
-            qpfAccum[i] += precip;
-          }
-          else
-          {
-            qpeAccum[i] += precip;
-          }
-        }
+        AddToPrecipTotals(qpf != 0, currentPrecip, stepHoursReal);
       }
 
       OutputCombinedOutput();
@@ -1965,34 +1878,7 @@ void Simulator::SimulateDistributed(bool trackPeaks)
 
       if (outputTS)
       {
-        gaugeMap.GaugeAverage(&nodes, &SM, &avgSM);
-        if (!preloadedForcings)
-        {
-          gaugeMap.GaugeAverage(&nodes, currentPrecip, &avgPrecip);
-          gaugeMap.GaugeAverage(&nodes, &currentPETSimu, &avgPET);
-        }
-        else
-        {
-          gaugeMap.GaugeAverage(&nodes, &(currentPrecipCali[tsIndex]),
-                                &avgPrecip);
-          gaugeMap.GaugeAverage(&nodes, &(currentPETCali[tsIndex]), &avgPET);
-        }
-
-        if (sModel)
-        {
-          gaugeMap.GaugeAverage(&nodes, &currentSWE, &avgSWE);
-          if (!preloadedForcings)
-          {
-            gaugeMap.GaugeAverage(&nodes, &currentTempSimu, &avgT);
-          }
-          else
-          {
-            gaugeMap.GaugeAverage(&nodes, &(currentTempCali[tsIndex]), &avgT);
-          }
-        }
-
-        // Write the output to file
-        SaveTSOutput();
+        SaveGaugeTimeSeries(tsIndex, currentPrecip);
       }
 
       if (iModel)
@@ -2000,41 +1886,7 @@ void Simulator::SimulateDistributed(bool trackPeaks)
         iModel->Inundation(&currentQ, &currentDepth);
       }
 
-      if (trackPeaks)
-      {
-        for (size_t i = 0; i < currentFF.size(); i++)
-        {
-          if (currentQ[i] > peakVals[indexYear][i])
-          {
-            peakVals[indexYear][i] = currentQ[i];
-          }
-        }
-      }
-
-      // Hard coded rp counting
-      for (size_t i = 0; i < currentFF.size(); i++)
-      {
-        float discharge = currentQ[i];
-        if (discharge > maxGrid[i])
-        {
-          maxGrid[i] = discharge;
-        }
-        if (outputRP)
-        {
-          rpGrid[i] = GetReturnPeriod(discharge, &(rpData[i]));
-          if (rpGrid[i] > rpMaxGrid[i])
-          {
-            rpMaxGrid[i] = rpGrid[i];
-          }
-        }
-        if (iModel)
-        {
-          if (currentDepth[i] > maxDepthGrid[i])
-          {
-            maxDepthGrid[i] = currentDepth[i];
-          }
-        }
-      }
+      UpdateRunningMaxima(trackPeaks, indexYear);
 
       if (!WriteTimeStepOutputs())
       {
@@ -2093,6 +1945,186 @@ void Simulator::SimulateDistributed(bool trackPeaks)
   runTimeSeconds = omp_get_wtime() - simStartTime;
 #endif
   WriteResultsJson(runTimeSeconds);
+}
+
+// Run the snow, water balance and routing models (with DA) for one time step
+// and save states if this is the state time. Returns the precipitation the
+// water balance used, which is after snowmelt when there is a snow model.
+std::vector<float> *Simulator::RunModelsForStep(float stepHoursReal,
+                                                size_t tsIndex, bool outputTS)
+{
+  std::vector<float> *currentPrecip = &currentPrecipSimu;
+
+  if (sModel)
+  {
+    if (preloadedForcings)
+    {
+      sModel->SnowBalance((float)currentTime.GetTM()->tm_yday, stepHoursReal,
+                          &(currentPrecipCali[tsIndex]),
+                          &(currentTempCali[tsIndex]),
+                          &(currentPrecipCali[tsIndex]), &currentSWE);
+    }
+    else
+    {
+      sModel->SnowBalance((float)currentTime.GetTM()->tm_yday, stepHoursReal,
+                          currentPrecip, &currentTempSimu, &currentPrecipSnow,
+                          &currentSWE);
+      currentPrecip = &currentPrecipSnow;
+    }
+  }
+
+  // Integrate the models for this timestep
+  if (!preloadedForcings)
+  {
+    wbModel->WaterBalance(stepHoursReal, currentPrecip, &currentPETSimu,
+                          &currentFF, &currentSF, &SM);
+  }
+  else
+  {
+    wbModel->WaterBalance(stepHoursReal, &(currentPrecipCali[tsIndex]),
+                          &(currentPETCali[tsIndex]), &currentFF, &currentSF,
+                          &SM);
+  }
+  if (outputTS)
+  {
+    gaugeMap.GaugeAverage(&nodes, &currentFF, &avgFF);
+    gaugeMap.GaugeAverage(&nodes, &currentSF, &avgSF);
+  }
+
+  if (rModel && wantsDA)
+  {
+    AssimilateData();
+  }
+  if (rModel)
+  {
+#if _OPENMP
+#ifndef _WIN32
+    double beginTimeR = omp_get_wtime();
+#endif
+#endif
+    rModel->Route(stepHoursReal, &currentFF, &currentSF, &currentQ);
+#if _OPENMP
+#ifndef _WIN32
+    double endTimeR = omp_get_wtime();
+    NORMAL_LOGF(" %f routing sec", endTimeR - beginTimeR);
+#endif
+#endif
+  }
+  else
+  {
+    for (size_t i = 0; i < currentFF.size(); i++)
+    {
+      currentFF[i] = 0.0;
+      currentSF[i] = 0.0;
+    }
+  }
+  if (saveStates && stateTime == currentTime)
+  {
+    wbModel->SaveStates(&currentTime, statePath, &gridWriter);
+    if (rModel)
+    {
+      rModel->SaveStates(&currentTime, statePath, &gridWriter);
+    }
+    if (sModel)
+    {
+      sModel->SaveStates(&currentTime, statePath, &gridWriter);
+    }
+  }
+  return currentPrecip;
+}
+
+// Add this step's precipitation to the QPE or QPF total (PRECIPACCUM output)
+void Simulator::AddToPrecipTotals(bool qpf, std::vector<float> *currentPrecip,
+                                  float stepHoursReal)
+{
+  for (size_t i = 0; i < currentFF.size(); i++)
+  {
+    float precip = currentPrecip->at(i) * stepHoursReal;
+    if (qpf)
+    {
+      qpfAccum[i] += precip;
+    }
+    else
+    {
+      qpeAccum[i] += precip;
+    }
+  }
+}
+
+// Average the step's grids over each gauge basin and append them to the
+// gauge time-series files
+void Simulator::SaveGaugeTimeSeries(size_t tsIndex,
+                                    std::vector<float> *currentPrecip)
+{
+  gaugeMap.GaugeAverage(&nodes, &SM, &avgSM);
+  if (!preloadedForcings)
+  {
+    gaugeMap.GaugeAverage(&nodes, currentPrecip, &avgPrecip);
+    gaugeMap.GaugeAverage(&nodes, &currentPETSimu, &avgPET);
+  }
+  else
+  {
+    gaugeMap.GaugeAverage(&nodes, &(currentPrecipCali[tsIndex]),
+                          &avgPrecip);
+    gaugeMap.GaugeAverage(&nodes, &(currentPETCali[tsIndex]), &avgPET);
+  }
+
+  if (sModel)
+  {
+    gaugeMap.GaugeAverage(&nodes, &currentSWE, &avgSWE);
+    if (!preloadedForcings)
+    {
+      gaugeMap.GaugeAverage(&nodes, &currentTempSimu, &avgT);
+    }
+    else
+    {
+      gaugeMap.GaugeAverage(&nodes, &(currentTempCali[tsIndex]), &avgT);
+    }
+  }
+
+  // Write the output to file
+  SaveTSOutput();
+}
+
+// Update the yearly peaks (LP3 fitting) and the max discharge, return period
+// and inundation depth grids with this step's values
+void Simulator::UpdateRunningMaxima(bool trackPeaks, int indexYear)
+{
+  if (trackPeaks)
+  {
+    for (size_t i = 0; i < currentFF.size(); i++)
+    {
+      if (currentQ[i] > peakVals[indexYear][i])
+      {
+        peakVals[indexYear][i] = currentQ[i];
+      }
+    }
+  }
+
+  // Hard coded rp counting
+  for (size_t i = 0; i < currentFF.size(); i++)
+  {
+    float discharge = currentQ[i];
+    if (discharge > maxGrid[i])
+    {
+      maxGrid[i] = discharge;
+    }
+    if (outputRP)
+    {
+      rpGrid[i] = GetReturnPeriod(discharge, &(rpData[i]));
+      if (rpGrid[i] > rpMaxGrid[i])
+      {
+        rpMaxGrid[i] = rpGrid[i];
+      }
+    }
+    if (iModel)
+    {
+      if (currentDepth[i] > maxDepthGrid[i])
+      {
+        maxDepthGrid[i] = currentDepth[i];
+      }
+    }
+  }
 }
 
 // Write the time-step grids asked for in OUTPUT_GRIDS for the current step

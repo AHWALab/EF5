@@ -42,6 +42,12 @@ private:
     bool InitializeGridParams(TaskConfigSection *task);
 
     void SimulateDistributed(bool trackPeaks);
+    std::vector<float> *RunModelsForStep(float stepHoursReal, size_t tsIndex,
+                                         bool outputTS);
+    void AddToPrecipTotals(bool qpf, std::vector<float> *currentPrecip,
+                           float stepHoursReal);
+    void SaveGaugeTimeSeries(size_t tsIndex, std::vector<float> *currentPrecip);
+    void UpdateRunningMaxima(bool trackPeaks, int indexYear);
     void SimulateLumped();
 
     float GetNumSimulatedYears();
@@ -101,6 +107,7 @@ private:
 
     // This is for simulations only
     std::vector<float> currentPrecipSimu, currentPETSimu, currentTempSimu;
+    std::vector<float> currentPrecipSnow; // precip after snowmelt (snow model)
     std::vector<FILE *> gaugeOutputs;
     int griddedOutputs;
     bool outputRP;
