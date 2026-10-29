@@ -42,6 +42,7 @@ private:
     bool InitializeGridParams(TaskConfigSection *task);
 
     void SimulateDistributed(bool trackPeaks);
+    bool PrepareDistributedRun(bool trackPeaks, TempReader *tempReader);
     std::vector<float> *RunModelsForStep(float stepHoursReal, size_t tsIndex,
                                          bool outputTS);
     void AddToPrecipTotals(bool qpf, std::vector<float> *currentPrecip,

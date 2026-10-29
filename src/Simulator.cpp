@@ -1694,39 +1694,32 @@ bool Simulator::WriteEndOfRunGrid(const char *prefix, const char *name,
   return true;
 }
 
-void Simulator::SimulateDistributed(bool trackPeaks)
+// Set up a distributed run: read the threshold grids, initialize the models,
+// output writers and states, and zero the running max grids. Returns false
+// if the Zarr store could not be created.
+bool Simulator::PrepareDistributedRun(bool trackPeaks, TempReader *tempReader)
 {
-  PrecipReader precipReader;
-  PETReader petReader;
-  TempReader tempReader;
-  size_t tsIndex = 0;
   zarrTimeIndex = 0;
   bool outputZarr = (task->GetOutputType() == OUTPUT_TYPE_ZARR);
   zarrHandcatchmentWritten = false;
-  bool outputTS = IsOutputTS();
-  // Peak tracking variables
   numYears = 0;
-  int currentYear = -1;
-  int indexYear = -1;
 
   // Initialize TempReader
   if (sModel)
   {
-    tempReader.ReadDEM(tempSec->GetDEM());
+    tempReader->ReadDEM(tempSec->GetDEM());
   }
   else
   {
-    tempReader.SetNullDEM();
+    tempReader->SetNullDEM();
   }
 
   ReadThresholdGrids();
 
-  bool savePrecip = false;
   if ((griddedOutputs & OG_PRECIPACCUM) == OG_PRECIPACCUM)
   {
     qpeAccum.assign(nodes.size(), 0.0f);
     qpfAccum.assign(nodes.size(), 0.0f);
-    savePrecip = true;
   }
 
   // Initialize our models
@@ -1769,7 +1762,7 @@ void Simulator::SimulateDistributed(bool trackPeaks)
     {
       delete zarrGridWriter;
       zarrGridWriter = NULL;
-      return;
+      return false;
     }
   }
   if (useStates)
@@ -1824,6 +1817,25 @@ void Simulator::SimulateDistributed(bool trackPeaks)
     currentFF[i] = 0.0;
     currentSF[i] = 0.0;
     currentQ[i] = 0.0;
+  }
+  return true;
+}
+
+void Simulator::SimulateDistributed(bool trackPeaks)
+{
+  PrecipReader precipReader;
+  PETReader petReader;
+  TempReader tempReader;
+  size_t tsIndex = 0;
+  bool outputTS = IsOutputTS();
+  bool savePrecip = ((griddedOutputs & OG_PRECIPACCUM) == OG_PRECIPACCUM);
+  // Peak tracking variables
+  int currentYear = -1;
+  int indexYear = -1;
+
+  if (!PrepareDistributedRun(trackPeaks, &tempReader))
+  {
+    return;
   }
 
 #if _OPENMP
