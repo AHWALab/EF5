@@ -155,155 +155,13 @@ bool Simulator::InitializeBasic(TaskConfigSection *task)
 
   InitializeForcingFiles(task);
 
-  // Initialize our gauges
-  gauges = task->GetBasinSec()->GetGauges();
-
-  // Initialize parameter settings
-  paramSettings = task->GetParamsSec()->GetParamSettings();
-  if (task->GetRouting() != ROUTE_QTY)
-  {
-    paramSettingsRoute = task->GetRoutingParamsSec()->GetParamSettings();
-  }
-  else
-  {
-    paramSettingsRoute = NULL;
-  }
-  if (task->GetSnow() != SNOW_QTY)
-  {
-    paramSettingsSnow = task->GetSnowParamsSec()->GetParamSettings();
-  }
-  else
-  {
-    paramSettingsSnow = NULL;
-  }
-
-  if (task->GetInundation() != INUNDATION_QTY)
-  {
-    paramSettingsInundation =
-        task->GetInundationParamsSec()->GetParamSettings();
-  }
-  else
-  {
-    paramSettingsInundation = NULL;
-  }
-
-  // Initialize gridded parameter settings
-  if (!InitializeGridParams(task))
+  if (!InitializeNodes(task))
   {
     return false;
   }
 
-  // Parameters of the default gauge (defaultparamsgauge), used for cells
-  // whose own gauge has no parameter set
-  GaugeConfigSection *gs = task->GetDefaultGauge();
-  float *defaultParams = FindGaugeParams(paramSettings, gs);
-  float *defaultParamsRoute = FindGaugeParams(paramSettingsRoute, gs);
-  float *defaultParamsSnow = FindGaugeParams(paramSettingsSnow, gs);
-  float *defaultParamsInundation =
-      FindGaugeParams(paramSettingsInundation, gs);
-
-  // Carve the basin to find which nodes we're modeling on
-  CarveBasin(task->GetBasinSec(), &nodes, paramSettings, &fullParamSettings,
-             &gaugeMap, defaultParams, paramSettingsRoute,
-             &fullParamSettingsRoute, defaultParamsRoute, paramSettingsSnow,
-             &fullParamSettingsSnow, defaultParamsSnow, paramSettingsInundation,
-             &fullParamSettingsInundation, defaultParamsInundation);
-
-  // Ensure we actually have at least one node to work with!
-  if (nodes.size() == 0)
+  if (!CreateModels(task))
   {
-    ERROR_LOG("The number of grid cells in which we are modeling is 0! "
-              "(Invalid gauge location?)");
-    return false;
-  }
-
-  // Create the appropriate model
-  switch (task->GetModel())
-  {
-  case MODEL_CREST:
-    wbModel = new CRESTModel();
-    break;
-  case MODEL_HYMOD:
-    wbModel = new HyMOD();
-    break;
-  case MODEL_SAC:
-    wbModel = new SAC();
-    break;
-  case MODEL_HP:
-    wbModel = new HPModel();
-    break;
-  default:
-    ERROR_LOG("Unsupported Water Balance Model!!");
-    return false;
-  }
-
-  if (wbModel->IsLumped())
-  {
-    // We need to provided updated areas
-    std::vector<float> gaugeAreas;
-    gaugeAreas.resize(gauges->size());
-    gaugeMap.GetGaugeArea(&nodes, &gaugeAreas);
-
-    lumpedNodes.resize(gauges->size());
-    for (size_t i = 0; i < gauges->size(); i++)
-    {
-      GaugeConfigSection *gauge = gauges->at(i);
-      memcpy(&(lumpedNodes[i]), &(nodes[gauge->GetGridNodeIndex()]),
-             sizeof(GridNode));
-      lumpedNodes[i].area = gaugeAreas[i];
-    }
-    rModel = NULL;
-  }
-  else
-  {
-    // Create the appropriate routing
-    switch (task->GetRouting())
-    {
-    case ROUTE_LINEAR:
-      rModel = new LRRoute();
-      break;
-    case ROUTE_KINEMATIC:
-      rModel = new KWRoute();
-      break;
-    case ROUTE_KINEMATIC_PARALLEL:
-      rModel = new KWRouteWavefront();
-      break;
-    case ROUTE_QTY:
-      rModel = NULL;
-      break;
-    default:
-      ERROR_LOG("Unsupported Routing Model!!");
-      return false;
-    }
-  }
-
-  // Create the appropriate snow model
-  switch (task->GetSnow())
-  {
-  case SNOW_SNOW17:
-    sModel = new Snow17Model();
-    break;
-  case SNOW_QTY:
-    sModel = NULL;
-    break;
-  default:
-    ERROR_LOG("Unsupported Snow Model!!");
-    return false;
-  }
-
-  switch (task->GetInundation())
-  {
-  case INUNDATION_SI:
-    iModel = new SimpleInundation();
-    break;
-  case INUNDATION_VCI:
-    iModel = new VCInundation();
-    break;
-  case INUNDATION_QTY:
-    iModel = NULL;
-    break;
-  default:
-    ERROR_LOG("Unsupported inundation model!!");
     return false;
   }
 
@@ -435,6 +293,172 @@ void Simulator::InitializeForcingFiles(TaskConfigSection *task)
   qpfSec = task->GetQPFSec();
   tempSec = task->GetTempSec();
   tempFSec = task->GetTempFSec();
+}
+
+// Parameter settings, gridded parameters, and the grid cells to model
+// (CarveBasin), each with its full parameter set
+bool Simulator::InitializeNodes(TaskConfigSection *task)
+{
+  // Initialize our gauges
+  gauges = task->GetBasinSec()->GetGauges();
+
+  // Initialize parameter settings
+  paramSettings = task->GetParamsSec()->GetParamSettings();
+  if (task->GetRouting() != ROUTE_QTY)
+  {
+    paramSettingsRoute = task->GetRoutingParamsSec()->GetParamSettings();
+  }
+  else
+  {
+    paramSettingsRoute = NULL;
+  }
+  if (task->GetSnow() != SNOW_QTY)
+  {
+    paramSettingsSnow = task->GetSnowParamsSec()->GetParamSettings();
+  }
+  else
+  {
+    paramSettingsSnow = NULL;
+  }
+
+  if (task->GetInundation() != INUNDATION_QTY)
+  {
+    paramSettingsInundation =
+        task->GetInundationParamsSec()->GetParamSettings();
+  }
+  else
+  {
+    paramSettingsInundation = NULL;
+  }
+
+  // Initialize gridded parameter settings
+  if (!InitializeGridParams(task))
+  {
+    return false;
+  }
+
+  // Parameters of the default gauge (defaultparamsgauge), used for cells
+  // whose own gauge has no parameter set
+  GaugeConfigSection *gs = task->GetDefaultGauge();
+  float *defaultParams = FindGaugeParams(paramSettings, gs);
+  float *defaultParamsRoute = FindGaugeParams(paramSettingsRoute, gs);
+  float *defaultParamsSnow = FindGaugeParams(paramSettingsSnow, gs);
+  float *defaultParamsInundation =
+      FindGaugeParams(paramSettingsInundation, gs);
+
+  // Carve the basin to find which nodes we're modeling on
+  CarveBasin(task->GetBasinSec(), &nodes, paramSettings, &fullParamSettings,
+             &gaugeMap, defaultParams, paramSettingsRoute,
+             &fullParamSettingsRoute, defaultParamsRoute, paramSettingsSnow,
+             &fullParamSettingsSnow, defaultParamsSnow, paramSettingsInundation,
+             &fullParamSettingsInundation, defaultParamsInundation);
+
+  // Ensure we actually have at least one node to work with!
+  if (nodes.size() == 0)
+  {
+    ERROR_LOG("The number of grid cells in which we are modeling is 0! "
+              "(Invalid gauge location?)");
+    return false;
+  }
+
+  return true;
+}
+
+// Create the water balance, routing, snow and inundation models chosen in
+// the task. Lumped models get one node per gauge and no routing.
+bool Simulator::CreateModels(TaskConfigSection *task)
+{
+  // Create the appropriate model
+  switch (task->GetModel())
+  {
+  case MODEL_CREST:
+    wbModel = new CRESTModel();
+    break;
+  case MODEL_HYMOD:
+    wbModel = new HyMOD();
+    break;
+  case MODEL_SAC:
+    wbModel = new SAC();
+    break;
+  case MODEL_HP:
+    wbModel = new HPModel();
+    break;
+  default:
+    ERROR_LOG("Unsupported Water Balance Model!!");
+    return false;
+  }
+
+  if (wbModel->IsLumped())
+  {
+    // We need to provided updated areas
+    std::vector<float> gaugeAreas;
+    gaugeAreas.resize(gauges->size());
+    gaugeMap.GetGaugeArea(&nodes, &gaugeAreas);
+
+    lumpedNodes.resize(gauges->size());
+    for (size_t i = 0; i < gauges->size(); i++)
+    {
+      GaugeConfigSection *gauge = gauges->at(i);
+      memcpy(&(lumpedNodes[i]), &(nodes[gauge->GetGridNodeIndex()]),
+             sizeof(GridNode));
+      lumpedNodes[i].area = gaugeAreas[i];
+    }
+    rModel = NULL;
+  }
+  else
+  {
+    // Create the appropriate routing
+    switch (task->GetRouting())
+    {
+    case ROUTE_LINEAR:
+      rModel = new LRRoute();
+      break;
+    case ROUTE_KINEMATIC:
+      rModel = new KWRoute();
+      break;
+    case ROUTE_KINEMATIC_PARALLEL:
+      rModel = new KWRouteWavefront();
+      break;
+    case ROUTE_QTY:
+      rModel = NULL;
+      break;
+    default:
+      ERROR_LOG("Unsupported Routing Model!!");
+      return false;
+    }
+  }
+
+  // Create the appropriate snow model
+  switch (task->GetSnow())
+  {
+  case SNOW_SNOW17:
+    sModel = new Snow17Model();
+    break;
+  case SNOW_QTY:
+    sModel = NULL;
+    break;
+  default:
+    ERROR_LOG("Unsupported Snow Model!!");
+    return false;
+  }
+
+  switch (task->GetInundation())
+  {
+  case INUNDATION_SI:
+    iModel = new SimpleInundation();
+    break;
+  case INUNDATION_VCI:
+    iModel = new VCInundation();
+    break;
+  case INUNDATION_QTY:
+    iModel = NULL;
+    break;
+  default:
+    ERROR_LOG("Unsupported inundation model!!");
+    return false;
+  }
+
+  return true;
 }
 
 bool Simulator::InitializeSimu(TaskConfigSection *task)

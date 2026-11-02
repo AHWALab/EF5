@@ -39,6 +39,8 @@ private:
     bool InitializeBasic(TaskConfigSection *task);
     bool InitializeTimeSteps(TaskConfigSection *task);
     void InitializeForcingFiles(TaskConfigSection *task);
+    bool InitializeNodes(TaskConfigSection *task);
+    bool CreateModels(TaskConfigSection *task);
     bool InitializeSimu(TaskConfigSection *task);
     bool InitializeCali(TaskConfigSection *task);
     bool InitializeGridParams(TaskConfigSection *task);
