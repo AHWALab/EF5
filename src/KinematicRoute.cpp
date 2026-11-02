@@ -270,102 +270,119 @@ static float SolveKinematicWave(float stepSeconds, float horLen,
 void KWRoute::RouteInt(float stepSeconds, GridNode *node, KWGridNode *cNode,
                        float fastFlow, float slowFlow)
 {
-
   if (!cNode->channelGridCell)
   {
-
-    float beta = 0.6;
-    float alpha = cNode->params[PARAM_KINEMATIC_ALPHA0];
-
-    fastFlow /= 1000.0;          // mm to m
-    float newInWater = fastFlow; // / node->horLen;
-
-    float newq = SolveKinematicWave(stepSeconds, node->horLen,
-                                     cNode->incomingWaterOverland,
-                                     cNode->states[STATE_KW_PQ], newInWater,
-                                     alpha, beta);
-
-    cNode->states[STATE_KW_PQ] = newq;
-    if (node->downStreamNode != INVALID_DOWNSTREAM_NODE && !kwNodes[nodes->at(node->downStreamNode).modelIndex].daActive)
-    {
-      kwNodes[nodes->at(node->downStreamNode).modelIndex]
-          .incomingWaterOverland += newq;
-    }
-
-    cNode->incomingWater[KW_LAYER_FASTFLOW] = newq;
-
-    // Add Interflow Excess Water to Reservoir
-    cNode->states[STATE_KW_IR] += slowFlow;
-    double interflowLeak =
-        cNode->states[STATE_KW_IR] * cNode->params[PARAM_KINEMATIC_LEAKI];
-    cNode->states[STATE_KW_IR] -= interflowLeak;
-    if (cNode->states[STATE_KW_IR] < 0)
-    {
-      cNode->states[STATE_KW_IR] = 0;
-    }
-
-    if (cNode->routeCNode[0][KW_LAYER_INTERFLOW])
-    {
-      double interflowLeak0 =
-          interflowLeak * cNode->routeAmount[0][KW_LAYER_INTERFLOW] *
-          node->area / cNode->routeNode[0][KW_LAYER_INTERFLOW]->area;
-      double leakAmount = interflowLeak0;
-      cNode->routeCNode[0][KW_LAYER_INTERFLOW]
-          ->incomingWater[KW_LAYER_INTERFLOW] += leakAmount;
-      //*res += leakAmount; // Make this an atomic add for parallelization
-    }
-
-    if (cNode->routeCNode[1][KW_LAYER_INTERFLOW])
-    {
-      double interflowLeak1 =
-          interflowLeak * cNode->routeAmount[1][KW_LAYER_INTERFLOW] *
-          node->area / cNode->routeNode[1][KW_LAYER_INTERFLOW]->area;
-      double leakAmount = interflowLeak1;
-      double *res = &(cNode->routeCNode[1][KW_LAYER_INTERFLOW]
-                          ->incomingWater[KW_LAYER_INTERFLOW]);
-      *res += leakAmount; // Make this an atomic add for parallelization
-    }
+    RouteHillslopeCell(stepSeconds, node, cNode, fastFlow, slowFlow);
   }
   else
   {
-
-    // First do overland routing
-
-    float beta = 0.6;
-    float alpha = cNode->params[PARAM_KINEMATIC_ALPHA0];
-    slowFlow += cNode->incomingWater[KW_LAYER_INTERFLOW];
-    fastFlow /= 1000.0; // mm to m
-    slowFlow /= 1000.0; // mm to m
-    float newInWater = (fastFlow + slowFlow);
-
-    float newq = SolveKinematicWave(stepSeconds, node->horLen,
-                                     cNode->incomingWaterOverland,
-                                     cNode->states[STATE_KW_PO], newInWater,
-                                     alpha, beta);
-
-    cNode->states[STATE_KW_PO] = newq;
-
-    // Here we compute channel routing
-    beta = cNode->params[PARAM_KINEMATIC_BETA];
-    alpha = cNode->params[PARAM_KINEMATIC_ALPHA];
-
-    // Channel Flow
-    // Compute Q at current grid point
-    float newWater = SolveKinematicWave(stepSeconds, node->horLen,
-                                     cNode->incomingWaterChannel,
-                                     cNode->states[STATE_KW_PQ], newq,
-                                     alpha, beta);
-    cNode->states[STATE_KW_PQ] =
-        newWater; // Update previous Q for further routing if "steps" > 1
-    if (node->downStreamNode != INVALID_DOWNSTREAM_NODE && !kwNodes[nodes->at(node->downStreamNode).modelIndex].daActive)
-    {
-      kwNodes[nodes->at(node->downStreamNode).modelIndex]
-          .incomingWaterChannel += newWater;
-    }
-
-    cNode->incomingWater[KW_LAYER_FASTFLOW] = newWater;
-    cNode->incomingWater[KW_LAYER_INTERFLOW] = 0.0;
+    RouteChannelCell(stepSeconds, node, cNode, fastFlow, slowFlow);
   }
+}
+
+// The cell downstream of node, or NULL at an outlet or when that cell's flow
+// is being set by data assimilation this step (it then receives nothing)
+KWGridNode *KWRoute::DownstreamNode(GridNode *node)
+{
+  if (node->downStreamNode == INVALID_DOWNSTREAM_NODE)
+  {
+    return NULL;
+  }
+  KWGridNode *downstream =
+      &kwNodes[nodes->at(node->downStreamNode).modelIndex];
+  return downstream->daActive ? NULL : downstream;
+}
+
+// Hillslope (non-channel) cell: fast flow is routed overland to the
+// downstream cell; slow flow goes into the interflow reservoir, which leaks to
+// up to two cells (routeCNode, set up in InitializeRouting).
+void KWRoute::RouteHillslopeCell(float stepSeconds, GridNode *node,
+                                 KWGridNode *cNode, float fastFlow,
+                                 float slowFlow)
+{
+  float beta = 0.6;
+  float alpha = cNode->params[PARAM_KINEMATIC_ALPHA0];
+
+  fastFlow /= 1000.0; // mm to m
+  float newInWater = fastFlow;
+
+  float newq = SolveKinematicWave(stepSeconds, node->horLen,
+                                  cNode->incomingWaterOverland,
+                                  cNode->states[STATE_KW_PQ], newInWater,
+                                  alpha, beta);
+
+  cNode->states[STATE_KW_PQ] = newq;
+  KWGridNode *downstream = DownstreamNode(node);
+  if (downstream)
+  {
+    downstream->incomingWaterOverland += newq;
+  }
+
+  cNode->incomingWater[KW_LAYER_FASTFLOW] = newq;
+
+  // Add Interflow Excess Water to Reservoir
+  cNode->states[STATE_KW_IR] += slowFlow;
+  double interflowLeak =
+      cNode->states[STATE_KW_IR] * cNode->params[PARAM_KINEMATIC_LEAKI];
+  cNode->states[STATE_KW_IR] -= interflowLeak;
+  if (cNode->states[STATE_KW_IR] < 0)
+  {
+    cNode->states[STATE_KW_IR] = 0;
+  }
+
+  // Pass the leaked interflow on, scaled by the receiving cell's area
+  for (int r = 0; r < 2; r++)
+  {
+    if (cNode->routeCNode[r][KW_LAYER_INTERFLOW])
+    {
+      double leakAmount =
+          interflowLeak * cNode->routeAmount[r][KW_LAYER_INTERFLOW] *
+          node->area / cNode->routeNode[r][KW_LAYER_INTERFLOW]->area;
+      cNode->routeCNode[r][KW_LAYER_INTERFLOW]
+          ->incomingWater[KW_LAYER_INTERFLOW] += leakAmount;
+    }
+  }
+}
+
+// Channel cell: fast flow plus all interflow (this cell's and what leaked in)
+// is routed overland across the cell first, and that overland flow is then
+// the lateral inflow to the channel, which is routed downstream.
+void KWRoute::RouteChannelCell(float stepSeconds, GridNode *node,
+                               KWGridNode *cNode, float fastFlow,
+                               float slowFlow)
+{
+  // First do overland routing
+  float beta = 0.6;
+  float alpha = cNode->params[PARAM_KINEMATIC_ALPHA0];
+  slowFlow += cNode->incomingWater[KW_LAYER_INTERFLOW];
+  fastFlow /= 1000.0; // mm to m
+  slowFlow /= 1000.0; // mm to m
+  float newInWater = (fastFlow + slowFlow);
+
+  float newq = SolveKinematicWave(stepSeconds, node->horLen,
+                                  cNode->incomingWaterOverland,
+                                  cNode->states[STATE_KW_PO], newInWater,
+                                  alpha, beta);
+
+  cNode->states[STATE_KW_PO] = newq;
+
+  // Here we compute channel routing
+  beta = cNode->params[PARAM_KINEMATIC_BETA];
+  alpha = cNode->params[PARAM_KINEMATIC_ALPHA];
+
+  float newWater = SolveKinematicWave(stepSeconds, node->horLen,
+                                      cNode->incomingWaterChannel,
+                                      cNode->states[STATE_KW_PQ], newq, alpha,
+                                      beta);
+  cNode->states[STATE_KW_PQ] = newWater;
+  KWGridNode *downstream = DownstreamNode(node);
+  if (downstream)
+  {
+    downstream->incomingWaterChannel += newWater;
+  }
+
+  cNode->incomingWater[KW_LAYER_FASTFLOW] = newWater;
+  cNode->incomingWater[KW_LAYER_INTERFLOW] = 0.0;
 }
 
 void KWRoute::InitializeParameters(

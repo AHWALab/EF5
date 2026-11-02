@@ -50,6 +50,11 @@ public:
 private:
   void RouteInt(float stepSeconds, GridNode *node, KWGridNode *cNode,
                 float fastFlow, float slowFlow);
+  void RouteHillslopeCell(float stepSeconds, GridNode *node,
+                          KWGridNode *cNode, float fastFlow, float slowFlow);
+  void RouteChannelCell(float stepSeconds, GridNode *node, KWGridNode *cNode,
+                        float fastFlow, float slowFlow);
+  KWGridNode *DownstreamNode(GridNode *node);
   void
   InitializeParameters(std::map<GaugeConfigSection *, float *> *paramSettings,
                        std::vector<FloatGrid *> *paramGrids);
