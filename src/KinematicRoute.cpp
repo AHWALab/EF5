@@ -209,6 +209,64 @@ bool KWRoute::Route(float stepHours, std::vector<float> *fastFlow,
   return true;
 }
 
+// One kinematic-wave step for a cell: solves
+//   (dt/dx) Q + alpha Q^beta = (dt/dx) Qin + alpha Qprev^beta + dt q
+// for this step's outflow Q with Newton's method (at most 10 iterations,
+// stopping when the residual is below 0.01; Q is never negative). Qin is the
+// inflow from upstream cells this step, Qprev the cell's outflow last step and
+// q the lateral inflow. The starting guess is the linearized solution.
+static float SolveKinematicWave(float stepSeconds, float horLen,
+                                double upstreamInflow, float previousQ,
+                                float lateralInflow, float alpha, float beta)
+{
+  float A, B, C, D, E;
+  float backDiffq = 0.0;
+  if (upstreamInflow + previousQ > 0.0)
+  {
+    backDiffq = pow((upstreamInflow + previousQ) / 2.0, beta - 1.0);
+    if (!std::isfinite(backDiffq))
+    {
+      backDiffq = 0.0;
+    }
+  }
+  A = (stepSeconds / horLen) * upstreamInflow;
+  B = alpha * beta * previousQ * backDiffq;
+  C = stepSeconds * lateralInflow;
+  D = stepSeconds / horLen;
+  E = alpha * beta * backDiffq;
+  float estq = (A + B + C) / (D + E);
+  float rhs = A + alpha * pow(previousQ, beta) + stepSeconds * lateralInflow;
+  for (int itr = 0; itr < 10; itr++)
+  {
+    float resError =
+        (stepSeconds / horLen) * estq + alpha * pow(estq, beta) - rhs;
+    if (!std::isfinite(resError))
+    {
+      resError = 0.0;
+    }
+    if (fabsf(resError) < 0.01)
+    {
+      break;
+    }
+    float resErrorD1 =
+        (stepSeconds / horLen) + alpha * beta * pow(estq, beta - 1.0);
+    if (!std::isfinite(resErrorD1))
+    {
+      resErrorD1 = 1.0;
+    }
+    estq = estq - resError / resErrorD1;
+    if (estq < 0)
+    {
+      estq = 0.0;
+    }
+  }
+  if (estq < 0.0)
+  {
+    estq = 0.0;
+  }
+  return estq;
+}
+
 void KWRoute::RouteInt(float stepSeconds, GridNode *node, KWGridNode *cNode,
                        float fastFlow, float slowFlow)
 {
@@ -222,56 +280,10 @@ void KWRoute::RouteInt(float stepSeconds, GridNode *node, KWGridNode *cNode,
     fastFlow /= 1000.0;          // mm to m
     float newInWater = fastFlow; // / node->horLen;
 
-    float A, B, C, D, E;
-    float backDiffq = 0.0;
-    if (cNode->incomingWaterOverland + cNode->states[STATE_KW_PQ] > 0.0)
-    {
-      backDiffq =
-          pow((cNode->incomingWaterOverland + cNode->states[STATE_KW_PQ]) / 2.0,
-              beta - 1.0);
-      if (!std::isfinite(backDiffq))
-      {
-        backDiffq = 0.0;
-      }
-    }
-    A = (stepSeconds / node->horLen) * cNode->incomingWaterOverland;
-    B = alpha * beta * cNode->states[STATE_KW_PQ] * backDiffq;
-    C = stepSeconds * newInWater;
-    D = stepSeconds / node->horLen;
-    E = alpha * beta * backDiffq;
-    float estq = (A + B + C) / (D + E); // cms/m
-    float rhs = A + alpha * pow(cNode->states[STATE_KW_PQ], beta) +
-                stepSeconds * newInWater;
-    for (int itr = 0; itr < 10; itr++)
-    {
-      float resError =
-          (stepSeconds / node->horLen) * estq + alpha * pow(estq, beta) - rhs;
-      if (!std::isfinite(resError))
-      {
-        resError = 0.0;
-      }
-      if (fabsf(resError) < 0.01)
-      {
-        break;
-      }
-      float resErrorD1 =
-          (stepSeconds / node->horLen) + alpha * beta * pow(estq, beta - 1.0);
-      if (!std::isfinite(resErrorD1))
-      {
-        resErrorD1 = 1.0;
-      }
-      estq = estq - resError / resErrorD1;
-      if (estq < 0)
-      {
-        estq = 0.0;
-      }
-    }
-    if (estq < 0.0)
-    {
-      estq = 0.0;
-    }
-
-    float newq = estq;
+    float newq = SolveKinematicWave(stepSeconds, node->horLen,
+                                     cNode->incomingWaterOverland,
+                                     cNode->states[STATE_KW_PQ], newInWater,
+                                     alpha, beta);
 
     cNode->states[STATE_KW_PQ] = newq;
     if (node->downStreamNode != INVALID_DOWNSTREAM_NODE && !kwNodes[nodes->at(node->downStreamNode).modelIndex].daActive)
@@ -326,55 +338,10 @@ void KWRoute::RouteInt(float stepSeconds, GridNode *node, KWGridNode *cNode,
     slowFlow /= 1000.0; // mm to m
     float newInWater = (fastFlow + slowFlow);
 
-    float A, B, C, D, E;
-    float backDiffq = 0.0;
-    if (cNode->incomingWaterOverland + cNode->states[STATE_KW_PO] > 0.0)
-    {
-      backDiffq =
-          pow((cNode->incomingWaterOverland + cNode->states[STATE_KW_PO]) / 2.0,
-              beta - 1.0);
-      if (!std::isfinite(backDiffq))
-      {
-        backDiffq = 0.0;
-      }
-    }
-    A = (stepSeconds / node->horLen) * cNode->incomingWaterOverland;
-    B = alpha * beta * cNode->states[STATE_KW_PO] * backDiffq;
-    C = stepSeconds * newInWater;
-    D = stepSeconds / node->horLen;
-    E = alpha * beta * backDiffq;
-    float estq = (A + B + C) / (D + E); // cms/m
-    float rhs = A + alpha * pow(cNode->states[STATE_KW_PO], beta) +
-                stepSeconds * newInWater;
-    for (int itr = 0; itr < 10; itr++)
-    {
-      float resError =
-          (stepSeconds / node->horLen) * estq + alpha * pow(estq, beta) - rhs;
-      if (!std::isfinite(resError))
-      {
-        resError = 0.0;
-      }
-      if (fabsf(resError) < 0.01)
-      {
-        break;
-      }
-      float resErrorD1 =
-          (stepSeconds / node->horLen) + alpha * beta * pow(estq, beta - 1.0);
-      if (!std::isfinite(resErrorD1))
-      {
-        resErrorD1 = 1.0;
-      }
-      estq = estq - resError / resErrorD1;
-      if (estq < 0)
-      {
-        estq = 0.0;
-      }
-    }
-    if (estq < 0)
-    {
-      estq = 0.0;
-    }
-    float newq = estq;
+    float newq = SolveKinematicWave(stepSeconds, node->horLen,
+                                     cNode->incomingWaterOverland,
+                                     cNode->states[STATE_KW_PO], newInWater,
+                                     alpha, beta);
 
     cNode->states[STATE_KW_PO] = newq;
 
@@ -384,55 +351,10 @@ void KWRoute::RouteInt(float stepSeconds, GridNode *node, KWGridNode *cNode,
 
     // Channel Flow
     // Compute Q at current grid point
-    float backDiffQ = 0.0;
-    if (cNode->incomingWaterChannel + cNode->states[STATE_KW_PQ] > 0.0)
-    {
-      backDiffQ =
-          pow((cNode->incomingWaterChannel + cNode->states[STATE_KW_PQ]) / 2.0,
-              beta - 1.0);
-      if (!std::isfinite(backDiffQ))
-      {
-        backDiffQ = 0.0;
-      }
-    }
-
-    A = (stepSeconds / node->horLen) * cNode->incomingWaterChannel;
-    B = alpha * beta * cNode->states[STATE_KW_PQ] * backDiffQ;
-    C = stepSeconds * newq;
-    D = stepSeconds / node->horLen;
-    E = alpha * beta * backDiffQ;
-    float estQ = (A + B + C) / (D + E); // cms
-    rhs =
-        A + alpha * pow(cNode->states[STATE_KW_PQ], beta) + stepSeconds * newq;
-    for (int itr = 0; itr < 10; itr++)
-    {
-      float resError =
-          (stepSeconds / node->horLen) * estQ + alpha * pow(estQ, beta) - rhs;
-      if (!std::isfinite(resError))
-      {
-        resError = 0.0;
-      }
-      if (fabsf(resError) < 0.01)
-      {
-        break;
-      }
-      float resErrorD1 =
-          (stepSeconds / node->horLen) + alpha * beta * pow(estQ, beta - 1.0);
-      if (!std::isfinite(resErrorD1))
-      {
-        resErrorD1 = 1.0;
-      }
-      estQ = estQ - resError / resErrorD1;
-      if (estQ < 0)
-      {
-        estQ = 0.0;
-      }
-    }
-    if (estQ < 0)
-    {
-      estQ = 0.0;
-    }
-    float newWater = estQ;
+    float newWater = SolveKinematicWave(stepSeconds, node->horLen,
+                                     cNode->incomingWaterChannel,
+                                     cNode->states[STATE_KW_PQ], newq,
+                                     alpha, beta);
     cNode->states[STATE_KW_PQ] =
         newWater; // Update previous Q for further routing if "steps" > 1
     if (node->downStreamNode != INVALID_DOWNSTREAM_NODE && !kwNodes[nodes->at(node->downStreamNode).modelIndex].daActive)
