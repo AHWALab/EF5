@@ -68,6 +68,20 @@ static FILE *OpenOutputFile(const char *path, const char *mode)
   return fp;
 }
 
+// The parameter set of a gauge, or NULL if it has none (or there are no
+// settings, e.g. no snow model)
+static float *FindGaugeParams(std::map<GaugeConfigSection *, float *> *settings,
+                              GaugeConfigSection *gauge)
+{
+  if (settings == NULL)
+  {
+    return NULL;
+  }
+  std::map<GaugeConfigSection *, float *>::iterator itr =
+      settings->find(gauge);
+  return (itr != settings->end()) ? itr->second : NULL;
+}
+
 static void BuildZarrStaticName(const char *prefix, const char *baseName,
                                 char *buffer, size_t bufferSize)
 {
@@ -282,45 +296,14 @@ bool Simulator::InitializeBasic(TaskConfigSection *task)
     return false;
   }
 
-  float *defaultParams = NULL, *defaultParamsRoute = NULL,
-        *defaultParamsSnow = NULL, *defaultParamsInundation = NULL;
+  // Parameters of the default gauge (defaultparamsgauge), used for cells
+  // whose own gauge has no parameter set
   GaugeConfigSection *gs = task->GetDefaultGauge();
-  std::map<GaugeConfigSection *, float *>::iterator pitr =
-      paramSettings->find(gs);
-  if (pitr != paramSettings->end())
-  {
-    defaultParams = pitr->second;
-  }
-
-  // Repeat for routing params
-  if (task->GetRouting() != ROUTE_QTY)
-  {
-    pitr = paramSettingsRoute->find(gs);
-    if (pitr != paramSettingsRoute->end())
-    {
-      defaultParamsRoute = pitr->second;
-    }
-  }
-
-  // Repeat for snow params
-  if (task->GetSnow() != SNOW_QTY)
-  {
-    pitr = paramSettingsSnow->find(gs);
-    if (pitr != paramSettingsSnow->end())
-    {
-      defaultParamsSnow = pitr->second;
-    }
-  }
-
-  // Repeat for inundation params
-  if (task->GetInundation() != INUNDATION_QTY)
-  {
-    pitr = paramSettingsInundation->find(gs);
-    if (pitr != paramSettingsInundation->end())
-    {
-      defaultParamsInundation = pitr->second;
-    }
-  }
+  float *defaultParams = FindGaugeParams(paramSettings, gs);
+  float *defaultParamsRoute = FindGaugeParams(paramSettingsRoute, gs);
+  float *defaultParamsSnow = FindGaugeParams(paramSettingsSnow, gs);
+  float *defaultParamsInundation =
+      FindGaugeParams(paramSettingsInundation, gs);
 
   // Carve the basin to find which nodes we're modeling on
   CarveBasin(task->GetBasinSec(), &nodes, paramSettings, &fullParamSettings,
