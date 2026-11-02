@@ -1189,18 +1189,52 @@ float Simulator::GetNumSimulatedYears()
   return numYears;
 }
 
+// Load this step's forcings into currentPrecipSimu, currentPETSimu and
+// currentTempSimu. Pass NULL for a reader to skip that forcing. Missing files
+// are logged and read as zeros. Returns 1 if the precipitation came from a
+// QPF file, 0 otherwise.
 int Simulator::LoadForcings(PrecipReader *precipReader, PETReader *petReader,
                             TempReader *tempReader)
 {
-  char buffer[CONFIG_MAX_LEN * 2], qpfBuffer[CONFIG_MAX_LEN * 2];
-  int retVal = 0;
+  bool withTemp = (sModel != NULL && tempReader != NULL);
+  AdvanceForcingTimes(withTemp);
+
+  // Only used on Windows, where a missing file ends the console line
+  bool allFound = true;
+  if (withTemp && !ReadTemperature(tempReader))
+  {
+    allFound = false;
+  }
+  bool readQPF = false;
+  if (precipReader && !ReadPrecip(precipReader, &readQPF))
+  {
+    allFound = false;
+  }
+  if (petReader)
+  {
+    if (!ReadPET(petReader))
+    {
+      allFound = false;
+    }
 #ifdef _WIN32
-  bool outputError = false;
+    if (!allFound)
+    {
+      NORMAL_LOGF("%s", "\n");
+    }
 #endif
+  }
+  (void)allFound;
+
+  return readQPF ? 1 : 0;
+}
+
+// Move each forcing's clock forward to the current time and update its file
+// name. In long-range mode a precip/QPF frequency shorter than the time step
+// uses the time step, so intermediate files are not looked for.
+void Simulator::AdvanceForcingTimes(bool withTemp)
+{
   if (currentTimePrecip < currentTime)
   {
-    // In long-range mode, if precipitation timestep is smaller than simulation timestep,
-    // use the simulation timestep to avoid looking for intermediate precipitation files
     TimeUnit *effectivePrecipTimeStep = timeStepPrecip;
     if (inLR && timeStepPrecip->GetTimeInSec() < timeStep->GetTimeInSec())
     {
@@ -1213,8 +1247,6 @@ int Simulator::LoadForcings(PrecipReader *precipReader, PETReader *petReader,
 
   if (hasQPF && currentTimeQPF < currentTime)
   {
-    // In long-range mode, if QPF timestep is smaller than simulation timestep,
-    // use the simulation timestep to avoid looking for intermediate QPF files
     TimeUnit *effectiveQPFTimeStep = timeStepQPF;
     if (inLR && timeStepQPF->GetTimeInSec() < timeStep->GetTimeInSec())
     {
@@ -1231,7 +1263,7 @@ int Simulator::LoadForcings(PrecipReader *precipReader, PETReader *petReader,
     petFile->UpdateName(currentTimePET.GetTM());
   }
 
-  if (sModel && tempReader)
+  if (withTemp)
   {
     if (currentTimeTemp < currentTime)
     {
@@ -1244,87 +1276,81 @@ int Simulator::LoadForcings(PrecipReader *precipReader, PETReader *petReader,
       currentTimeTempF.Increment(timeStepTempF);
       tempFFile->UpdateName(currentTimeTempF.GetTM());
     }
-
-    FormatPath(buffer, "%s/%s", tempSec->GetLoc(), tempFile->GetName());
-    if (!tempReader->Read(buffer, tempSec->GetType(), &nodes, &currentTempSimu,
-                          NULL, hasTempF))
-    {
-      if (hasTempF)
-      {
-        FormatPath(qpfBuffer, "%s/%s", tempFSec->GetLoc(), tempFFile->GetName());
-      }
-      if (!hasTempF || !tempReader->Read(qpfBuffer, tempSec->GetType(), &nodes,
-                                         &currentTempSimu, NULL, false))
-      {
-#ifdef _WIN32
-        outputError = true;
-#endif
-        NORMAL_LOGF(" Missing Temp file(%s%s%s)... Assuming zeros.", buffer,
-                    (!hasTempF) ? "" : "; ", (!hasTempF) ? "" : qpfBuffer);
-      }
-    }
   }
+}
 
-  if (precipReader)
+// Read the temperature grid, falling back to the temperature forecast if
+// there is one. Returns false (temperature left as zeros) if neither exists.
+bool Simulator::ReadTemperature(TempReader *tempReader)
+{
+  char buffer[CONFIG_MAX_LEN * 2], forecastBuffer[CONFIG_MAX_LEN * 2];
+  FormatPath(buffer, "%s/%s", tempSec->GetLoc(), tempFile->GetName());
+  if (tempReader->Read(buffer, tempSec->GetType(), &nodes, &currentTempSimu,
+                       NULL, hasTempF))
   {
-    // Prefer QPF during long-range mode; otherwise use QPE. No cross fallback.
-    if (inLR && hasQPF)
-    {
-      // Try to read QPF
-      FormatPath(qpfBuffer, "%s/%s", qpfSec->GetLoc(), qpfFile->GetName());
-      if (precipReader->Read(qpfBuffer, qpfSec->GetType(), &nodes,
-                             &currentPrecipSimu, qpfConvert, NULL, false))
-      {
-
-        retVal = 1;
-      }
-      else
-      {
-#ifdef _WIN32
-        outputError = true;
-#endif
-        NORMAL_LOGF(" Missing precip forecast file(%s)... Assuming zeros.", qpfBuffer);
-        // Count as missing QPF during LR
-        missingQPF = missingQPF + 1;
-      }
-    }
-    else
-    {
-      // Use QPE during non-LR; if missing, assume zeros
-      FormatPath(buffer, "%s/%s", precipSec->GetLoc(), precipFile->GetName());
-      if (!precipReader->Read(buffer, precipSec->GetType(), &nodes,
-                              &currentPrecipSimu, precipConvert, NULL, false))
-      {
-#ifdef _WIN32
-        outputError = true;
-#endif
-        NORMAL_LOGF(" Missing precip file(%s)... Assuming zeros.", buffer);
-        missingQPE = missingQPE + 1;
-      }
-    }
+    return true;
   }
-
-  if (petReader)
+  if (hasTempF)
   {
-    FormatPath(buffer, "%s/%s", petSec->GetLoc(), petFile->GetName());
-    if (!petReader->Read(buffer, petSec->GetType(), &nodes, &currentPETSimu,
-                         petConvert, petSec->IsTemperature(),
-                         (float)currentTime.GetTM()->tm_yday))
+    FormatPath(forecastBuffer, "%s/%s", tempFSec->GetLoc(),
+               tempFFile->GetName());
+    if (tempReader->Read(forecastBuffer, tempSec->GetType(), &nodes,
+                         &currentTempSimu, NULL, false))
     {
-#ifdef _WIN32
-      outputError = true;
-#endif
-      NORMAL_LOGF(" Missing PET file(%s)... Assuming zeros.", buffer);
+      return true;
     }
-#ifdef _WIN32
-    if (outputError)
+  }
+  NORMAL_LOGF(" Missing Temp file(%s%s%s)... Assuming zeros.", buffer,
+              (!hasTempF) ? "" : "; ", (!hasTempF) ? "" : forecastBuffer);
+  return false;
+}
+
+// Read this step's precipitation: QPF in long-range mode (if there is a QPF
+// forcing), QPE otherwise; there is no fallback between the two. A missing
+// file is counted in missingQPF/missingQPE and returns false. Sets *readQPF
+// when a QPF file was read.
+bool Simulator::ReadPrecip(PrecipReader *precipReader, bool *readQPF)
+{
+  char buffer[CONFIG_MAX_LEN * 2];
+  *readQPF = false;
+  if (inLR && hasQPF)
+  {
+    FormatPath(buffer, "%s/%s", qpfSec->GetLoc(), qpfFile->GetName());
+    if (precipReader->Read(buffer, qpfSec->GetType(), &nodes,
+                           &currentPrecipSimu, qpfConvert, NULL, false))
     {
-      NORMAL_LOGF("%s", "\n");
+      *readQPF = true;
+      return true;
     }
-#endif
+    NORMAL_LOGF(" Missing precip forecast file(%s)... Assuming zeros.", buffer);
+    missingQPF = missingQPF + 1;
+    return false;
   }
 
-  return retVal;
+  FormatPath(buffer, "%s/%s", precipSec->GetLoc(), precipFile->GetName());
+  if (precipReader->Read(buffer, precipSec->GetType(), &nodes,
+                         &currentPrecipSimu, precipConvert, NULL, false))
+  {
+    return true;
+  }
+  NORMAL_LOGF(" Missing precip file(%s)... Assuming zeros.", buffer);
+  missingQPE = missingQPE + 1;
+  return false;
+}
+
+// Read the PET grid. Returns false (PET left as zeros) if it is missing.
+bool Simulator::ReadPET(PETReader *petReader)
+{
+  char buffer[CONFIG_MAX_LEN * 2];
+  FormatPath(buffer, "%s/%s", petSec->GetLoc(), petFile->GetName());
+  if (petReader->Read(buffer, petSec->GetType(), &nodes, &currentPETSimu,
+                      petConvert, petSec->IsTemperature(),
+                      (float)currentTime.GetTM()->tm_yday))
+  {
+    return true;
+  }
+  NORMAL_LOGF(" Missing PET file(%s)... Assuming zeros.", buffer);
+  return false;
 }
 
 void Simulator::SaveLP3Params()

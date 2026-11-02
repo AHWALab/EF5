@@ -61,6 +61,10 @@ private:
     float GetNumSimulatedYears();
     int LoadForcings(PrecipReader *precipReader, PETReader *petReader,
                      TempReader *tempReader);
+    void AdvanceForcingTimes(bool withTemp);
+    bool ReadTemperature(TempReader *tempReader);
+    bool ReadPrecip(PrecipReader *precipReader, bool *readQPF);
+    bool ReadPET(PETReader *petReader);
     void SaveLP3Params();
     void SaveTSOutput();
     bool IsOutputTS();
