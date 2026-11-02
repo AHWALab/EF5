@@ -29,6 +29,44 @@
 #include <algorithm>
 #include <iostream>
 #include <memory>
+#include <cerrno>
+#include <cstdarg>
+#include <cstdlib>
+
+// sprintf into a char array, but stop with an error if the result does not
+// fit (sprintf would write past the end of the array). Only accepts real
+// arrays, so the size is always right.
+template <size_t N>
+static void FormatPath(char (&buffer)[N], const char *format, ...)
+    __attribute__((format(printf, 2, 3)));
+
+template <size_t N>
+static void FormatPath(char (&buffer)[N], const char *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  int len = vsnprintf(buffer, N, format, args);
+  va_end(args);
+  if (len < 0 || (size_t)len >= N)
+  {
+    ERROR_LOGF("Path is too long (%i characters, the limit is %i): %s...", len,
+               (int)N - 1, buffer);
+    exit(1);
+  }
+}
+
+// fopen for files EF5 writes; stops with an error if the file cannot be
+// opened instead of crashing on the first write
+static FILE *OpenOutputFile(const char *path, const char *mode)
+{
+  FILE *fp = fopen(path, mode);
+  if (fp == NULL)
+  {
+    ERROR_LOGF("Cannot open %s for writing: %s", path, strerror(errno));
+    exit(1);
+  }
+  return fp;
+}
 
 static void BuildZarrStaticName(const char *prefix, const char *baseName,
                                 char *buffer, size_t bufferSize)
@@ -474,9 +512,9 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
     gaugeOutputs[i] = NULL;
     if (gauges->at(i)->OutputTS())
     {
-      sprintf(buffer, "%s/ts.%s.%s.csv", task->GetOutput(),
-              gauges->at(i)->GetName(), wbModel->GetName());
-      gaugeOutputs[i] = fopen(buffer, "w");
+      FormatPath(buffer, "%s/ts.%s.%s.csv", task->GetOutput(),
+                 gauges->at(i)->GetName(), wbModel->GetName());
+      gaugeOutputs[i] = OpenOutputFile(buffer, "w");
       if (gaugeOutputs[i])
       {
         fprintf(gaugeOutputs[i], "%s",
@@ -537,7 +575,7 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
     currentPrecipCali.resize(totalTimeSteps);
     currentPETCali.resize(totalTimeSteps);
     currentTempCali.resize(totalTimeSteps);
-    sprintf(buffer, "%s/%s", task->GetOutput(), task->GetPreloadForcings());
+    FormatPath(buffer, "%s/%s", task->GetOutput(), task->GetPreloadForcings());
     INFO_LOGF("Preloading forcing from file %s", buffer);
     PreloadForcings(buffer, false);
     currentTime = beginTime;
@@ -839,14 +877,14 @@ void Simulator::BasinAvg(const char *inputDir)
   {
     avgVals[i] = nodes[i].relief - g_DEM->data[nodes[i].y][nodes[i].x];
   }
-  sprintf(buffer, "%s/relief.tif", outputPath);
+  FormatPath(buffer, "%s/relief.tif", outputPath);
   gridWriter.WriteGrid(&nodes, &avgVals, buffer, false);
 
   for (long i = numNodes - 1; i >= 0; i--)
   {
     avgVals[i] = avgVals[i] / nodes[i].riverLen;
   }
-  sprintf(buffer, "%s/relief.ratio.tif", outputPath);
+  FormatPath(buffer, "%s/relief.ratio.tif", outputPath);
   gridWriter.WriteGrid(&nodes, &avgVals, buffer, false);
 
   if ((dir = opendir(inputDir)) == NULL)
@@ -870,7 +908,7 @@ void Simulator::BasinAvg(const char *inputDir)
     {
       continue;
     }
-    sprintf(buffer, "%s/%s", inputDir, ent->d_name);
+    FormatPath(buffer, "%s/%s", inputDir, ent->d_name);
     INFO_LOGF("Averaging file %s", buffer);
     FloatGrid *fileGrid = ReadFloatTifGrid(buffer);
     if (!fileGrid)
@@ -936,7 +974,7 @@ void Simulator::BasinAvg(const char *inputDir)
       areaVals[i] = 0.0;
     }
 
-    sprintf(buffer, "%s/%s.avg.tif", outputPath, ent->d_name);
+    FormatPath(buffer, "%s/%s.avg.tif", outputPath, ent->d_name);
     gridWriter.WriteGrid(&nodes, &avgVals, buffer, false);
     for (long i = numNodes - 1; i >= 0; i--)
     {
@@ -950,14 +988,14 @@ void Simulator::BasinAvg(const char *inputDir)
   {
     avgVals[i] = nodes[i].contribArea;
   }
-  sprintf(buffer, "%s/basin.area.tif", outputPath);
+  FormatPath(buffer, "%s/basin.area.tif", outputPath);
   gridWriter.WriteGrid(&nodes, &avgVals, buffer, false);
 
   for (long i = numNodes - 1; i >= 0; i--)
   {
     avgVals[i] = nodes[i].riverLen;
   }
-  sprintf(buffer, "%s/river.length.tif", outputPath);
+  FormatPath(buffer, "%s/river.length.tif", outputPath);
   gridWriter.WriteGrid(&nodes, &avgVals, buffer, false);
 }
 
@@ -1006,7 +1044,7 @@ void Simulator::BasinAvgPrecip()
       }
     }
 
-    sprintf(buffer, "%s/precip.%s.avg.tif", outputPath, currentTimeTextOutput.GetName());
+    FormatPath(buffer, "%s/precip.%s.avg.tif", outputPath, currentTimeTextOutput.GetName());
     gridWriter.WriteGrid(&nodes, &avgVals, buffer, false);
 
     for (long i = numNodes - 1; i >= 0; i--)
@@ -1044,7 +1082,7 @@ void Simulator::BasinAvgPrecip()
     avgVals[i] = 0.3012 * powf(avgVals[i], 1.1894);
     // avgVals[i] = 8.24*powf(areaUsed, -0.57)*nodes[i].contribArea;
   }
-  sprintf(buffer, "%s/actionFloodThresPrecip.tif", outputPath);
+  FormatPath(buffer, "%s/actionFloodThresPrecip.tif", outputPath);
   gridWriter.WriteGrid(&nodes, &avgVals, buffer, false);
 
   for (long i = numNodes - 1; i >= 0; i--)
@@ -1055,7 +1093,7 @@ void Simulator::BasinAvgPrecip()
     avgVals[i] = 0.3012 * powf(avgVals[i], 1.1894);
     // avgVals[i] = 8.24*powf(areaUsed, -0.57)*nodes[i].contribArea;
   }
-  sprintf(buffer, "%s/minorFloodThresPrecip.tif", outputPath);
+  FormatPath(buffer, "%s/minorFloodThresPrecip.tif", outputPath);
   gridWriter.WriteGrid(&nodes, &avgVals, buffer, false);
 
   for (long i = numNodes - 1; i >= 0; i--)
@@ -1066,7 +1104,7 @@ void Simulator::BasinAvgPrecip()
     avgVals[i] = 0.3012 * powf(avgVals[i], 1.1894);
     // avgVals[i] = 8.24*powf(areaUsed, -0.57)*nodes[i].contribArea;
   }
-  sprintf(buffer, "%s/moderateFloodThresPrecip.tif", outputPath);
+  FormatPath(buffer, "%s/moderateFloodThresPrecip.tif", outputPath);
   gridWriter.WriteGrid(&nodes, &avgVals, buffer, false);
 
   for (long i = numNodes - 1; i >= 0; i--)
@@ -1076,7 +1114,7 @@ void Simulator::BasinAvgPrecip()
     avgVals[i] = 0.001995269 * powf(areaUsed, -0.47) * powf(currentPrecipSimu[i], 1.25) * nodes[i].contribArea;
     avgVals[i] = 0.3012 * powf(avgVals[i], 1.1894);
   }
-  sprintf(buffer, "%s/majorFloodThresPrecip.tif", outputPath);
+  FormatPath(buffer, "%s/majorFloodThresPrecip.tif", outputPath);
   gridWriter.WriteGrid(&nodes, &avgVals, buffer, false);
 
   for (long i = numNodes - 1; i >= 0; i--)
@@ -1085,7 +1123,7 @@ void Simulator::BasinAvgPrecip()
     areaUsed = (areaUsed < 3.0) ? 3.0 : areaUsed;
     avgVals[i] = 8.502339237 * powf(areaUsed, -0.57) * nodes[i].contribArea;
   }
-  sprintf(buffer, "%s/minorFloodThres.tif", outputPath);
+  FormatPath(buffer, "%s/minorFloodThres.tif", outputPath);
   gridWriter.WriteGrid(&nodes, &avgVals, buffer, false);
 
 }
@@ -1176,13 +1214,13 @@ int Simulator::LoadForcings(PrecipReader *precipReader, PETReader *petReader,
       tempFFile->UpdateName(currentTimeTempF.GetTM());
     }
 
-    sprintf(buffer, "%s/%s", tempSec->GetLoc(), tempFile->GetName());
+    FormatPath(buffer, "%s/%s", tempSec->GetLoc(), tempFile->GetName());
     if (!tempReader->Read(buffer, tempSec->GetType(), &nodes, &currentTempSimu,
                           NULL, hasTempF))
     {
       if (hasTempF)
       {
-        sprintf(qpfBuffer, "%s/%s", tempFSec->GetLoc(), tempFFile->GetName());
+        FormatPath(qpfBuffer, "%s/%s", tempFSec->GetLoc(), tempFFile->GetName());
       }
       if (!hasTempF || !tempReader->Read(qpfBuffer, tempSec->GetType(), &nodes,
                                          &currentTempSimu, NULL, false))
@@ -1202,7 +1240,7 @@ int Simulator::LoadForcings(PrecipReader *precipReader, PETReader *petReader,
     if (inLR && hasQPF)
     {
       // Try to read QPF
-      sprintf(qpfBuffer, "%s/%s", qpfSec->GetLoc(), qpfFile->GetName());
+      FormatPath(qpfBuffer, "%s/%s", qpfSec->GetLoc(), qpfFile->GetName());
       if (precipReader->Read(qpfBuffer, qpfSec->GetType(), &nodes,
                              &currentPrecipSimu, qpfConvert, NULL, false))
       {
@@ -1222,7 +1260,7 @@ int Simulator::LoadForcings(PrecipReader *precipReader, PETReader *petReader,
     else
     {
       // Use QPE during non-LR; if missing, assume zeros
-      sprintf(buffer, "%s/%s", precipSec->GetLoc(), precipFile->GetName());
+      FormatPath(buffer, "%s/%s", precipSec->GetLoc(), precipFile->GetName());
       if (!precipReader->Read(buffer, precipSec->GetType(), &nodes,
                               &currentPrecipSimu, precipConvert, NULL, false))
       {
@@ -1237,7 +1275,7 @@ int Simulator::LoadForcings(PrecipReader *precipReader, PETReader *petReader,
 
   if (petReader)
   {
-    sprintf(buffer, "%s/%s", petSec->GetLoc(), petFile->GetName());
+    FormatPath(buffer, "%s/%s", petSec->GetLoc(), petFile->GetName());
     if (!petReader->Read(buffer, petSec->GetType(), &nodes, &currentPETSimu,
                          petConvert, petSec->IsTemperature(),
                          (float)currentTime.GetTM()->tm_yday))
@@ -1312,13 +1350,13 @@ void Simulator::SaveLP3Params()
     csGrid[i] = csNum / csDom;
   }
 
-  sprintf(buffer, "%s/avgq.%s.tif", outputPath, wbModel->GetName());
+  FormatPath(buffer, "%s/avgq.%s.tif", outputPath, wbModel->GetName());
   gridWriter.WriteGrid(&nodes, &avgGrid, buffer, false);
 
-  sprintf(buffer, "%s/stdq.%s.tif", outputPath, wbModel->GetName());
+  FormatPath(buffer, "%s/stdq.%s.tif", outputPath, wbModel->GetName());
   gridWriter.WriteGrid(&nodes, &stdGrid, buffer, false);
 
-  sprintf(buffer, "%s/sc.%s.tif", outputPath, wbModel->GetName());
+  FormatPath(buffer, "%s/sc.%s.tif", outputPath, wbModel->GetName());
   gridWriter.WriteGrid(&nodes, &csGrid, buffer, false);
 }
 
@@ -1427,9 +1465,9 @@ void Simulator::LoadDAFile(TaskConfigSection *task)
 
 void Simulator::AssimilateData()
 {
-  char buffer[254];
-  sprintf(buffer, "%s/da_log.csv", task->GetOutput());
-  FILE *fp = fopen(buffer, "a");
+  char buffer[CONFIG_MAX_LEN * 2];
+  FormatPath(buffer, "%s/da_log.csv", task->GetOutput());
+  FILE *fp = OpenOutputFile(buffer, "a");
   for (size_t i = 0; i < gauges->size(); i++)
   {
     GaugeConfigSection *gauge = gauges->at(i);
@@ -1455,7 +1493,7 @@ void Simulator::OutputCombinedOutput()
   {
     return;
   }
-  FILE *fp = fopen(task->GetCOFile(), "a");
+  FILE *fp = OpenOutputFile(task->GetCOFile(), "a");
   for (size_t i = 0; i < gauges->size(); i++)
   {
     GaugeConfigSection *gauge = gauges->at(i);
@@ -1668,8 +1706,8 @@ bool Simulator::WriteTimeStepGrid(const char *name, const char *modelName,
                                          inLR ? 1 : 0, grid);
   }
   char buffer[CONFIG_MAX_LEN * 2];
-  sprintf(buffer, "%s/%s.%s.%s.tif", outputPath, name,
-          currentTimeTextOutput.GetName(), modelName);
+  FormatPath(buffer, "%s/%s.%s.%s.tif", outputPath, name,
+             currentTimeTextOutput.GetName(), modelName);
   gridWriter.WriteGrid(&nodes, grid, buffer, false);
   return true;
 }
@@ -1687,9 +1725,9 @@ bool Simulator::WriteEndOfRunGrid(const char *prefix, const char *name,
   }
   char buffer[CONFIG_MAX_LEN * 2];
   tm *ctWE = warmEndTime.GetTM();
-  sprintf(buffer, "%s/%s%s.%04i%02i%02i.%02i%02i%02i.tif", outputPath, prefix,
-          name, ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
-          ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
+  FormatPath(buffer, "%s/%s%s.%04i%02i%02i.%02i%02i%02i.tif", outputPath, prefix,
+             name, ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
+             ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
   gridWriter.WriteGrid(&nodes, grid, buffer, false);
   return true;
 }
@@ -2253,8 +2291,8 @@ bool Simulator::WriteTimeStepOutputs()
       }
       else
       {
-        sprintf(buffer, "%s/handcatchment.%s.tif", outputPath,
-                iModel->GetName());
+        FormatPath(buffer, "%s/handcatchment.%s.tif", outputPath,
+                   iModel->GetName());
         gridWriter.WriteGrid(&nodes, &handcatchment, buffer, false);
       }
     }
@@ -2374,8 +2412,8 @@ bool Simulator::WriteEndOfRunOutputs()
 void Simulator::WriteResultsJson(double runTimeSeconds)
 {
   char buffer[CONFIG_MAX_LEN * 2];
-  sprintf(buffer, "%s/results.json", task->GetOutput());
-  FILE *fp = fopen(buffer, "w");
+  FormatPath(buffer, "%s/results.json", task->GetOutput());
+  FILE *fp = OpenOutputFile(buffer, "w");
   fprintf(fp, "{\n\"missingQPE\": %i,\n\"missingQPF\": %i", missingQPE,
           missingQPF);
 #if _OPENMP
@@ -2496,14 +2534,14 @@ void Simulator::SimulateLumped()
       precipFile->UpdateName(currentTimePrecip.GetTM());
       petFile->UpdateName(currentTimePET.GetTM());
 
-      sprintf(buffer, "%s/%s", precipSec->GetLoc(), precipFile->GetName());
+      FormatPath(buffer, "%s/%s", precipSec->GetLoc(), precipFile->GetName());
       if (!precipReader.Read(buffer, precipSec->GetType(), &nodes,
                              &currentPrecipSimu, precipConvert))
       {
         printf(" Missing precip file(%s)... Assuming zeros.", buffer);
       }
 
-      sprintf(buffer, "%s/%s", petSec->GetLoc(), petFile->GetName());
+      FormatPath(buffer, "%s/%s", petSec->GetLoc(), petFile->GetName());
       if (!petReader.Read(buffer, petSec->GetType(), &nodes, &currentPETSimu,
                           petConvert, petSec->IsTemperature(),
                           (float)currentTime.GetTM()->tm_yday))
@@ -2651,7 +2689,7 @@ void Simulator::PreloadForcings(char *file, bool cali)
       readVec.resize(nodes.size());
       std::vector<float> *vec, *vecPrev = NULL;
 
-      sprintf(buffer, "%s/%s", precipSec->GetLoc(), precipFile->GetName());
+      FormatPath(buffer, "%s/%s", precipSec->GetLoc(), precipFile->GetName());
       vec = &(currentPrecipCali[tsIndex]);
       if (tsIndex > 0)
       {
@@ -2668,7 +2706,7 @@ void Simulator::PreloadForcings(char *file, bool cali)
       }
       gaugeMap.GaugeAverage(&nodes, &readVec, vec);
 
-      sprintf(buffer, "%s/%s", petSec->GetLoc(), petFile->GetName());
+      FormatPath(buffer, "%s/%s", petSec->GetLoc(), petFile->GetName());
       vec = &(currentPETCali[tsIndex]);
       if (tsIndex > 0)
       {
@@ -2690,7 +2728,7 @@ void Simulator::PreloadForcings(char *file, bool cali)
     {
       std::vector<float> *vec, *vecPrev;
 
-      sprintf(buffer, "%s/%s", precipSec->GetLoc(), precipFile->GetName());
+      FormatPath(buffer, "%s/%s", precipSec->GetLoc(), precipFile->GetName());
       vec = &(currentPrecipCali[tsIndex]);
       if (tsIndex > 0)
       {
@@ -2706,7 +2744,7 @@ void Simulator::PreloadForcings(char *file, bool cali)
         NORMAL_LOGF("Missing precip file(%s)... Assuming zeros.\n", buffer);
       }
 
-      sprintf(buffer, "%s/%s", petSec->GetLoc(), petFile->GetName());
+      FormatPath(buffer, "%s/%s", petSec->GetLoc(), petFile->GetName());
       vec = &(currentPETCali[tsIndex]);
       if (tsIndex > 0)
       {
@@ -2725,7 +2763,7 @@ void Simulator::PreloadForcings(char *file, bool cali)
 
       if (sModel)
       {
-        sprintf(buffer, "%s/%s", tempSec->GetLoc(), tempFile->GetName());
+        FormatPath(buffer, "%s/%s", tempSec->GetLoc(), tempFile->GetName());
         vec = &(currentTempCali[tsIndex]);
         if (tsIndex > 0)
         {
