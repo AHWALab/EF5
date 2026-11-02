@@ -42,6 +42,9 @@ private:
     bool InitializeNodes(TaskConfigSection *task);
     bool CreateModels(TaskConfigSection *task);
     bool InitializeSimu(TaskConfigSection *task);
+    bool ReadLP3Grids(TaskConfigSection *task);
+    void OpenGaugeOutputs(TaskConfigSection *task);
+    void CountTimeSteps();
     bool InitializeCali(TaskConfigSection *task);
     bool InitializeGridParams(TaskConfigSection *task);
 

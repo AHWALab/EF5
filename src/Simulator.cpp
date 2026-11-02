@@ -488,31 +488,7 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
   currentTempSimu.resize(nodes.size());
   if (!wbModel->IsLumped())
   {
-    if (task->GetStdGrid()[0] && task->GetAvgGrid()[0] &&
-        task->GetScGrid()[0])
-    {
-      std::vector<float> avgVals, stdVals, scVals;
-      avgVals.resize(nodes.size());
-      stdVals.resize(nodes.size());
-      scVals.resize(nodes.size());
-      if (ReadLP3File(task->GetStdGrid(), &nodes, &stdVals) &&
-          ReadLP3File(task->GetAvgGrid(), &nodes, &avgVals) &&
-          ReadLP3File(task->GetScGrid(), &nodes, &scVals))
-      {
-        outputRP = true;
-        rpData.resize(nodes.size());
-        CalcLP3Vals(&stdVals, &avgVals, &scVals, &rpData, &nodes);
-      }
-      else
-      {
-        ERROR_LOGF("%s", "Failed to load LP3 grids!");
-        outputRP = false;
-      }
-    }
-    else
-    {
-      outputRP = false;
-    }
+    outputRP = ReadLP3Grids(task);
     currentFF.resize(nodes.size());
     currentSF.resize(nodes.size());
     currentQ.resize(nodes.size());
@@ -529,42 +505,7 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
     currentSWE.resize(lumpedNodes.size());
   }
 
-  // Initialize file handles for all of the gauges we are using! Also load the
-  // time series information if appropriate.
-  gaugeOutputs.resize(gauges->size());
-  for (size_t i = 0; i < gauges->size(); i++)
-  {
-    gaugeOutputs[i] = NULL;
-    if (gauges->at(i)->OutputTS())
-    {
-      FormatPath(buffer, "%s/ts.%s.%s.csv", task->GetOutput(),
-                 gauges->at(i)->GetName(), wbModel->GetName());
-      gaugeOutputs[i] = OpenOutputFile(buffer, "w");
-      if (gaugeOutputs[i])
-      {
-        fprintf(gaugeOutputs[i], "%s",
-                "Time,Discharge(m^3 s^-1),Observed(m^3 s^-1),Precip(mm "
-                "h^-1),PET(mm h^-1),SM(%),Fast Flow(mm*1000),Slow "
-                "Flow(mm*1000)");
-        if (sModel)
-        {
-          fprintf(gaugeOutputs[i], "%s", ",Temperature (C),SWE(mm)");
-        }
-        if (outputRP)
-        {
-          fprintf(gaugeOutputs[i], "%s", ",Return Period(y)");
-        }
-        fprintf(gaugeOutputs[i], "%s", "\n");
-      }
-      else
-      {
-        WARNING_LOGF("Failed to open gauge output file \"%s\"", buffer);
-      }
-    }
-
-    // Tell this gauge to load the observed data file
-    gauges->at(i)->LoadTS();
-  }
+  OpenGaugeOutputs(task);
 
   outputPath = task->GetOutput();
   if (useStates)
@@ -573,27 +514,7 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
     stateTime = *(task->GetTimeState());
   }
 
-  totalTimeSteps = 0;
-  totalTimeStepsOutsideWarm = 0;
-  {
-    TimeVar countTime = beginTime;
-    TimeUnit *countTimeStep = timeStepSR;
-    bool countInLR = false;
-    for (countTime.Increment(countTimeStep); countTime <= endTime;
-         countTime.Increment(countTimeStep))
-    {
-      if (timeStepLR && !countInLR && beginLRTime <= countTime)
-      {
-        countInLR = true;
-        countTimeStep = timeStepLR;
-      }
-      totalTimeSteps++;
-      if (warmEndTime <= countTime)
-      {
-        totalTimeStepsOutsideWarm++;
-      }
-    }
-  }
+  CountTimeSteps();
 
   if ((task->GetPreloadForcings())[0])
   {
@@ -612,6 +533,91 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
   }
 
   return true;
+}
+
+// Read the LP3 return-period grids (RP_STDGRID, RP_AVGGRID, RP_CSGRID).
+// Returns true if all three were given and read, i.e. return periods can be
+// output.
+bool Simulator::ReadLP3Grids(TaskConfigSection *task)
+{
+  if (!(task->GetStdGrid()[0] && task->GetAvgGrid()[0] &&
+        task->GetScGrid()[0]))
+  {
+    return false;
+  }
+  std::vector<float> avgVals, stdVals, scVals;
+  avgVals.resize(nodes.size());
+  stdVals.resize(nodes.size());
+  scVals.resize(nodes.size());
+  if (ReadLP3File(task->GetStdGrid(), &nodes, &stdVals) &&
+      ReadLP3File(task->GetAvgGrid(), &nodes, &avgVals) &&
+      ReadLP3File(task->GetScGrid(), &nodes, &scVals))
+  {
+    rpData.resize(nodes.size());
+    CalcLP3Vals(&stdVals, &avgVals, &scVals, &rpData, &nodes);
+    return true;
+  }
+  ERROR_LOGF("%s", "Failed to load LP3 grids!");
+  return false;
+}
+
+// Create ts.<gauge>.<model>.csv (with its header line) for every gauge with
+// OUTPUTTS, and load each gauge's observed time series
+void Simulator::OpenGaugeOutputs(TaskConfigSection *task)
+{
+  char buffer[CONFIG_MAX_LEN * 2];
+  gaugeOutputs.resize(gauges->size());
+  for (size_t i = 0; i < gauges->size(); i++)
+  {
+    gaugeOutputs[i] = NULL;
+    if (gauges->at(i)->OutputTS())
+    {
+      FormatPath(buffer, "%s/ts.%s.%s.csv", task->GetOutput(),
+                 gauges->at(i)->GetName(), wbModel->GetName());
+      gaugeOutputs[i] = OpenOutputFile(buffer, "w");
+      fprintf(gaugeOutputs[i], "%s",
+              "Time,Discharge(m^3 s^-1),Observed(m^3 s^-1),Precip(mm "
+              "h^-1),PET(mm h^-1),SM(%),Fast Flow(mm*1000),Slow "
+              "Flow(mm*1000)");
+      if (sModel)
+      {
+        fprintf(gaugeOutputs[i], "%s", ",Temperature (C),SWE(mm)");
+      }
+      if (outputRP)
+      {
+        fprintf(gaugeOutputs[i], "%s", ",Return Period(y)");
+      }
+      fprintf(gaugeOutputs[i], "%s", "\n");
+    }
+
+    // Tell this gauge to load the observed data file
+    gauges->at(i)->LoadTS();
+  }
+}
+
+// Count the time steps from begin to end (switching to the long-range time
+// step at TIME_BEGIN_LR, as the run does), in total and after warm-up
+void Simulator::CountTimeSteps()
+{
+  totalTimeSteps = 0;
+  totalTimeStepsOutsideWarm = 0;
+  TimeVar countTime = beginTime;
+  TimeUnit *countTimeStep = timeStepSR;
+  bool countInLR = false;
+  for (countTime.Increment(countTimeStep); countTime <= endTime;
+       countTime.Increment(countTimeStep))
+  {
+    if (timeStepLR && !countInLR && beginLRTime <= countTime)
+    {
+      countInLR = true;
+      countTimeStep = timeStepLR;
+    }
+    totalTimeSteps++;
+    if (warmEndTime <= countTime)
+    {
+      totalTimeStepsOutsideWarm++;
+    }
+  }
 }
 
 bool Simulator::InitializeCali(TaskConfigSection *task)
