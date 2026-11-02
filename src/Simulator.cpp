@@ -148,115 +148,12 @@ bool Simulator::Initialize(TaskConfigSection *taskN)
 
 bool Simulator::InitializeBasic(TaskConfigSection *task)
 {
-  // Initialize time step information
-  inLR = false;
-  timeStep = task->GetTimeStep();
-  timeStepSR = task->GetTimeStep();
-  timeStepLR = task->GetTimeStepLR();
-  timeStepPrecip = task->GetPrecipSec()->GetFreq();
-  if (task->GetQPFSec())
+  if (!InitializeTimeSteps(task))
   {
-    hasQPF = true;
-    timeStepQPF = task->GetQPFSec()->GetFreq();
-  }
-  else
-  {
-    hasQPF = false;
-  }
-  timeStepPET = task->GetPETSec()->GetFreq();
-
-  if (task->GetSnow() != SNOW_QTY)
-  {
-    timeStepTemp = task->GetTempSec()->GetFreq();
-    if (task->GetTempFSec())
-    {
-      hasTempF = true;
-      timeStepTempF = task->GetTempFSec()->GetFreq();
-    }
-    else
-    {
-      hasTempF = false;
-    }
-  }
-  else
-  {
-    timeStepTemp = NULL;
-  }
-
-  if (timeStepPrecip->GetTimeInSec() < timeStep->GetTimeInSec())
-  {
-    ERROR_LOG("The time step for precipitation must be greater or equal to the overall time step.");
     return false;
   }
 
-  if (timeStepPET->GetTimeInSec() < timeStep->GetTimeInSec())
-  {
-    ERROR_LOG("The time step for PET must be greater or equal to the overall time step.");
-    return false;
-  }
-
-  // Initialize unit converters
-  precipConvert =
-      (3600.0 / (float)task->GetPrecipSec()->GetUnitTime()->GetTimeInSec());
-  if (hasQPF)
-  {
-    qpfConvert =
-        (3600.0 / (float)task->GetQPFSec()->GetUnitTime()->GetTimeInSec());
-  }
-  if (!task->GetPETSec()->IsTemperature())
-  {
-    petConvert =
-        (3600.0 / (float)task->GetPETSec()->GetUnitTime()->GetTimeInSec());
-  }
-  else
-  {
-    petConvert = 1.0;
-  }
-  timeStepHours = timeStep->GetTimeInSec() / 3600.0;
-
-  if (timeStepLR)
-  {
-    timeStepHoursLR = timeStepLR->GetTimeInSec() / 3600.0;
-    beginLRTime = *(task->GetTimeBeginLR());
-  }
-
-  // Initialize time information
-  currentTime = *(task->GetTimeBegin());
-  currentTimePrecip = *(task->GetTimeBegin());
-  currentTimeQPF = *(task->GetTimeBegin());
-  currentTimePET = *(task->GetTimeBegin());
-  currentTimeTemp = *(task->GetTimeBegin());
-  currentTimeTempF = *(task->GetTimeBegin());
-  beginTime = *(task->GetTimeBegin());
-  endTime = *(task->GetTimeEnd());
-  warmEndTime = *(task->GetTimeWarmEnd());
-
-  // Initialize file name information
-  precipFile = task->GetPrecipSec()->GetFileName();
-  if (hasQPF)
-  {
-    qpfFile = task->GetQPFSec()->GetFileName();
-  }
-  petFile = task->GetPETSec()->GetFileName();
-  if (task->GetSnow() != SNOW_QTY)
-  {
-    tempFile = task->GetTempSec()->GetFileName();
-    if (hasTempF)
-    {
-      tempFFile = task->GetTempFSec()->GetFileName();
-    }
-  }
-  currentTimeText.SetNameStr("YYYY-MM-DD HH:UU");
-  currentTimeText.ProcessNameLoose(NULL);
-  currentTimeTextOutput.SetNameStr("YYYYMMDD_HHUU");
-  currentTimeTextOutput.ProcessNameLoose(NULL);
-
-  // Set forcing info
-  precipSec = task->GetPrecipSec();
-  petSec = task->GetPETSec();
-  qpfSec = task->GetQPFSec();
-  tempSec = task->GetTempSec();
-  tempFSec = task->GetTempFSec();
+  InitializeForcingFiles(task);
 
   // Initialize our gauges
   gauges = task->GetBasinSec()->GetGauges();
@@ -417,6 +314,127 @@ bool Simulator::InitializeBasic(TaskConfigSection *task)
   }
 
   return true;
+}
+
+// Time steps (checked against the forcing frequencies), unit conversions
+// and the begin, end, warm-up and long-range times
+bool Simulator::InitializeTimeSteps(TaskConfigSection *task)
+{
+  // Initialize time step information
+  inLR = false;
+  timeStep = task->GetTimeStep();
+  timeStepSR = task->GetTimeStep();
+  timeStepLR = task->GetTimeStepLR();
+  timeStepPrecip = task->GetPrecipSec()->GetFreq();
+  if (task->GetQPFSec())
+  {
+    hasQPF = true;
+    timeStepQPF = task->GetQPFSec()->GetFreq();
+  }
+  else
+  {
+    hasQPF = false;
+  }
+  timeStepPET = task->GetPETSec()->GetFreq();
+
+  if (task->GetSnow() != SNOW_QTY)
+  {
+    timeStepTemp = task->GetTempSec()->GetFreq();
+    if (task->GetTempFSec())
+    {
+      hasTempF = true;
+      timeStepTempF = task->GetTempFSec()->GetFreq();
+    }
+    else
+    {
+      hasTempF = false;
+    }
+  }
+  else
+  {
+    timeStepTemp = NULL;
+  }
+
+  if (timeStepPrecip->GetTimeInSec() < timeStep->GetTimeInSec())
+  {
+    ERROR_LOG("The time step for precipitation must be greater or equal to the overall time step.");
+    return false;
+  }
+
+  if (timeStepPET->GetTimeInSec() < timeStep->GetTimeInSec())
+  {
+    ERROR_LOG("The time step for PET must be greater or equal to the overall time step.");
+    return false;
+  }
+
+  // Initialize unit converters
+  precipConvert =
+      (3600.0 / (float)task->GetPrecipSec()->GetUnitTime()->GetTimeInSec());
+  if (hasQPF)
+  {
+    qpfConvert =
+        (3600.0 / (float)task->GetQPFSec()->GetUnitTime()->GetTimeInSec());
+  }
+  if (!task->GetPETSec()->IsTemperature())
+  {
+    petConvert =
+        (3600.0 / (float)task->GetPETSec()->GetUnitTime()->GetTimeInSec());
+  }
+  else
+  {
+    petConvert = 1.0;
+  }
+  timeStepHours = timeStep->GetTimeInSec() / 3600.0;
+
+  if (timeStepLR)
+  {
+    timeStepHoursLR = timeStepLR->GetTimeInSec() / 3600.0;
+    beginLRTime = *(task->GetTimeBeginLR());
+  }
+
+  // Initialize time information
+  currentTime = *(task->GetTimeBegin());
+  currentTimePrecip = *(task->GetTimeBegin());
+  currentTimeQPF = *(task->GetTimeBegin());
+  currentTimePET = *(task->GetTimeBegin());
+  currentTimeTemp = *(task->GetTimeBegin());
+  currentTimeTempF = *(task->GetTimeBegin());
+  beginTime = *(task->GetTimeBegin());
+  endTime = *(task->GetTimeEnd());
+  warmEndTime = *(task->GetTimeWarmEnd());
+
+  return true;
+}
+
+// Forcing sections, their file-name patterns and the time-text formats
+void Simulator::InitializeForcingFiles(TaskConfigSection *task)
+{
+  // Initialize file name information
+  precipFile = task->GetPrecipSec()->GetFileName();
+  if (hasQPF)
+  {
+    qpfFile = task->GetQPFSec()->GetFileName();
+  }
+  petFile = task->GetPETSec()->GetFileName();
+  if (task->GetSnow() != SNOW_QTY)
+  {
+    tempFile = task->GetTempSec()->GetFileName();
+    if (hasTempF)
+    {
+      tempFFile = task->GetTempFSec()->GetFileName();
+    }
+  }
+  currentTimeText.SetNameStr("YYYY-MM-DD HH:UU");
+  currentTimeText.ProcessNameLoose(NULL);
+  currentTimeTextOutput.SetNameStr("YYYYMMDD_HHUU");
+  currentTimeTextOutput.ProcessNameLoose(NULL);
+
+  // Set forcing info
+  precipSec = task->GetPrecipSec();
+  petSec = task->GetPETSec();
+  qpfSec = task->GetQPFSec();
+  tempSec = task->GetTempSec();
+  tempFSec = task->GetTempFSec();
 }
 
 bool Simulator::InitializeSimu(TaskConfigSection *task)
