@@ -2,5 +2,6 @@
 #define EXECUTION_CONTROLLER_H
 
 void ExecuteTasks();
+void ExecuteChecks();
 
 #endif

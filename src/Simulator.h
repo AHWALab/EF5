@@ -21,6 +21,7 @@ class Simulator
 public:
     Simulator() : zarrGridWriter(NULL) {}
     bool Initialize(TaskConfigSection *taskN);
+    bool CheckChannels(TaskConfigSection *taskN); // ef5 --check (ChannelCheck.cpp)
     void PreloadForcings(char *file, bool cali);
     bool LoadSavedForcings(char *file, bool cali);
     void SaveForcings(char *file);

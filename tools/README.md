@@ -18,6 +18,12 @@ default.
 `ef5_check.py` finds these problems from the control file. You don't need to
 overlay FAC and `maxq` in a GIS.
 
+EF5 itself has a similar check, `ef5 --check control.txt` (see the main
+README). It looks at the parameter values as EF5 read them, so it also shows
+grids that EF5 could not read. This tool reads the grids with GDAL, so it
+shows what is in the files. It also checks FAC against the flow directions
+and finds breaks in a finished run.
+
 ```
 python tools/ef5_check.py control.txt                     # inputs only, no run needed
 python tools/ef5_check.py control.txt --output outputs/   # also find breaks in a finished run

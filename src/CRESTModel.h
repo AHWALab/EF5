@@ -40,6 +40,7 @@ public:
                     std::vector<float> *soilMoisture);
   bool IsLumped() { return false; }
   const char *GetName() { return "crest"; }
+  const float *GetCellParams(size_t i) { return crestNodes[i].params; }
 
 private:
   void WaterBalanceInt(GridNode *node, CRESTGridNode *cNode, float stepHours,

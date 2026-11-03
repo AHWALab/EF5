@@ -28,6 +28,7 @@ public:
                     std::vector<float> *soilMoisture);
   bool IsLumped() { return false; }
   const char *GetName() { return "sac"; }
+  const float *GetCellParams(size_t i) { return sacNodes[i].params; }
 
 private:
   void WaterBalanceInt(GridNode *node, SACGridNode *cNode, float stepHours,

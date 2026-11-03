@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstring>
 #include <unistd.h>
 
 #include "Config.h"
@@ -18,6 +19,23 @@ int main(int argc, char *argv[])
   static ef5::RuntimeStatsReporter ef5_runtime_stats_reporter_instance;
 
   PrintStartupMessage();
+
+  // ef5 --check [control file]: check parameters and channels, no run
+  if (argc >= 2 && strcmp(argv[1], "--check") == 0)
+  {
+    if (argc > 3)
+    {
+      printf("Usage: %s --check [control file]\n", argv[0]);
+      return 1;
+    }
+    g_config = new Config((argc == 3) ? argv[2] : "control.txt");
+    if (g_config->ParseConfig() != CONFIG_SUCCESS)
+    {
+      return 1;
+    }
+    ExecuteChecks();
+    return ERROR_SUCCESS;
+  }
 
   if (argc <= 2)
   {

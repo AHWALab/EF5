@@ -121,6 +121,44 @@ void ExecuteTasks() {
   FreeBasicGridsData();
 }
 
+// ef5 --check: run the channel check (Simulator::CheckChannels) for each
+// simulation task in the execute section, instead of running it
+void ExecuteChecks() {
+
+  if (!g_executeConfig) {
+    ERROR_LOGF("%s", "No execute section specified!");
+    return;
+  }
+
+  if (!LoadBasicGrids()) {
+    return;
+  }
+  LoadProjection();
+
+  std::vector<TaskConfigSection *> *tasks = g_executeConfig->GetTasks();
+  for (size_t i = 0; i < tasks->size(); i++) {
+    TaskConfigSection *task = tasks->at(i);
+    if (task->GetRunStyle() != STYLE_SIMU &&
+        task->GetRunStyle() != STYLE_SIMU_RP) {
+      INFO_LOGF("Skipping task %s: only simulation tasks are checked",
+                task->GetName());
+      continue;
+    }
+    const char *outDir = task->GetOutput();
+    if (!IsDirWritable(outDir)) {
+      ERROR_LOGF("Output directory '%s' does not exist or is not writable. "
+                 "Skipping task %s.",
+                 outDir, task->GetName());
+      continue;
+    }
+    INFO_LOGF("Checking task %s", task->GetName());
+    Simulator sim;
+    sim.CheckChannels(task);
+  }
+
+  FreeBasicGridsData();
+}
+
 void LoadProjection() {
 
   switch (g_basicConfig->GetProjection()) {

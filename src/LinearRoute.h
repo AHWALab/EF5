@@ -41,6 +41,7 @@ public:
   bool Route(float stepHours, std::vector<float> *fastFlow,
              std::vector<float> *slowFlow, std::vector<float> *discharge);
   float GetMaxSpeed() { return maxSpeed; }
+  const float *GetCellParams(size_t i) { return lrNodes[i].params; }
 
 private:
   void RouteInt(GridNode *node, LRGridNode *cNode, float fastFlow,

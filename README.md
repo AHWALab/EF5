@@ -38,6 +38,37 @@ Clone the source code from GitHub.
 3. make   
    This compiles the EF5 application!
 
+## Checking parameters and river channels
+
+```
+ef5 --check control.txt
+```
+
+This checks every simulation task in the `[Execute]` section without running
+it. EF5 sets up the models as for a run (basin, gauges, parameter sets,
+parameter grids and `th`) and looks at the parameter values the models will
+use:
+
+- **Cells with NaN or infinite parameters.** With `ROUTING=KW`, the discharge
+  of every cell downstream of such a cell becomes NaN once the parameter is
+  used (e.g. when it rains on it), and stays NaN. `maxq` shows these river
+  stretches as 0. With `ROUTING=KW_PARALLEL` the flow is set to 0 instead, so
+  the bad cells' water is lost without any sign in the outputs.
+- **Parameter grids that hold their nodata value at modelled cells.** EF5
+  multiplies the nodata value in as a number, and some parameters are then
+  silently reset (e.g. a negative `wm` becomes 100). A grid that reads as
+  nodata everywhere was most likely not read at all.
+
+It writes two files to the task's `OUTPUT` folder:
+
+| file | contents |
+|---|---|
+| `check_channels.tif` | one class per modelled cell: 1 hillslope, 2 channel, 3 channel cut, 4 bad parameters, 5 hillslope cut (water from a bad cell on its way to a channel) |
+| `check_breaks.csv` | one row per break point (the first channel cell that water from bad cells reaches): location, FAC, whether the river is already cut further up, the bad parameters, how many bad cells feed it and where the largest one is, the channel cells below it, and the gauge below it |
+
+Channel cells are those with FAC > `th`, as in the routing. Snow and
+inundation parameters are not checked.
+
 ## Contributors
 
 The following people currently contribute to EF5:

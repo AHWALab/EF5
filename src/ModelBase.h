@@ -42,6 +42,9 @@ public:
                             std::vector<float> *soilMoisture) = 0;
   virtual bool IsLumped() = 0;
   virtual const char *GetName() = 0;
+  // Parameters of cell i as the model uses them (after InitializeModel:
+  // grids applied, out-of-range values reset), or NULL if not available
+  virtual const float *GetCellParams(size_t i) { return NULL; }
 };
 
 class RoutingModel {
@@ -61,6 +64,9 @@ public:
                      std::vector<float> *discharge) = 0;
   virtual float GetMaxSpeed() = 0;
   virtual float SetObsInflow(long index, float inflow) = 0;
+  // Parameters of cell i as the model uses them (after InitializeModel), or
+  // NULL if not available
+  virtual const float *GetCellParams(size_t i) { return NULL; }
 };
 
 class SnowModel {
