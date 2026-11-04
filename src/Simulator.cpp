@@ -1833,6 +1833,7 @@ bool Simulator::PrepareDistributedRun(bool trackPeaks, TempReader *tempReader)
     iModel->InitializeModel(&nodes, &fullParamSettingsInundation,
                             &paramGridsInundation);
   }
+  WarnParameterProblems();
   if ((!outputZarr && griddedOutputs != OG_NONE) || trackPeaks || outputRP ||
       saveStates)
   {

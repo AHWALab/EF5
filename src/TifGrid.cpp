@@ -148,12 +148,23 @@ FloatGrid *ReadFloatTifGrid(const char *file, FloatGrid *incGrid) {
   GTIFKeyGet(gtif, GeogGeodeticDatumGeoKey, &grid->geodeticDatum, 0, 1);
   grid->geoSet = true;
 
+  // libtiff errors are switched off (TIFFExtenderInit), so count the rows
+  // that fail and say so: they are silently set to nodata otherwise
+  long failedRows = 0;
   for (long i = 0; i < grid->numRows; i++) {
     if (TIFFReadScanline(tif, grid->data[i], (unsigned int)i, 1) == -1) {
+      failedRows++;
       for (long j = 0; j < grid->numCols; j++) {
         grid->data[i][j] = grid->noData;
       }
     }
+  }
+  if (failedRows) {
+    WARNING_LOGF("Could not read %li of %li rows of %s; they are set to nodata "
+                 "(%g). A TIFF stored as separate planes (PlanarConfiguration=2) "
+                 "cannot be read; rewrite it with gdal_translate -co "
+                 "INTERLEAVE=PIXEL",
+                 failedRows, grid->numRows, file, grid->noData);
   }
 
   GTIFFree(gtif);
@@ -300,11 +311,18 @@ LongGrid *ReadLongTifGrid(const char *file) {
   grid->extent.right = tiepoints[3] + (pixscale[0] * float(width));
 
   grid->data = new long *[grid->numRows];
+  long failedRows = 0;
   for (long i = 0; i < grid->numRows; i++) {
     grid->data[i] = new long[grid->numCols];
     if (TIFFReadScanline(tif, grid->data[i], (unsigned int)i, 1) == -1) {
-      printf("eek!\n");
+      failedRows++;
     }
+  }
+  if (failedRows) {
+    WARNING_LOGF("Could not read %li of %li rows of %s. A TIFF stored as "
+                 "separate planes (PlanarConfiguration=2) cannot be read; "
+                 "rewrite it with gdal_translate -co INTERLEAVE=PIXEL",
+                 failedRows, grid->numRows, file);
   }
 
   GTIFFree(gtif);

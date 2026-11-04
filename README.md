@@ -69,6 +69,12 @@ It writes two files to the task's `OUTPUT` folder:
 Channel cells are those with FAC > `th`, as in the routing. Snow and
 inundation parameters are not checked.
 
+Normal runs print the same problems as warnings at start-up, one line per
+parameter or grid (without the locations), and EF5 warns when it cannot read
+rows of a TIFF file. Such rows are set to nodata. A TIFF stored as separate
+planes (PlanarConfiguration=2) cannot be read at all; rewrite it with
+`gdal_translate -co INTERLEAVE=PIXEL`.
+
 ## Contributors
 
 The following people currently contribute to EF5:

@@ -101,15 +101,21 @@ bool GridValue(FloatGrid *grid, const GridNode &node, float *value)
   return false;
 }
 
-// Print the parameter grids that hold their nodata value at modelled cells.
-// The models multiply it in as a number (and may then silently reset the
-// result), so the grid is not used there. A grid that is nodata everywhere
-// was most likely not read at all.
-void ReportNodataGrids(std::vector<GridNode> *nodes,
-                       const std::vector<bool> &channel,
-                       std::vector<FloatGrid *> *grids,
-                       std::vector<std::string> *files, const char *model,
-                       const char **names, bool kinematic, bool *header)
+// A parameter grid that holds its nodata value at modelled cells. The models
+// multiply it in as a number (and may then silently reset the result), so the
+// grid is not used there.
+struct NodataGrid
+{
+  size_t param;
+  size_t cells;        // modelled cells
+  size_t channelCells; // of which channel cells
+  bool everywhere;     // every cell of the grid is nodata: it was not read
+};
+
+void FindNodataGrids(std::vector<GridNode> *nodes,
+                     const std::vector<bool> &channel,
+                     std::vector<FloatGrid *> *grids,
+                     std::vector<NodataGrid> *found)
 {
   for (size_t p = 0; p < grids->size(); p++)
   {
@@ -118,49 +124,132 @@ void ReportNodataGrids(std::vector<GridNode> *nodes,
     {
       continue;
     }
-    size_t numNodata = 0, numNodataChannel = 0;
+    NodataGrid ng = {p, 0, 0, true};
     float value;
     for (size_t i = 0; i < nodes->size(); i++)
     {
       if (nodes->at(i).gauge && GridValue(grid, nodes->at(i), &value) &&
           value == grid->noData)
       {
-        numNodata++;
+        ng.cells++;
         if (channel[i])
         {
-          numNodataChannel++;
+          ng.channelCells++;
         }
       }
     }
-    if (!numNodata)
+    if (!ng.cells)
     {
       continue;
     }
-    bool allNodata = true;
-    for (long r = 0; allNodata && r < grid->numRows; r++)
+    for (long r = 0; ng.everywhere && r < grid->numRows; r++)
     {
-      for (long c = 0; allNodata && c < grid->numCols; c++)
+      for (long c = 0; ng.everywhere && c < grid->numCols; c++)
       {
-        allNodata = (grid->data[r][c] == grid->noData);
+        ng.everywhere = (grid->data[r][c] == grid->noData);
       }
     }
+    found->push_back(ng);
+  }
+}
+
+bool IsChannelOnly(bool kinematic, size_t p)
+{
+  return kinematic &&
+         (p == PARAM_KINEMATIC_ALPHA || p == PARAM_KINEMATIC_BETA);
+}
+
+// The --check listing of the nodata grids of one model
+void ReportNodataGrids(std::vector<GridNode> *nodes,
+                       const std::vector<bool> &channel,
+                       std::vector<FloatGrid *> *grids,
+                       std::vector<std::string> *files, const char *model,
+                       const char **names, bool kinematic, bool *header)
+{
+  std::vector<NodataGrid> found;
+  FindNodataGrids(nodes, channel, grids, &found);
+  for (size_t g = 0; g < found.size(); g++)
+  {
+    const NodataGrid &ng = found[g];
     if (!*header)
     {
       printf("  Parameter grids holding nodata at modelled cells (EF5 uses "
              "the nodata value as a number):\n");
       *header = true;
     }
-    printf("    %s.%-10s %zu cells", model, names[p], numNodata);
-    if (kinematic && (p == PARAM_KINEMATIC_ALPHA || p == PARAM_KINEMATIC_BETA))
+    printf("    %s.%-10s %zu cells", model, names[ng.param], ng.cells);
+    if (IsChannelOnly(kinematic, ng.param))
     {
-      printf(" (%zu on channel cells, where it is used)", numNodataChannel);
+      printf(" (%zu on channel cells, where it is used)", ng.channelCells);
     }
     printf("\n");
-    if (allNodata)
+    if (ng.everywhere)
     {
       printf("      WARNING: every cell of %s reads as nodata (%g); EF5 "
              "could not read this grid\n",
-             files->at(p).c_str(), grid->noData);
+             files->at(ng.param).c_str(), grids->at(ng.param)->noData);
+    }
+  }
+}
+
+// Cells whose parameters, as the models use them, are NaN or infinite. alpha
+// and beta of the kinematic wave only count on channel cells, where they are
+// used. Call after the models' InitializeModel.
+struct BadParams
+{
+  std::vector<unsigned long> wbMask, routeMask; // per cell: bit p = param p
+  std::vector<size_t> wbCount, routeCount;      // cells per parameter
+  std::vector<bool> channel, bad;               // per cell
+  size_t numModelled, numChannel, numBad;
+};
+
+void FindBadParams(std::vector<GridNode> *nodes, WaterBalanceModel *wbModel,
+                   int numWB, RoutingModel *rModel, int numRoute,
+                   bool kinematic, BadParams *bp)
+{
+  size_t numNodes = nodes->size();
+  bp->wbMask.assign(numNodes, 0);
+  bp->routeMask.assign(numNodes, 0);
+  bp->wbCount.assign(numWB, 0);
+  bp->routeCount.assign(numRoute, 0);
+  bp->channel.assign(numNodes, false);
+  bp->bad.assign(numNodes, false);
+  bp->numModelled = bp->numChannel = bp->numBad = 0;
+  for (size_t i = 0; i < numNodes; i++)
+  {
+    if (!nodes->at(i).gauge)
+    {
+      continue;
+    }
+    bp->numModelled++;
+    bp->channel[i] = rModel && nodes->at(i).channelGridCell;
+    if (bp->channel[i])
+    {
+      bp->numChannel++;
+    }
+    const float *params = wbModel->GetCellParams(i);
+    for (int p = 0; params && p < numWB; p++)
+    {
+      if (!std::isfinite(params[p]))
+      {
+        bp->wbMask[i] |= 1ul << p;
+        bp->wbCount[p]++;
+      }
+    }
+    params = rModel ? rModel->GetCellParams(i) : NULL;
+    for (int p = 0; params && p < numRoute; p++)
+    {
+      if (!std::isfinite(params[p]) &&
+          (bp->channel[i] || !IsChannelOnly(kinematic, p)))
+      {
+        bp->routeMask[i] |= 1ul << p;
+        bp->routeCount[p]++;
+      }
+    }
+    bp->bad[i] = bp->wbMask[i] || bp->routeMask[i];
+    if (bp->bad[i])
+    {
+      bp->numBad++;
     }
   }
 }
@@ -212,50 +301,14 @@ bool Simulator::CheckChannels(TaskConfigSection *taskN)
                     routing == ROUTE_KINEMATIC_PARALLEL);
   size_t numNodes = nodes.size();
 
-  // 1. Bad cells: any parameter the cell uses is NaN or infinite. alpha and
-  // beta of the kinematic wave are only used on channel cells.
-  std::vector<unsigned long> wbMask(numNodes, 0), routeMask(numNodes, 0);
-  std::vector<size_t> wbCount(numWB, 0), routeCount(numRoute, 0);
-  std::vector<bool> channel(numNodes, false), bad(numNodes, false);
-  size_t numModelled = 0, numChannel = 0, numBad = 0;
-  for (size_t i = 0; i < numNodes; i++)
-  {
-    if (!nodes[i].gauge)
-    {
-      continue;
-    }
-    numModelled++;
-    channel[i] = rModel && nodes[i].channelGridCell;
-    if (channel[i])
-    {
-      numChannel++;
-    }
-    const float *params = wbModel->GetCellParams(i);
-    for (int p = 0; params && p < numWB; p++)
-    {
-      if (!std::isfinite(params[p]))
-      {
-        wbMask[i] |= 1ul << p;
-        wbCount[p]++;
-      }
-    }
-    params = rModel ? rModel->GetCellParams(i) : NULL;
-    for (int p = 0; params && p < numRoute; p++)
-    {
-      bool channelOnly = kinematic && (p == PARAM_KINEMATIC_ALPHA ||
-                                       p == PARAM_KINEMATIC_BETA);
-      if (!std::isfinite(params[p]) && (channel[i] || !channelOnly))
-      {
-        routeMask[i] |= 1ul << p;
-        routeCount[p]++;
-      }
-    }
-    bad[i] = wbMask[i] || routeMask[i];
-    if (bad[i])
-    {
-      numBad++;
-    }
-  }
+  // 1. Bad cells
+  BadParams bp;
+  FindBadParams(&nodes, wbModel, numWB, rModel, numRoute, kinematic, &bp);
+  const std::vector<unsigned long> &wbMask = bp.wbMask, &routeMask = bp.routeMask;
+  const std::vector<size_t> &wbCount = bp.wbCount, &routeCount = bp.routeCount;
+  const std::vector<bool> &channel = bp.channel, &bad = bp.bad;
+  size_t numModelled = bp.numModelled, numChannel = bp.numChannel,
+         numBad = bp.numBad;
 
   // 2. Everything downstream of a bad cell is cut. A walk stops at the first
   // cell already marked, since everything below it is marked too.
@@ -491,4 +544,67 @@ bool Simulator::CheckChannels(TaskConfigSection *taskN)
   printf("  Wrote %s (%zu break points)\n\n", path, breaks.size());
 
   return true;
+}
+
+// Start-up warnings for a run (called once the models are initialized):
+// parameters that are NaN or infinite, and parameter grids that hold their
+// nodata value at modelled cells. ef5 --check gives the locations.
+void Simulator::WarnParameterProblems()
+{
+  int model = task->GetModel();
+  int routing = task->GetRouting();
+  int numWB = numModelParams[model];
+  int numRoute = rModel ? numRouteParams[routing] : 0;
+  const char **wbNames = modelParamStrings[model];
+  const char **routeNames = rModel ? routeParamStrings[routing] : NULL;
+  const char *routeName = rModel ? routeStrings[routing] : "";
+  bool kinematic = (routing == ROUTE_KINEMATIC ||
+                    routing == ROUTE_KINEMATIC_PARALLEL);
+
+  BadParams bp;
+  FindBadParams(&nodes, wbModel, numWB, rModel, numRoute, kinematic, &bp);
+  for (int p = 0; p < numWB + numRoute; p++)
+  {
+    bool wb = p < numWB;
+    size_t count = wb ? bp.wbCount[p] : bp.routeCount[p - numWB];
+    if (count)
+    {
+      WARNING_LOGF("Parameter %s %s is NaN or infinite at %zu of %zu modelled "
+                   "cells; discharge downstream of them can become NaN. Run "
+                   "ef5 --check for the locations.",
+                   wb ? wbModel->GetName() : routeName,
+                   wb ? wbNames[p] : routeNames[p - numWB], count,
+                   bp.numModelled);
+    }
+  }
+
+  for (int r = 0; r < (rModel ? 2 : 1); r++)
+  {
+    std::vector<FloatGrid *> *grids = r ? &paramGridsRoute : &paramGrids;
+    std::vector<std::string> *files =
+        r ? task->GetRoutingParamsSec()->GetParamGrids()
+          : task->GetParamsSec()->GetParamGrids();
+    std::vector<NodataGrid> found;
+    FindNodataGrids(&nodes, bp.channel, grids, &found);
+    for (size_t g = 0; g < found.size(); g++)
+    {
+      const NodataGrid &ng = found[g];
+      bool channelOnly = r && IsChannelOnly(kinematic, ng.param);
+      if (channelOnly && !ng.channelCells)
+      {
+        continue; // only on hillslope cells, where it is not used
+      }
+      WARNING_LOGF("%s %s_grid (%s) holds its nodata value (%g) at %zu of %zu "
+                   "modelled %s; EF5 uses it there as a number%s",
+                   r ? routeName : wbModel->GetName(),
+                   r ? routeNames[ng.param] : wbNames[ng.param],
+                   files->at(ng.param).c_str(), grids->at(ng.param)->noData,
+                   channelOnly ? ng.channelCells : ng.cells,
+                   channelOnly ? bp.numChannel : bp.numModelled,
+                   channelOnly ? "channel cells" : "cells",
+                   ng.everywhere ? ". Every cell of the grid is nodata: it "
+                                   "was not read"
+                                 : "");
+    }
+  }
 }
