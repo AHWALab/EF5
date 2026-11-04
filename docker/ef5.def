@@ -1,0 +1,54 @@
+# Build EF5 as an Apptainer (Singularity) image, for clusters without Docker.
+#
+#   apptainer build ef5.sif docker/ef5.def     # from the top of the EF5 repository
+#   apptainer run ef5.sif control.txt
+#
+# The same build as docker/Dockerfile (Ubuntu 24.04, system GDAL/libtiff/
+# libgeotiff). See docker/README.md.
+
+# ---- Build stage: compilers and development files ----
+Bootstrap: docker
+From: ubuntu:24.04
+Stage: build
+
+%files
+    configure.ac /src/configure.ac
+    Makefile.am /src/Makefile.am
+    src /src/src
+
+%post
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        build-essential autoconf automake libtool pkg-config \
+        libgdal-dev libgeotiff-dev libtiff-dev zlib1g-dev
+    cd /src
+    autoreconf --force --install
+    ./configure
+    make -j"$(nproc)"
+
+# ---- Final image: only ef5 and the libraries it needs ----
+Bootstrap: docker
+From: ubuntu:24.04
+Stage: final
+
+%files from build
+    /src/bin/ef5 /usr/local/bin/ef5
+
+%post
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        libgdal34t64 libgeotiff5 libtiff6 zlib1g libgomp1
+    rm -rf /var/lib/apt/lists/*
+
+%environment
+    # 4 OpenMP threads unless OMP_NUM_THREADS is set on the host
+    export OMP_NUM_THREADS="${OMP_NUM_THREADS:-4}"
+
+%runscript
+    exec /usr/local/bin/ef5 "$@"
+
+%help
+    EF5, the Ensemble Framework For Flash Flood Forecasting.
+    Run:    apptainer run ef5.sif control.txt
+    Check:  apptainer run ef5.sif --check control.txt
+    Paths in the control file are relative to the folder you run it from.

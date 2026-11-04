@@ -1,0 +1,14 @@
+#!/bin/sh
+# Run EF5 from the Docker image like a normal ef5 binary:
+#
+#   docker/ef5-docker control.txt
+#   docker/ef5-docker --check control.txt
+#
+# The current folder is mounted at the same path inside the container and EF5
+# runs as you, so relative paths in the control file work and outputs belong
+# to you. Paths outside the current folder are not visible in the container.
+# OMP_NUM_THREADS is passed on if set (the image default is 4). Set EF5_IMAGE to use another image
+# (default: ef5).
+exec docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" \
+  ${OMP_NUM_THREADS:+-e OMP_NUM_THREADS="$OMP_NUM_THREADS"} \
+  "${EF5_IMAGE:-ef5}" "$@"

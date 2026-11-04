@@ -1,0 +1,12 @@
+# Only the sources go into the Docker build: no test data, no build output
+.git
+tests
+tools
+EF5
+bin
+build
+**/*.o
+autom4te.cache
+Makefile
+config.log
+config.status

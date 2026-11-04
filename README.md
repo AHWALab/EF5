@@ -13,6 +13,9 @@ See [EF5's Documentation](https://ef5docs.readthedocs.io/en/latest/) for the EF5
 
 ## Compiling
 
+To build and run EF5 in a container (Docker, or Apptainer on HPC clusters)
+instead of compiling it yourself, see [docker/README.md](docker/README.md).
+
 ### Linux
 
 Clone the source code from GitHub.   
