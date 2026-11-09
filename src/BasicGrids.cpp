@@ -827,6 +827,34 @@ static bool LocateGauges(std::vector<GaugeConfigSection *> *gauges)
   return true;
 }
 
+// Sorts the gauges by descending FAC, so that the gauges at basin outlets come
+// first, and removes gauges on the same cell as an earlier one. gaugeCMap maps
+// each remaining gauge's cell index (y * numCols + x) to the gauge.
+static void OrderGauges(std::vector<GaugeConfigSection *> *gauges,
+                        std::map<unsigned long, GaugeConfigSection *> *gaugeCMap)
+{
+  std::sort(gauges->begin(), gauges->end(), SortByFlowAccum);
+
+  for (std::vector<GaugeConfigSection *>::iterator itr = gauges->begin();
+       itr != gauges->end();)
+  {
+    GaugeConfigSection *gauge = *(itr);
+    GridLoc *loc = gauge->GetGridLoc();
+    unsigned long index = loc->y * g_DEM->numCols + loc->x;
+    if (gaugeCMap->find(index) == gaugeCMap->end())
+    {
+      gaugeCMap->insert(
+          std::pair<unsigned long, GaugeConfigSection *>(index, gauge));
+      itr++;
+    }
+    else
+    {
+      WARNING_LOGF("Duplicate gauge!! %s\n", gauge->GetName());
+      itr = gauges->erase(itr);
+    }
+  }
+}
+
 typedef std::map<GaugeConfigSection *, float *> GaugeParamMap;
 
 // Parameters of a gauge at a basin outlet: its own set, or the default set.
@@ -908,30 +936,8 @@ void CarveBasin(
     return;
   }
 
-  // Sort the gauges into descending order based on flow accumulation
-  // This helps us ensure that the independent gauges are the ones at the basin outlets
-  std::sort(gauges->begin(), gauges->end(), SortByFlowAccum);
-
   std::map<unsigned long, GaugeConfigSection *> gaugeCMap;
-  for (std::vector<GaugeConfigSection *>::iterator itr = gauges->begin(); itr != gauges->end();)
-  {
-    GaugeConfigSection *gauge = *(itr);
-    GridLoc *loc = gauge->GetGridLoc();
-    unsigned long index = loc->y * g_DEM->numCols + loc->x;
-    std::map<unsigned long, GaugeConfigSection *>::iterator itrM =
-        gaugeCMap.find(index);
-    if (itrM == gaugeCMap.end())
-    {
-      gaugeCMap.insert(
-          std::pair<unsigned long, GaugeConfigSection *>(index, gauge));
-      itr++;
-    }
-    else
-    {
-      WARNING_LOGF("Duplicate gauge!! %s\n", gauge->GetName());
-      itr = gauges->erase(itr);
-    }
-  }
+  OrderGauges(gauges, &gaugeCMap);
 
   gaugeMap->Initialize(gauges);
 
