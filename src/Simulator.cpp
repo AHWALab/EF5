@@ -347,11 +347,15 @@ bool Simulator::InitializeNodes(TaskConfigSection *task)
       FindGaugeParams(paramSettingsInundation, gs);
 
   // Carve the basin to find which nodes we're modeling on
-  CarveBasin(task->GetBasinSec(), &nodes, paramSettings, &fullParamSettings,
-             &gaugeMap, defaultParams, paramSettingsRoute,
-             &fullParamSettingsRoute, defaultParamsRoute, paramSettingsSnow,
-             &fullParamSettingsSnow, defaultParamsSnow, paramSettingsInundation,
-             &fullParamSettingsInundation, defaultParamsInundation);
+  CarveBasin(task->GetBasinSec(), &nodes, &gaugeMap,
+             BasinParamSets(paramSettings, &fullParamSettings, defaultParams),
+             BasinParamSets(paramSettingsRoute, &fullParamSettingsRoute,
+                            defaultParamsRoute),
+             BasinParamSets(paramSettingsSnow, &fullParamSettingsSnow,
+                            defaultParamsSnow),
+             BasinParamSets(paramSettingsInundation,
+                            &fullParamSettingsInundation,
+                            defaultParamsInundation));
 
   // Ensure we actually have at least one node to work with!
   if (nodes.size() == 0)

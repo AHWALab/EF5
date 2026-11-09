@@ -329,10 +329,10 @@ void ExecuteClipBasin(TaskConfigSection *task) {
     defaultRouteParams = pitr->second;
   }
 
-  CarveBasin(task->GetBasinSec(), &nodes, paramSettings, &fullParamSettings,
-             &gaugeMap, defaultParams, routeParamSettings,
-             &fullRouteParamSettings, defaultRouteParams, NULL, NULL, NULL,
-             NULL, NULL, NULL);
+  CarveBasin(task->GetBasinSec(), &nodes, &gaugeMap,
+             BasinParamSets(paramSettings, &fullParamSettings, defaultParams),
+             BasinParamSets(routeParamSettings, &fullRouteParamSettings,
+                            defaultRouteParams));
 
   ClipBasicGrids(task->GetBasinSec(), &nodes, task->GetBasinSec()->GetName(),
                  task->GetOutput());
@@ -359,10 +359,10 @@ void ExecuteClipGauge(TaskConfigSection *task) {
     defaultRouteParams = pitr->second;
   }
 
-  CarveBasin(task->GetBasinSec(), &nodes, paramSettings, &fullParamSettings,
-             &gaugeMap, defaultParams, routeParamSettings,
-             &fullRouteParamSettings, defaultRouteParams, NULL, NULL, NULL,
-             NULL, NULL, NULL);
+  CarveBasin(task->GetBasinSec(), &nodes, &gaugeMap,
+             BasinParamSets(paramSettings, &fullParamSettings, defaultParams),
+             BasinParamSets(routeParamSettings, &fullRouteParamSettings,
+                            defaultRouteParams));
 
   GridLoc *loc = (*(task->GetBasinSec()->GetGauges()))[0]->GetGridLoc();
   ClipBasicGrids(loc->x, loc->y, 10, task->GetOutput());

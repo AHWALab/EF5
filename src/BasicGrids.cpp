@@ -942,12 +942,13 @@ static void AccumulateDownstream(std::vector<GridNode> *nodes)
 typedef std::map<GaugeConfigSection *, float *> GaugeParamMap;
 
 // Parameters of a gauge at a basin outlet: its own set, or the default set.
-// A NULL in means the task does not use this kind of model. Returns false if
+// A NULL sets.in means the task does not use this kind of model. Returns false if
 // the gauge has no set and there is no default.
-static bool AssignOutletParams(GaugeParamMap *in, GaugeParamMap *out,
-                               float *defaultParams, GaugeConfigSection *gauge,
-                               const char *kind)
+static bool AssignOutletParams(const BasinParamSets &sets,
+                               GaugeConfigSection *gauge, const char *kind)
 {
+  GaugeParamMap *in = sets.in, *out = sets.out;
+  float *defaultParams = sets.defaults;
   if (!in)
   {
     return true;
@@ -971,12 +972,13 @@ static bool AssignOutletParams(GaugeParamMap *in, GaugeParamMap *out,
 }
 
 // Parameters of a gauge upstream of another: its own set, or the set of the
-// gauge downstream (already in out). A NULL in means the task does not use
-// this kind of model.
-static void InheritGaugeParams(GaugeParamMap *in, GaugeParamMap *out,
+// gauge downstream (already in sets.out). A NULL sets.in means the task does
+// not use this kind of model.
+static void InheritGaugeParams(const BasinParamSets &sets,
                                GaugeConfigSection *gauge,
                                GaugeConfigSection *downstreamGauge)
 {
+  GaugeParamMap *in = sets.in, *out = sets.out;
   if (!in)
   {
     return;
@@ -993,21 +995,15 @@ static void InheritGaugeParams(GaugeParamMap *in, GaugeParamMap *out,
   }
 }
 
-void CarveBasin(
-    BasinConfigSection *basin, std::vector<GridNode> *nodes,
-    std::map<GaugeConfigSection *, float *> *inParamSettings,
-    std::map<GaugeConfigSection *, float *> *outParamSettings,
-    GaugeMap *gaugeMap, float *defaultParams,
-    std::map<GaugeConfigSection *, float *> *inRouteParamSettings,
-    std::map<GaugeConfigSection *, float *> *outRouteParamSettings,
-    float *defaultRouteParams,
-    std::map<GaugeConfigSection *, float *> *inSnowParamSettings,
-    std::map<GaugeConfigSection *, float *> *outSnowParamSettings,
-    float *defaultSnowParams,
-    std::map<GaugeConfigSection *, float *> *inInundationParamSettings,
-    std::map<GaugeConfigSection *, float *> *outInundationParamSettings,
-    float *defaultInundationParams)
+void CarveBasin(BasinConfigSection *basin, std::vector<GridNode> *nodes,
+                GaugeMap *gaugeMap, const BasinParamSets &waterBalance,
+                const BasinParamSets &routing, const BasinParamSets &snow,
+                const BasinParamSets &inundation)
 {
+  const BasinParamSets *paramSets[] = {&waterBalance, &routing, &snow,
+                                       &inundation};
+  const char *paramKinds[] = {"water balance", "routing", "snow",
+                              "inundation"};
 
   std::vector<GaugeConfigSection *> *gauges = basin->GetGauges();
   std::stack<GridNode *> walkNodes;
@@ -1031,18 +1027,12 @@ void CarveBasin(
        currentGauge = NextUnusedGauge(gauges))
   {
 
-    if (!AssignOutletParams(inParamSettings, outParamSettings, defaultParams,
-                            currentGauge, "water balance") ||
-        !AssignOutletParams(inRouteParamSettings, outRouteParamSettings,
-                            defaultRouteParams, currentGauge, "routing") ||
-        !AssignOutletParams(inSnowParamSettings, outSnowParamSettings,
-                            defaultSnowParams, currentGauge, "snow") ||
-        !AssignOutletParams(inInundationParamSettings,
-                            outInundationParamSettings,
-                            defaultInundationParams, currentGauge,
-                            "inundation"))
+    for (int k = 0; k < 4; k++)
     {
-      return;
+      if (!AssignOutletParams(*paramSets[k], currentGauge, paramKinds[k]))
+      {
+        return;
+      }
     }
 
     if (g_basicConfig->IsSelfFAM())
@@ -1091,14 +1081,10 @@ void CarveBasin(
 
         // Gauges without their own parameter sets inherit them from the
         // gauge downstream
-        InheritGaugeParams(inParamSettings, outParamSettings, nodeGauge,
-                           prevGauge);
-        InheritGaugeParams(inRouteParamSettings, outRouteParamSettings,
-                           nodeGauge, prevGauge);
-        InheritGaugeParams(inSnowParamSettings, outSnowParamSettings,
-                           nodeGauge, prevGauge);
-        InheritGaugeParams(inInundationParamSettings,
-                           outInundationParamSettings, nodeGauge, prevGauge);
+        for (int k = 0; k < 4; k++)
+        {
+          InheritGaugeParams(*paramSets[k], nodeGauge, prevGauge);
+        }
       }
 
       // Add the cells that flow into this one

@@ -14,20 +14,34 @@ void FreeBasicGridsData();
 void ClipBasicGrids(long x, long y, long search, const char *output);
 void ClipBasicGrids(BasinConfigSection *basin, std::vector<GridNode> *nodes,
                     const char *name, const char *output);
-void CarveBasin(
-    BasinConfigSection *basin, std::vector<GridNode> *nodes,
-    std::map<GaugeConfigSection *, float *> *inParamSettings,
-    std::map<GaugeConfigSection *, float *> *outParamSettings,
-    GaugeMap *gaugeMap, float *defaultParams,
-    std::map<GaugeConfigSection *, float *> *inRouteParamSettings,
-    std::map<GaugeConfigSection *, float *> *outRouteParamSettings,
-    float *defaultRouteParams,
-    std::map<GaugeConfigSection *, float *> *inSnowParamSettings,
-    std::map<GaugeConfigSection *, float *> *outSnowParamSettings,
-    float *defaultSnowParams,
-    std::map<GaugeConfigSection *, float *> *inInundationParamSettings,
-    std::map<GaugeConfigSection *, float *> *outInundationParamSettings,
-    float *defaultInundationParams);
+// The parameter sets of one kind of model (water balance, routing, snow or
+// inundation), for CarveBasin.
+struct BasinParamSets
+{
+  // The sets given for gauges in the control file. NULL if the task does not
+  // use this kind of model.
+  std::map<GaugeConfigSection *, float *> *in;
+  // Filled by CarveBasin: the set each gauge in the basin uses (its own, or
+  // the one of the gauge downstream).
+  std::map<GaugeConfigSection *, float *> *out;
+  // The set for basin outlet gauges without their own. May be NULL.
+  float *defaults;
+
+  BasinParamSets(std::map<GaugeConfigSection *, float *> *in = NULL,
+                 std::map<GaugeConfigSection *, float *> *out = NULL,
+                 float *defaults = NULL)
+      : in(in), out(out), defaults(defaults) {}
+};
+
+// Finds the cells of a basin: every cell upstream of its outlet gauges, in walk
+// order (downstream before upstream), with slopes, areas and the gauge each
+// cell drains to. Also links the gauges in gaugeMap and gives each gauge its
+// parameter sets.
+void CarveBasin(BasinConfigSection *basin, std::vector<GridNode> *nodes,
+                GaugeMap *gaugeMap, const BasinParamSets &waterBalance,
+                const BasinParamSets &routing,
+                const BasinParamSets &snow = BasinParamSets(),
+                const BasinParamSets &inundation = BasinParamSets());
 void MakeBasic();
 void ReclassifyDDM();
 bool CheckESRIDDM();
