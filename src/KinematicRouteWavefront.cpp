@@ -213,6 +213,59 @@ bool KWRouteWavefront::Route(float stepHours, std::vector<float> *fastFlow,
   return true;
 }
 
+// One kinematic-wave step for a cell: solves
+//   (dt/dx) Q + alpha Q^beta = (dt/dx) Qin + alpha Qprev^beta + dt q
+// for this step's outflow Q with Newton's method (at most 10 iterations,
+// stopping when the residual is below 0.01). Qin is the inflow from upstream
+// cells this step, Qprev the cell's outflow last step and q the lateral
+// inflow. Q is never negative, and a result that is not finite becomes 0.
+//
+// The same equation as SolveKinematicWave in KinematicRoute.cpp, but not the
+// same arithmetic: dt/dx comes from the precomputed 1/dx, alpha*beta is
+// precomputed, and the derivative's exponent is a float. Merging the two would
+// change results in the last bits, so they are kept apart.
+static float SolveWave(float stepSeconds, float dtOverLen, double upstreamInflow,
+                       float previousQ, float lateralInflow, float alpha,
+                       float beta, float alphaBeta) {
+  float backDiffq = 0.0f;
+  if (upstreamInflow + previousQ > 0.0) {
+    backDiffq = pow((upstreamInflow + previousQ) * 0.5, beta - 1.0f);
+    if (!std::isfinite(backDiffq)) {
+      backDiffq = 0.0f;
+    }
+  }
+
+  const float A = dtOverLen * upstreamInflow;
+  const float B = alphaBeta * previousQ * backDiffq;
+  const float C = stepSeconds * lateralInflow;
+  const float D = dtOverLen;
+  const float E = alphaBeta * backDiffq;
+  float estq = (A + B + C) / (D + E);
+  const float rhs = A + alpha * pow(previousQ, beta) + stepSeconds * lateralInflow;
+
+  for (int itr = 0; itr < 10; itr++) {
+    float resError = dtOverLen * estq + alpha * pow(estq, beta) - rhs;
+    if (!std::isfinite(resError)) {
+      resError = 0.0f;
+    }
+    if (fabsf(resError) < 0.01f) {
+      break;
+    }
+    float resErrorD1 = dtOverLen + alphaBeta * pow(estq, beta - 1.0f);
+    if (!std::isfinite(resErrorD1)) {
+      resErrorD1 = 1.0f;
+    }
+    estq = estq - resError / resErrorD1;
+    if (estq < 0.0f) {
+      estq = 0.0f;
+    }
+  }
+  if (estq < 0.0f || !std::isfinite(estq)) {
+    estq = 0.0f;
+  }
+  return estq;
+}
+
 void KWRouteWavefront::RouteInt(float stepSeconds, GridNode *node,
                                 KWGridNodeWavefront *cNode, float fastFlow,
                                 float slowFlow) {
@@ -229,44 +282,9 @@ void KWRouteWavefront::RouteInt(float stepSeconds, GridNode *node,
     const float newInWater = fastFlow;
     const float prevQ = cNode->states[STATE_KW_WF_PQ];
 
-    float backDiffq = 0.0f;
-    if (cNode->incomingWaterOverland + prevQ > 0.0) {
-      backDiffq = pow((cNode->incomingWaterOverland + prevQ) * 0.5, beta - 1.0f);
-      if (!std::isfinite(backDiffq)) {
-        backDiffq = 0.0f;
-      }
-    }
-
-    const float A = dtOverLen * cNode->incomingWaterOverland;
-    const float B = alphaBeta * prevQ * backDiffq;
-    const float C = stepSeconds * newInWater;
-    const float D = dtOverLen;
-    const float E = alphaBeta * backDiffq;
-    float estq = (A + B + C) / (D + E);
-    const float rhs = A + alpha * pow(prevQ, beta) + stepSeconds * newInWater;
-
-    for (int itr = 0; itr < 10; itr++) {
-      float resError = dtOverLen * estq + alpha * pow(estq, beta) - rhs;
-      if (!std::isfinite(resError)) {
-        resError = 0.0f;
-      }
-      if (fabsf(resError) < 0.01f) {
-        break;
-      }
-      float resErrorD1 = dtOverLen + alphaBeta * pow(estq, beta - 1.0f);
-      if (!std::isfinite(resErrorD1)) {
-        resErrorD1 = 1.0f;
-      }
-      estq = estq - resError / resErrorD1;
-      if (estq < 0.0f) {
-        estq = 0.0f;
-      }
-    }
-    if (estq < 0.0f || !std::isfinite(estq)) {
-      estq = 0.0f;
-    }
-
-    const float newq = estq;
+    const float newq =
+        SolveWave(stepSeconds, dtOverLen, cNode->incomingWaterOverland, prevQ,
+                  newInWater, alpha, beta, alphaBeta);
     cNode->states[STATE_KW_WF_PQ] = newq;
 
     if (cNode->downStreamIndex >= 0 &&
@@ -319,44 +337,9 @@ void KWRouteWavefront::RouteInt(float stepSeconds, GridNode *node,
     const float newInWater = fastFlow + slowFlow;
     const float prevPO = cNode->states[STATE_KW_WF_PO];
 
-    float backDiffq = 0.0f;
-    if (cNode->incomingWaterOverland + prevPO > 0.0) {
-      backDiffq =
-          pow((cNode->incomingWaterOverland + prevPO) * 0.5, beta0 - 1.0f);
-      if (!std::isfinite(backDiffq)) {
-        backDiffq = 0.0f;
-      }
-    }
-
-    float A = dtOverLen * cNode->incomingWaterOverland;
-    float B = alpha0Beta * prevPO * backDiffq;
-    float C = stepSeconds * newInWater;
-    float D = dtOverLen;
-    float E = alpha0Beta * backDiffq;
-    float estq = (A + B + C) / (D + E);
-    float rhs = A + alpha0 * pow(prevPO, beta0) + stepSeconds * newInWater;
-
-    for (int itr = 0; itr < 10; itr++) {
-      float resError = dtOverLen * estq + alpha0 * pow(estq, beta0) - rhs;
-      if (!std::isfinite(resError)) {
-        resError = 0.0f;
-      }
-      if (fabsf(resError) < 0.01f) {
-        break;
-      }
-      float resErrorD1 = dtOverLen + alpha0Beta * pow(estq, beta0 - 1.0f);
-      if (!std::isfinite(resErrorD1)) {
-        resErrorD1 = 1.0f;
-      }
-      estq = estq - resError / resErrorD1;
-      if (estq < 0.0f) {
-        estq = 0.0f;
-      }
-    }
-    if (estq < 0.0f || !std::isfinite(estq)) {
-      estq = 0.0f;
-    }
-    const float newq = estq;
+    const float newq =
+        SolveWave(stepSeconds, dtOverLen, cNode->incomingWaterOverland, prevPO,
+                  newInWater, alpha0, beta0, alpha0Beta);
     cNode->states[STATE_KW_WF_PO] = newq;
 
     const float beta = cNode->betaCh;
@@ -364,44 +347,9 @@ void KWRouteWavefront::RouteInt(float stepSeconds, GridNode *node,
     const float alphaBeta = cNode->alphaBetaCh;
     const float prevPQ = cNode->states[STATE_KW_WF_PQ];
 
-    float backDiffQ = 0.0f;
-    if (cNode->incomingWaterChannel + prevPQ > 0.0) {
-      backDiffQ =
-          pow((cNode->incomingWaterChannel + prevPQ) * 0.5, beta - 1.0f);
-      if (!std::isfinite(backDiffQ)) {
-        backDiffQ = 0.0f;
-      }
-    }
-
-    A = dtOverLen * cNode->incomingWaterChannel;
-    B = alphaBeta * prevPQ * backDiffQ;
-    C = stepSeconds * newq;
-    D = dtOverLen;
-    E = alphaBeta * backDiffQ;
-    float estQ = (A + B + C) / (D + E);
-    rhs = A + alpha * pow(prevPQ, beta) + stepSeconds * newq;
-
-    for (int itr = 0; itr < 10; itr++) {
-      float resError = dtOverLen * estQ + alpha * pow(estQ, beta) - rhs;
-      if (!std::isfinite(resError)) {
-        resError = 0.0f;
-      }
-      if (fabsf(resError) < 0.01f) {
-        break;
-      }
-      float resErrorD1 = dtOverLen + alphaBeta * pow(estQ, beta - 1.0f);
-      if (!std::isfinite(resErrorD1)) {
-        resErrorD1 = 1.0f;
-      }
-      estQ = estQ - resError / resErrorD1;
-      if (estQ < 0.0f) {
-        estQ = 0.0f;
-      }
-    }
-    if (estQ < 0.0f || !std::isfinite(estQ)) {
-      estQ = 0.0f;
-    }
-    const float newWater = estQ;
+    const float newWater =
+        SolveWave(stepSeconds, dtOverLen, cNode->incomingWaterChannel, prevPQ,
+                  newq, alpha, beta, alphaBeta);
 
     cNode->states[STATE_KW_WF_PQ] = newWater;
     if (cNode->downStreamIndex >= 0 &&
