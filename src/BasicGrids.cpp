@@ -714,6 +714,119 @@ void FixFlowDir(BasinConfigSection *basin, std::vector<GridNode> *nodes)
   }
 }
 
+// Squared difference between the FAC of a cell and a gauge's observed one
+static float FlowAccumError(long x, long y, GaugeConfigSection *gauge,
+                            float areaFactor)
+{
+  return pow((float)(g_FAM->data[y][x]) - gauge->GetObsFlowAccum() * areaFactor,
+             2.0);
+}
+
+// Moves a gauge with an observed basin area to the cell within maxDist (along
+// the 8 directions) whose FAC matches it best. The order of the directions and
+// the edge tests (> 0 rather than >= 0) are as they have always been: they
+// decide ties.
+static void SnapGaugeToObsFlowAccum(GaugeConfigSection *gauge, GridLoc *loc,
+                                    int maxDist, float areaFactor)
+{
+  static const int dirs[8][2] = {{1, 0},  {1, 1},   {0, 1},  {-1, 1},
+                                 {-1, 0}, {-1, -1}, {0, -1}, {1, -1}};
+  GridLoc minLoc;
+  float testError, minError = FlowAccumError(loc->x, loc->y, gauge, areaFactor);
+  minLoc.x = loc->x;
+  minLoc.y = loc->y;
+  for (int dist = 1; dist < maxDist; dist++)
+  {
+    for (int d = 0; d < 8; d++)
+    {
+      long testX = loc->x + dirs[d][0] * dist;
+      long testY = loc->y + dirs[d][1] * dist;
+      if ((dirs[d][0] > 0 && testX >= g_FAM->numCols) ||
+          (dirs[d][0] < 0 && testX <= 0) ||
+          (dirs[d][1] > 0 && testY >= g_FAM->numRows) ||
+          (dirs[d][1] < 0 && testY <= 0) ||
+          g_FAM->data[testY][testX] == g_FAM->noData)
+      {
+        continue;
+      }
+      testError = FlowAccumError(testX, testY, gauge, areaFactor);
+      if (minError > testError)
+      {
+        minError = testError;
+        minLoc.x = testX;
+        minLoc.y = testY;
+      }
+    }
+  }
+
+  loc->x = minLoc.x;
+  loc->y = minLoc.y;
+  RefLoc ref;
+  g_FAM->GetRefLoc(loc->x, loc->y, &ref);
+  gauge->SetLat(ref.y);
+  gauge->SetLon(ref.x);
+}
+
+// Finds the grid cell of each gauge (moving gauges with an observed basin area
+// to the best-matching FAC), and sets its FAC and the used flag to false.
+// Gauges outside the grid are removed. Returns false if a gauge is on a
+// nodata cell.
+static bool LocateGauges(std::vector<GaugeConfigSection *> *gauges)
+{
+  for (std::vector<GaugeConfigSection *>::iterator itr = gauges->begin();
+       itr != gauges->end();)
+  {
+    GaugeConfigSection *gauge = *(itr);
+    GridLoc *loc = gauge->GetGridLoc();
+    if (gauge->NeedsProjecting())
+    {
+      if (!g_FAM->GetGridLoc(gauge->GetLon(), gauge->GetLat(), loc))
+      {
+        WARNING_LOGF("Gauge %s is outside the basic grid domain!\n",
+                     gauge->GetName());
+        itr = gauges->erase(itr);
+        continue;
+      }
+    }
+    else
+    {
+      RefLoc ref;
+      g_FAM->GetRefLoc(loc->x, loc->y, &ref);
+      gauge->SetLat(ref.y);
+      gauge->SetLon(ref.x);
+    }
+    float areaFactor =
+        1.0 / g_Projection->GetArea(gauge->GetLon(), gauge->GetLat());
+    int maxDist =
+        20000.0 / g_Projection->GetLen(gauge->GetLon(), gauge->GetLat(),
+                                       FLOW_NORTH);
+    if (maxDist < 2)
+    {
+      maxDist = 2;
+    }
+    INFO_LOGF("Max gauge search distance is %i", maxDist);
+    if (gauge->HasObsFlowAccum())
+    {
+      SnapGaugeToObsFlowAccum(gauge, loc, maxDist, areaFactor);
+    }
+    if (g_DEM->data[loc->y][loc->x] == g_DEM->noData ||
+        g_FAM->data[loc->y][loc->x] == g_FAM->noData ||
+        g_FAM->data[loc->y][loc->x] < 0)
+    {
+      ERROR_LOGF("Gauge \"%s\" is located in a no data grid cell!",
+                 gauge->GetName());
+      return false;
+    }
+    gauge->SetFlowAccum(g_FAM->data[loc->y][loc->x]);
+    gauge->SetUsed(false);
+    INFO_LOGF("Gauge %s (%f, %f; %ld, %ld): FAM %ld", gauge->GetName(),
+              gauge->GetLat(), gauge->GetLon(), loc->y, loc->x,
+              gauge->GetFlowAccum());
+    itr++;
+  }
+  return true;
+}
+
 typedef std::map<GaugeConfigSection *, float *> GaugeParamMap;
 
 // Parameters of a gauge at a basin outlet: its own set, or the default set.
@@ -790,195 +903,9 @@ void CarveBasin(
   size_t totalAccum = 0;
   GridLoc nextNode;
 
-  // Figure out where each gauge is at and get the flow accumulation from the
-  // grid for it. Also resets the used flag to false
-  for (std::vector<GaugeConfigSection *>::iterator itr = gauges->begin();
-       itr != gauges->end();)
+  if (!LocateGauges(gauges))
   {
-
-    GaugeConfigSection *gauge = *(itr);
-    GridLoc *loc = gauge->GetGridLoc();
-    if (gauge->NeedsProjecting())
-    {
-      if (!g_FAM->GetGridLoc(gauge->GetLon(), gauge->GetLat(), loc))
-      {
-        WARNING_LOGF("Gauge %s is outside the basic grid domain!\n",
-                     gauge->GetName());
-        itr = gauges->erase(itr);
-        continue;
-      }
-    }
-    else
-    {
-      RefLoc ref;
-      g_FAM->GetRefLoc(loc->x, loc->y, &ref);
-      gauge->SetLat(ref.y);
-      gauge->SetLon(ref.x);
-    }
-    float areaFactor =
-        1.0 / g_Projection->GetArea(gauge->GetLon(), gauge->GetLat());
-    int maxDist =
-        20000.0 / g_Projection->GetLen(gauge->GetLon(), gauge->GetLat(),
-                                       FLOW_NORTH); // 3000;
-    if (maxDist < 2)
-    {
-      maxDist = 2;
-    }
-    INFO_LOGF("Max gauge search distance is %i", maxDist);
-    if (gauge->HasObsFlowAccum())
-    {
-      GridLoc minLoc;
-      float testError, minError = pow((float)(g_FAM->data[loc->y][loc->x]) -
-                                          gauge->GetObsFlowAccum() * areaFactor,
-                                      2.0);
-      minLoc.x = loc->x;
-      minLoc.y = loc->y;
-      long testX, testY;
-      for (int dist = 1; dist < maxDist; dist++)
-      {
-        testX = loc->x + 1 * dist;
-        testY = loc->y;
-        if (testX < g_FAM->numCols &&
-            g_FAM->data[testY][testX] != g_FAM->noData)
-        {
-          testError = pow((float)(g_FAM->data[testY][testX]) -
-                              gauge->GetObsFlowAccum() * areaFactor,
-                          2.0);
-          if (minError > testError)
-          {
-            minError = testError;
-            minLoc.x = testX;
-            minLoc.y = testY;
-          }
-        }
-
-        testX = loc->x + 1 * dist;
-        testY = loc->y + 1 * dist;
-        if (testX < g_FAM->numCols && testY < g_FAM->numRows &&
-            g_FAM->data[testY][testX] != g_FAM->noData)
-        {
-          testError = pow((float)(g_FAM->data[testY][testX]) -
-                              gauge->GetObsFlowAccum() * areaFactor,
-                          2.0);
-          if (minError > testError)
-          {
-            minError = testError;
-            minLoc.x = testX;
-            minLoc.y = testY;
-          }
-        }
-
-        testX = loc->x;
-        testY = loc->y + 1 * dist;
-        if (testY < g_FAM->numRows &&
-            g_FAM->data[testY][testX] != g_FAM->noData)
-        {
-          testError = pow((float)(g_FAM->data[testY][testX]) -
-                              gauge->GetObsFlowAccum() * areaFactor,
-                          2.0);
-          if (minError > testError)
-          {
-            minError = testError;
-            minLoc.x = testX;
-            minLoc.y = testY;
-          }
-        }
-
-        testX = loc->x - 1 * dist;
-        testY = loc->y + 1 * dist;
-        if (testX > 0 && testY < g_FAM->numRows &&
-            g_FAM->data[testY][testX] != g_FAM->noData)
-        {
-          testError = pow((float)(g_FAM->data[testY][testX]) -
-                              gauge->GetObsFlowAccum() * areaFactor,
-                          2.0);
-          if (minError > testError)
-          {
-            minError = testError;
-            minLoc.x = testX;
-            minLoc.y = testY;
-          }
-        }
-
-        testX = loc->x - 1 * dist;
-        testY = loc->y;
-        if (testX > 0 && g_FAM->data[testY][testX] != g_FAM->noData)
-        {
-          testError = pow((float)(g_FAM->data[testY][testX]) -
-                              gauge->GetObsFlowAccum() * areaFactor,
-                          2.0);
-          if (minError > testError)
-          {
-            minError = testError;
-            minLoc.x = testX;
-            minLoc.y = testY;
-          }
-        }
-
-        testX = loc->x - 1 * dist;
-        testY = loc->y - 1 * dist;
-        if (testX > 0 && testY > 0 &&
-            g_FAM->data[testY][testX] != g_FAM->noData)
-        {
-          testError = pow((float)(g_FAM->data[testY][testX]) -
-                              gauge->GetObsFlowAccum() * areaFactor,
-                          2.0);
-          if (minError > testError)
-          {
-            minError = testError;
-            minLoc.x = testX;
-            minLoc.y = testY;
-          }
-        }
-
-        testX = loc->x;
-        testY = loc->y - 1 * dist;
-        if (testY > 0 && g_FAM->data[testY][testX] != g_FAM->noData)
-        {
-          testError = pow((float)(g_FAM->data[testY][testX]) -
-                              gauge->GetObsFlowAccum() * areaFactor,
-                          2.0);
-          if (minError > testError)
-          {
-            minError = testError;
-            minLoc.x = testX;
-            minLoc.y = testY;
-          }
-        }
-
-        testX = loc->x + 1 * dist;
-        testY = loc->y - 1 * dist;
-        if (testX < g_FAM->numCols && testY > 0 &&
-            g_FAM->data[testY][testX] != g_FAM->noData)
-        {
-          testError = pow((float)(g_FAM->data[testY][testX]) -
-                              gauge->GetObsFlowAccum() * areaFactor,
-                          2.0);
-          if (minError > testError)
-          {
-            minError = testError;
-            minLoc.x = testX;
-            minLoc.y = testY;
-          }
-        }
-      }
-
-      loc->x = minLoc.x;
-      loc->y = minLoc.y;
-      RefLoc ref;
-      g_FAM->GetRefLoc(loc->x, loc->y, &ref);
-      gauge->SetLat(ref.y);
-      gauge->SetLon(ref.x);
-    }
-    if (g_DEM->data[loc->y][loc->x] == g_DEM->noData || g_FAM->data[loc->y][loc->x] == g_FAM->noData || g_FAM->data[loc->y][loc->x] < 0)
-    {
-      ERROR_LOGF("Gauge \"%s\" is located in a no data grid cell!", gauge->GetName());
-      return;
-    }
-    gauge->SetFlowAccum(g_FAM->data[loc->y][loc->x]);
-    gauge->SetUsed(false);
-    INFO_LOGF("Gauge %s (%f, %f; %ld, %ld): FAM %ld", gauge->GetName(), gauge->GetLat(), gauge->GetLon(), loc->y, loc->x, gauge->GetFlowAccum());
-    itr++;
+    return;
   }
 
   // Sort the gauges into descending order based on flow accumulation
