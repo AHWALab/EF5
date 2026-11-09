@@ -175,268 +175,330 @@ GaugeConfigSection *TaskConfigSection::GetDefaultGauge()
   return defaultGauge;
 }
 
+// Helpers for ProcessKeyValue, one per kind of setting. Each logs the same
+// messages the settings always had.
+
+// value is one of strings[0..qty-1] (any case): stores its index in out.
+template <class E>
+static CONFIG_SEC_RET SetOption(const char *value, const char **strings,
+                                int qty, E *out, bool *set, const char *what,
+                                const char *validWhat, const char *valid)
+{
+  for (int i = 0; i < qty; i++)
+  {
+    if (!strcasecmp(value, strings[i]))
+    {
+      *set = true;
+      *out = (E)i;
+      return VALID_RESULT;
+    }
+  }
+  ERROR_LOGF("Unknown %s option \"%s\"!", what, value);
+  INFO_LOGF("Valid %s options are \"%s\"", validWhat, valid);
+  return INVALID_RESULT;
+}
+
+// value names a section in sections (any case): stores it in out.
+template <class T>
+static CONFIG_SEC_RET SetSection(char *value,
+                                 std::map<std::string, T *> *sections,
+                                 T **out, bool *set, const char *what)
+{
+  TOLOWER(value);
+  typename std::map<std::string, T *>::iterator itr = sections->find(value);
+  if (itr == sections->end())
+  {
+    ERROR_LOGF("Unknown %s \"%s\"!", what, value);
+    return INVALID_RESULT;
+  }
+  *out = itr->second;
+  *set = true;
+  return VALID_RESULT;
+}
+
+// A parameter or calibration set is looked up among the sets of the model
+// chosen by an earlier setting (MODEL, ROUTING, SNOW or INUNDATION).
+static bool RequireEarlier(bool earlierSet, const char *earlier,
+                           const char *key)
+{
+  if (!earlierSet)
+  {
+    ERROR_LOGF("The %s setting must be specified before the %s setting in the "
+               "task!",
+               earlier, key);
+  }
+  return earlierSet;
+}
+
+// Routing sets: those of the chosen routing, and for KW_PARALLEL also those
+// of KW.
+template <class T>
+static CONFIG_SEC_RET SetRoutingSection(char *value,
+                                        std::map<std::string, T *> *sets,
+                                        ROUTES routing, T **out, bool *set,
+                                        const char *what)
+{
+  TOLOWER(value);
+  std::map<std::string, T *> *routingSets = &sets[routing];
+  typename std::map<std::string, T *>::iterator itr = routingSets->find(value);
+  if (itr == routingSets->end() && routing == ROUTE_KINEMATIC_PARALLEL)
+  {
+    routingSets = &sets[ROUTE_KINEMATIC];
+    itr = routingSets->find(value);
+  }
+  if (itr == routingSets->end())
+  {
+    ERROR_LOGF("Unknown %s \"%s\"!", what, value);
+    return INVALID_RESULT;
+  }
+  *out = itr->second;
+  *set = true;
+  return VALID_RESULT;
+}
+
+static CONFIG_SEC_RET SetTime(char *value, TimeVar *out, bool *set,
+                              const char *what)
+{
+  if (!out->LoadTime(value))
+  {
+    ERROR_LOGF("Unknown %s option \"%s\"", what, value);
+    return INVALID_RESULT;
+  }
+  *set = true;
+  return VALID_RESULT;
+}
+
+static CONFIG_SEC_RET SetTimeStep(char *value, TimeUnit *out, bool *set,
+                                  const char *what)
+{
+  if (out->ParseUnit(value) == TIME_UNIT_QTY)
+  {
+    ERROR_LOGF("Unknown %s option \"%s\"", what, value);
+    return INVALID_RESULT;
+  }
+  *set = true;
+  return VALID_RESULT;
+}
+
 CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char *name, char *value)
 {
+  // Settings that are a file or folder name, copied as given
+  struct PathKey
+  {
+    const char *key;
+    char *dest;
+    bool *set;
+  };
+  const PathKey pathKeys[] = {
+      {"output", output, &outputSet},
+      {"states", state, &stateSet},
+      {"preload_file", preloadFile, NULL},
+      {"da_file", daFile, NULL},
+      {"co_file", coFile, NULL},
+      {"rp_stdgrid", stdGrid, NULL},
+      {"rp_avggrid", avgGrid, NULL},
+      {"rp_csgrid", scGrid, NULL},
+      {"action_grid", actionGrid, NULL},
+      {"minor_grid", minorGrid, NULL},
+      {"moderate_grid", moderateGrid, NULL},
+      {"major_grid", majorGrid, NULL},
+      {"action_sd_grid", actionSDGrid, NULL},
+      {"minor_sd_grid", minorSDGrid, NULL},
+      {"moderate_sd_grid", moderateSDGrid, NULL},
+      {"major_sd_grid", majorSDGrid, NULL},
+  };
+  for (size_t i = 0; i < sizeof(pathKeys) / sizeof(pathKeys[0]); i++)
+  {
+    if (!strcasecmp(name, pathKeys[i].key))
+    {
+      strcpy(pathKeys[i].dest, value);
+      if (pathKeys[i].set)
+      {
+        *pathKeys[i].set = true;
+      }
+      return VALID_RESULT;
+    }
+  }
 
+  // Dates and times
+  struct TimeKey
+  {
+    const char *key;
+    TimeVar *dest;
+    bool *set;
+    const char *what;
+  };
+  const TimeKey timeKeys[] = {
+      {"time_state", &timeState, &timeStateSet, "time state"},
+      {"time_begin", &timeBegin, &timeBeginSet, "time begin"},
+      {"time_begin_lr", &timeBeginLR, &timeBeginLRSet,
+       "time begin long range"},
+      {"time_warmend", &timeWarmEnd, &timeWarmEndSet, "time warm end"},
+      {"time_end", &timeEnd, &timeEndSet, "time end"},
+  };
+  for (size_t i = 0; i < sizeof(timeKeys) / sizeof(timeKeys[0]); i++)
+  {
+    if (!strcasecmp(name, timeKeys[i].key))
+    {
+      return SetTime(value, timeKeys[i].dest, timeKeys[i].set,
+                     timeKeys[i].what);
+    }
+  }
+
+  if (!strcasecmp(name, "timestep"))
+  {
+    return SetTimeStep(value, &timeStep, &timestepSet, "timestep");
+  }
+  if (!strcasecmp(name, "timestep_lr"))
+  {
+    return SetTimeStep(value, &timeStepLR, &timestepLRSet,
+                       "timestep long range");
+  }
+
+  // Model choices
   if (!strcasecmp(name, "style"))
   {
-    for (int i = 0; i < STYLE_QTY; i++)
-    {
-      if (!strcasecmp(value, runStyleStrings[i]))
-      {
-        styleSet = true;
-        style = (RUNSTYLE)i;
-        return VALID_RESULT;
-      }
-    }
-    ERROR_LOGF("Unknown run style option \"%s\"!", value);
-    INFO_LOGF("Valid run style options are \"%s\"", "SIMU, SIMU_RP, CALI_ARS, "
-                                                    "CALI_DREAM, CLIP_BASIN, "
-                                                    "CLIP_GAUGE, BASIN_AVG");
-    return INVALID_RESULT;
+    return SetOption(value, runStyleStrings, STYLE_QTY, &style, &styleSet,
+                     "run style", "run style",
+                     "SIMU, SIMU_RP, CALI_ARS, CALI_DREAM, CLIP_BASIN, "
+                     "CLIP_GAUGE, BASIN_AVG");
   }
-  else if (!strcasecmp(name, "model"))
+  if (!strcasecmp(name, "model"))
   {
-    for (int i = 0; i < MODEL_QTY; i++)
-    {
-      if (!strcasecmp(value, modelStrings[i]))
-      {
-        modelSet = true;
-        model = (MODELS)i;
-        return VALID_RESULT;
-      }
-    }
-    ERROR_LOGF("Unknown water balance model option \"%s\"!", value);
-    INFO_LOGF("Valid water balance options are \"%s\"", "CREST, SAC, HP");
-    return INVALID_RESULT;
+    return SetOption(value, modelStrings, MODEL_QTY, &model, &modelSet,
+                     "water balance model", "water balance", "CREST, SAC, HP");
   }
-  else if (!strcasecmp(name, "routing"))
+  if (!strcasecmp(name, "routing"))
   {
-    for (int i = 0; i < ROUTE_QTY; i++)
-    {
-      if (!strcasecmp(value, routeStrings[i]))
-      {
-        routeSet = true;
-        routing = (ROUTES)i;
-        return VALID_RESULT;
-      }
-    }
-    ERROR_LOGF("Unknown routing option \"%s\"!", value);
-    INFO_LOGF("Valid routing options are \"%s\"", "LR, KW, KW_PARALLEL");
-    return INVALID_RESULT;
+    return SetOption(value, routeStrings, ROUTE_QTY, &routing, &routeSet,
+                     "routing", "routing", "LR, KW, KW_PARALLEL");
   }
-  else if (!strcasecmp(name, "snow"))
+  if (!strcasecmp(name, "snow"))
   {
-    for (int i = 0; i < SNOW_QTY; i++)
-    {
-      if (!strcasecmp(value, snowStrings[i]))
-      {
-        snowSet = true;
-        snow = (SNOWS)i;
-        return VALID_RESULT;
-      }
-    }
-    ERROR_LOGF("Unknown snow option \"%s\"!", value);
-    INFO_LOGF("Valid snow options are \"%s\"", "SNOW17");
-    return INVALID_RESULT;
+    return SetOption(value, snowStrings, SNOW_QTY, &snow, &snowSet, "snow",
+                     "snow", "SNOW17");
   }
-  else if (!strcasecmp(name, "inundation"))
+  if (!strcasecmp(name, "inundation"))
   {
-    for (int i = 0; i < INUNDATION_QTY; i++)
-    {
-      if (!strcasecmp(value, inundationStrings[i]))
-      {
-        inundationSet = true;
-        inundation = (INUNDATIONS)i;
-        return VALID_RESULT;
-      }
-    }
-    ERROR_LOGF("Unknown inundation option \"%s\"!", value);
-    INFO_LOGF("Valid inundation options are \"%s\"",
-              "SIMPLEINUNDATION, VCINUNDATION");
-    return INVALID_RESULT;
+    return SetOption(value, inundationStrings, INUNDATION_QTY, &inundation,
+                     &inundationSet, "inundation", "inundation",
+                     "SIMPLEINUNDATION, VCINUNDATION");
   }
-  else if (!strcasecmp(name, "basin"))
+
+  // Other sections of the control file, by name
+  if (!strcasecmp(name, "basin"))
   {
-    TOLOWER(value);
-    std::map<std::string, BasinConfigSection *>::iterator itr =
-        g_basinConfigs.find(value);
-    if (itr == g_basinConfigs.end())
+    return SetSection(value, &g_basinConfigs, &basin, &basinSet, "basin");
+  }
+  if (!strcasecmp(name, "defaultparamsgauge"))
+  {
+    return SetSection(value, &g_gaugeConfigs, &defaultGauge, &defaultParamsSet,
+                      "default parameter gauge");
+  }
+  if (!strcasecmp(name, "precip"))
+  {
+    return SetSection(value, &g_precipConfigs, &precip, &precipSet,
+                      "precip setting");
+  }
+  if (!strcasecmp(name, "precipforecast"))
+  {
+    return SetSection(value, &g_precipConfigs, &qpf, &qpfSet,
+                      "precip forecast setting");
+  }
+  if (!strcasecmp(name, "pet"))
+  {
+    return SetSection(value, &g_petConfigs, &pet, &petSet, "PET setting");
+  }
+  if (!strcasecmp(name, "temp"))
+  {
+    return SetSection(value, &g_tempConfigs, &temp, &tempSet, "temp setting");
+  }
+  if (!strcasecmp(name, "tempforecast"))
+  {
+    return SetSection(value, &g_tempConfigs, &tempf, &tempFSet,
+                      "temp forecast setting");
+  }
+
+  // Parameter and calibration sets of the chosen models
+  if (!strcasecmp(name, "param_set"))
+  {
+    if (!RequireEarlier(modelSet, "MODEL", "PARAM_SET"))
     {
-      ERROR_LOGF("Unknown basin \"%s\"!", value);
       return INVALID_RESULT;
     }
-    basin = itr->second;
-    basinSet = true;
+    return SetSection(value, &g_paramSetConfigs[model], &params, &paramsSet,
+                      "parameter set");
   }
-  else if (!strcasecmp(name, "defaultparamsgauge"))
+  if (!strcasecmp(name, "routing_param_set"))
   {
-    TOLOWER(value);
-    std::map<std::string, GaugeConfigSection *>::iterator itr =
-        g_gaugeConfigs.find(value);
-    if (itr == g_gaugeConfigs.end())
+    if (!RequireEarlier(routeSet, "ROUTING", "ROUTING_PARAM_SET"))
     {
-      ERROR_LOGF("Unknown default parameter gauge \"%s\"!", value);
       return INVALID_RESULT;
     }
-    defaultGauge = itr->second;
-    defaultParamsSet = true;
+    return SetRoutingSection(value, g_routingParamSetConfigs, routing,
+                             &paramsRouting, &routingParamsSet,
+                             "routing parameter set");
   }
-  else if (!strcasecmp(name, "precip"))
+  if (!strcasecmp(name, "snow_param_set"))
   {
-    TOLOWER(value);
-    std::map<std::string, PrecipConfigSection *>::iterator itr =
-        g_precipConfigs.find(value);
-    if (itr == g_precipConfigs.end())
+    if (!RequireEarlier(snowSet, "SNOW", "SNOW_PARAM_SET"))
     {
-      ERROR_LOGF("Unknown precip setting \"%s\"!", value);
       return INVALID_RESULT;
     }
-    precip = itr->second;
-    precipSet = true;
+    return SetSection(value, &g_snowParamSetConfigs[snow], &paramsSnow,
+                      &snowParamsSet, "snow parameter set");
   }
-  else if (!strcasecmp(name, "precipforecast"))
+  if (!strcasecmp(name, "inundation_param_set"))
   {
-    TOLOWER(value);
-    std::map<std::string, PrecipConfigSection *>::iterator itr =
-        g_precipConfigs.find(value);
-    if (itr == g_precipConfigs.end())
+    if (!RequireEarlier(inundationSet, "INUNDATION", "INUNDATION_PARAM_SET"))
     {
-      ERROR_LOGF("Unknown precip forecast setting \"%s\"!", value);
       return INVALID_RESULT;
     }
-    qpf = itr->second;
-    qpfSet = true;
+    return SetSection(value, &g_inundationParamSetConfigs[inundation],
+                      &paramsInundation, &inundationParamsSet,
+                      "inundation parameter set");
   }
-  else if (!strcasecmp(name, "pet"))
+  if (!strcasecmp(name, "cali_param"))
   {
-    TOLOWER(value);
-    std::map<std::string, PETConfigSection *>::iterator itr =
-        g_petConfigs.find(value);
-    if (itr == g_petConfigs.end())
+    if (!RequireEarlier(modelSet, "MODEL", "CALI_PARAM"))
     {
-      ERROR_LOGF("Unknown PET setting \"%s\"!", value);
       return INVALID_RESULT;
     }
-    pet = itr->second;
-    petSet = true;
+    return SetSection(value, &g_caliParamConfigs[model], &caliParam,
+                      &caliParamSet, "calibration parameter set");
   }
-  else if (!strcasecmp(name, "temp"))
+  if (!strcasecmp(name, "routing_cali_param"))
   {
-    TOLOWER(value);
-    std::map<std::string, TempConfigSection *>::iterator itr =
-        g_tempConfigs.find(value);
-    if (itr == g_tempConfigs.end())
+    if (!RequireEarlier(routeSet, "ROUTING", "ROUTING_CALI_PARAM"))
     {
-      ERROR_LOGF("Unknown temp setting \"%s\"!", value);
       return INVALID_RESULT;
     }
-    temp = itr->second;
-    tempSet = true;
+    return SetRoutingSection(value, g_routingCaliParamConfigs, routing,
+                             &caliParamRouting, &routingCaliParamSet,
+                             "routing calibration parameter set");
   }
-  else if (!strcasecmp(name, "tempforecast"))
+  if (!strcasecmp(name, "snow_cali_param"))
   {
-    TOLOWER(value);
-    std::map<std::string, TempConfigSection *>::iterator itr =
-        g_tempConfigs.find(value);
-    if (itr == g_tempConfigs.end())
+    if (!RequireEarlier(snowSet, "SNOW", "SNOW_CALI_PARAM"))
     {
-      ERROR_LOGF("Unknown temp forecast setting \"%s\"!", value);
       return INVALID_RESULT;
     }
-    tempf = itr->second;
-    tempFSet = true;
+    return SetSection(value, &g_snowCaliParamConfigs[snow], &caliParamSnow,
+                      &snowCaliParamSet, "snow calibration parameter set");
   }
-  else if (!strcasecmp(name, "param_set"))
+  if (!strcasecmp(name, "inundation_cali_param"))
   {
-    if (!modelSet)
+    if (!RequireEarlier(inundationSet, "INUNDATION", "INUNDATION_CALI_PARAM"))
     {
-      ERROR_LOG("The MODEL setting must be specified before the PARAM_SET "
-                "setting in the task!");
       return INVALID_RESULT;
     }
-    TOLOWER(value);
-    std::map<std::string, ParamSetConfigSection *>::iterator itr =
-        g_paramSetConfigs[model].find(value);
-    if (itr == g_paramSetConfigs[model].end())
-    {
-      ERROR_LOGF("Unknown parameter set \"%s\"!", value);
-      return INVALID_RESULT;
-    }
-    params = itr->second;
-    paramsSet = true;
+    return SetSection(value, &g_inundationCaliParamConfigs[inundation],
+                      &caliParamInundation, &inundationCaliParamSet,
+                      "inundation calibration parameter set");
   }
-  else if (!strcasecmp(name, "routing_param_set"))
-  {
-    if (!routeSet)
-    {
-      ERROR_LOG("The ROUTING setting must be specified before the "
-                "ROUTING_PARAM_SET setting in the task!");
-      return INVALID_RESULT;
-    }
-    TOLOWER(value);
-    std::map<std::string, RoutingParamSetConfigSection *> *routingParamSets =
-        &g_routingParamSetConfigs[routing];
-    std::map<std::string, RoutingParamSetConfigSection *>::iterator itr =
-        routingParamSets->find(value);
-    if (itr == routingParamSets->end() &&
-        routing == ROUTE_KINEMATIC_PARALLEL)
-    {
-      routingParamSets = &g_routingParamSetConfigs[ROUTE_KINEMATIC];
-      itr = routingParamSets->find(value);
-    }
-    if (itr == routingParamSets->end())
-    {
-      ERROR_LOGF("Unknown routing parameter set \"%s\"!", value);
-      return INVALID_RESULT;
-    }
-    paramsRouting = itr->second;
-    routingParamsSet = true;
-  }
-  else if (!strcasecmp(name, "snow_param_set"))
-  {
-    if (!snowSet)
-    {
-      ERROR_LOG("The SNOW setting must be specified before the SNOW_PARAM_SET "
-                "setting in the task!");
-      return INVALID_RESULT;
-    }
-    TOLOWER(value);
-    std::map<std::string, SnowParamSetConfigSection *>::iterator itr =
-        g_snowParamSetConfigs[snow].find(value);
-    if (itr == g_snowParamSetConfigs[snow].end())
-    {
-      ERROR_LOGF("Unknown snow parameter set \"%s\"!", value);
-      return INVALID_RESULT;
-    }
-    paramsSnow = itr->second;
-    snowParamsSet = true;
-  }
-  else if (!strcasecmp(name, "inundation_param_set"))
-  {
-    if (!inundationSet)
-    {
-      ERROR_LOG("The INUNDATION setting must be specified before the "
-                "INUNDATION_PARAM_SET setting in the task!");
-      return INVALID_RESULT;
-    }
-    TOLOWER(value);
-    std::map<std::string, InundationParamSetConfigSection *>::iterator itr =
-        g_inundationParamSetConfigs[inundation].find(value);
-    if (itr == g_inundationParamSetConfigs[inundation].end())
-    {
-      ERROR_LOGF("Unknown inundation parameter set \"%s\"!", value);
-      return INVALID_RESULT;
-    }
-    paramsInundation = itr->second;
-    inundationParamsSet = true;
-  }
-  else if (!strcasecmp(name, "output"))
-  {
-    strcpy(output, value);
-    outputSet = true;
-  }
-  else if (!strcasecmp(name, "output_type"))
+
+  // Outputs
+  if (!strcasecmp(name, "output_type"))
   {
     if (!strcasecmp(value, "geotiff"))
     {
@@ -451,236 +513,21 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char *name, char *value)
       ERROR_LOGF("Unknown output type \"%s\". Valid output types are GEOTIFF and ZARR.", value);
       return INVALID_RESULT;
     }
+    return VALID_RESULT;
   }
-  else if (!strcasecmp(name, "preload_file"))
+  if (!strcasecmp(name, "output_grids"))
   {
-    strcpy(preloadFile, value);
+    return LoadGriddedOutputs(value) ? VALID_RESULT : INVALID_RESULT;
   }
-  else if (!strcasecmp(name, "da_file"))
-  {
-    strcpy(daFile, value);
-  }
-  else if (!strcasecmp(name, "co_file"))
-  {
-    strcpy(coFile, value);
-  }
-  else if (!strcasecmp(name, "states"))
-  {
-    strcpy(state, value);
-    stateSet = true;
-  }
-  else if (!strcasecmp(name, "output_grids"))
-  {
-    if (!LoadGriddedOutputs(value))
-    {
-      return INVALID_RESULT;
-    }
-  }
-  else if (!strcasecmp(name, "rp_stdgrid"))
-  {
-    strcpy(stdGrid, value);
-  }
-  else if (!strcasecmp(name, "rp_avggrid"))
-  {
-    strcpy(avgGrid, value);
-  }
-  else if (!strcasecmp(name, "rp_csgrid"))
-  {
-    strcpy(scGrid, value);
-  }
-  else if (!strcasecmp(name, "action_grid"))
-  {
-    strcpy(actionGrid, value);
-  }
-  else if (!strcasecmp(name, "minor_grid"))
-  {
-    strcpy(minorGrid, value);
-  }
-  else if (!strcasecmp(name, "moderate_grid"))
-  {
-    strcpy(moderateGrid, value);
-  }
-  else if (!strcasecmp(name, "major_grid"))
-  {
-    strcpy(majorGrid, value);
-  }
-  else if (!strcasecmp(name, "action_sd_grid"))
-  {
-    strcpy(actionSDGrid, value);
-  }
-  else if (!strcasecmp(name, "minor_sd_grid"))
-  {
-    strcpy(minorSDGrid, value);
-  }
-  else if (!strcasecmp(name, "moderate_sd_grid"))
-  {
-    strcpy(moderateSDGrid, value);
-  }
-  else if (!strcasecmp(name, "major_sd_grid"))
-  {
-    strcpy(majorSDGrid, value);
-  }
-  else if (!strcasecmp(name, "timestep"))
-  {
-    SUPPORTED_TIME_UNITS result = timeStep.ParseUnit(value);
-    if (result == TIME_UNIT_QTY)
-    {
-      ERROR_LOGF("Unknown timestep option \"%s\"", value);
-      return INVALID_RESULT;
-    }
-    timestepSet = true;
-  }
-  else if (!strcasecmp(name, "timestep_lr"))
-  {
-    SUPPORTED_TIME_UNITS result = timeStepLR.ParseUnit(value);
-    if (result == TIME_UNIT_QTY)
-    {
-      ERROR_LOGF("Unknown timestep long range option \"%s\"", value);
-      return INVALID_RESULT;
-    }
-    timestepLRSet = true;
-  }
-  else if (!strcasecmp(name, "time_state"))
-  {
-    if (!timeState.LoadTime(value))
-    {
-      ERROR_LOGF("Unknown time state option \"%s\"", value);
-      return INVALID_RESULT;
-    }
-    timeStateSet = true;
-  }
-  else if (!strcasecmp(name, "time_begin"))
-  {
-    if (!timeBegin.LoadTime(value))
-    {
-      ERROR_LOGF("Unknown time begin option \"%s\"", value);
-      return INVALID_RESULT;
-    }
-    timeBeginSet = true;
-  }
-  else if (!strcasecmp(name, "time_begin_lr"))
-  {
-    if (!timeBeginLR.LoadTime(value))
-    {
-      ERROR_LOGF("Unknown time begin long range option \"%s\"", value);
-      return INVALID_RESULT;
-    }
-    timeBeginLRSet = true;
-  }
-  else if (!strcasecmp(name, "time_warmend"))
-  {
-    if (!timeWarmEnd.LoadTime(value))
-    {
-      ERROR_LOGF("Unknown time warm end option \"%s\"", value);
-      return INVALID_RESULT;
-    }
-    timeWarmEndSet = true;
-  }
-  else if (!strcasecmp(name, "time_end"))
-  {
-    if (!timeEnd.LoadTime(value))
-    {
-      ERROR_LOGF("Unknown time end option \"%s\"", value);
-      return INVALID_RESULT;
-    }
-    timeEndSet = true;
-  }
-  else if (!strcasecmp(name, "cali_param"))
-  {
-    if (!modelSet)
-    {
-      ERROR_LOG("The MODEL setting must be specified before the CALI_PARAM "
-                "setting in the task!");
-      return INVALID_RESULT;
-    }
-    TOLOWER(value);
-    std::map<std::string, CaliParamConfigSection *>::iterator itr =
-        g_caliParamConfigs[model].find(value);
-    if (itr == g_caliParamConfigs[model].end())
-    {
-      ERROR_LOGF("Unknown calibration parameter set \"%s\"!", value);
-      return INVALID_RESULT;
-    }
-    caliParam = itr->second;
-    caliParamSet = true;
-  }
-  else if (!strcasecmp(name, "routing_cali_param"))
-  {
-    if (!routeSet)
-    {
-      ERROR_LOG("The ROUTING setting must be specified before the "
-                "ROUTING_CALI_PARAM setting in the task!");
-      return INVALID_RESULT;
-    }
-    TOLOWER(value);
-    std::map<std::string, RoutingCaliParamConfigSection *> *routingCaliParams =
-        &g_routingCaliParamConfigs[routing];
-    std::map<std::string, RoutingCaliParamConfigSection *>::iterator itr =
-        routingCaliParams->find(value);
-    if (itr == routingCaliParams->end() &&
-        routing == ROUTE_KINEMATIC_PARALLEL)
-    {
-      routingCaliParams = &g_routingCaliParamConfigs[ROUTE_KINEMATIC];
-      itr = routingCaliParams->find(value);
-    }
-    if (itr == routingCaliParams->end())
-    {
-      ERROR_LOGF("Unknown routing calibration parameter set \"%s\"!", value);
-      return INVALID_RESULT;
-    }
-    caliParamRouting = itr->second;
-    routingCaliParamSet = true;
-  }
-  else if (!strcasecmp(name, "snow_cali_param"))
-  {
-    if (!snowSet)
-    {
-      ERROR_LOG("The SNOW setting must be specified before the SNOW_CALI_PARAM "
-                "setting in the task!");
-      return INVALID_RESULT;
-    }
-    TOLOWER(value);
-    std::map<std::string, SnowCaliParamConfigSection *>::iterator itr =
-        g_snowCaliParamConfigs[snow].find(value);
-    if (itr == g_snowCaliParamConfigs[snow].end())
-    {
-      ERROR_LOGF("Unknown snow calibration parameter set \"%s\"!", value);
-      return INVALID_RESULT;
-    }
-    caliParamSnow = itr->second;
-    snowCaliParamSet = true;
-  }
-  else if (!strcasecmp(name, "inundation_cali_param"))
-  {
-    if (!inundationSet)
-    {
-      ERROR_LOG("The INUNDATION setting must be specified before the "
-                "INUNDATION_CALI_PARAM setting in the task!");
-      return INVALID_RESULT;
-    }
-    TOLOWER(value);
-    std::map<std::string, InundationCaliParamConfigSection *>::iterator itr =
-        g_inundationCaliParamConfigs[inundation].find(value);
-    if (itr == g_inundationCaliParamConfigs[inundation].end())
-    {
-      ERROR_LOGF("Unknown inundation calibration parameter set \"%s\"!", value);
-      return INVALID_RESULT;
-    }
-    caliParamInundation = itr->second;
-    inundationCaliParamSet = true;
-  }
-  else if (!strcasecmp(name, "basin_avg_input"))
+  if (!strcasecmp(name, "basin_avg_input"))
   {
     strncpy(basinAvgInput, value, CONFIG_MAX_LEN - 1);
     basinAvgInput[CONFIG_MAX_LEN - 1] = '\0';
-  }
-  else
-  {
-    ERROR_LOGF("Unknown task configuration option \"%s\"", name);
-    return INVALID_RESULT;
+    return VALID_RESULT;
   }
 
-  return VALID_RESULT;
+  ERROR_LOGF("Unknown task configuration option \"%s\"", name);
+  return INVALID_RESULT;
 }
 
 bool TaskConfigSection::LoadGriddedOutputs(char *value)
