@@ -109,7 +109,7 @@ struct NodataGrid
   size_t param;
   size_t cells;        // modelled cells
   size_t channelCells; // of which channel cells
-  bool everywhere;     // every cell of the grid is nodata: it was not read
+  bool everywhere;     // every cell of the grid is nodata
 };
 
 void FindNodataGrids(std::vector<GridNode> *nodes,
@@ -185,8 +185,8 @@ void ReportNodataGrids(std::vector<GridNode> *nodes,
     printf("\n");
     if (ng.everywhere)
     {
-      printf("      WARNING: every cell of %s reads as nodata (%g); EF5 "
-             "could not read this grid\n",
+      printf("      WARNING: every cell of %s reads as nodata (%g); check "
+             "that the file is right\n",
              files->at(ng.param).c_str(), grids->at(ng.param)->noData);
     }
   }
@@ -602,8 +602,8 @@ void Simulator::WarnParameterProblems()
                    channelOnly ? ng.channelCells : ng.cells,
                    channelOnly ? bp.numChannel : bp.numModelled,
                    channelOnly ? "channel cells" : "cells",
-                   ng.everywhere ? ". Every cell of the grid is nodata: it "
-                                   "was not read"
+                   ng.everywhere ? ". Every cell of the grid is nodata: check "
+                                   "that the file is right"
                                  : "");
     }
   }

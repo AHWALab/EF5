@@ -60,7 +60,7 @@ use:
 - **Parameter grids that hold their nodata value at modelled cells.** EF5
   multiplies the nodata value in as a number, and some parameters are then
   silently reset (e.g. a negative `wm` becomes 100). A grid that reads as
-  nodata everywhere was most likely not read at all.
+  nodata everywhere is probably the wrong file or a damaged one.
 
 It writes two files to the task's `OUTPUT` folder:
 
@@ -74,9 +74,14 @@ inundation parameters are not checked.
 
 Normal runs print the same problems as warnings at start-up, one line per
 parameter or grid (without the locations), and EF5 warns when it cannot read
-rows of a TIFF file. Such rows are set to nodata. A TIFF stored as separate
-planes (PlanarConfiguration=2) cannot be read at all; rewrite it with
-`gdal_translate -co INTERLEAVE=PIXEL`.
+rows of a TIFF file. Such rows are set to nodata.
+
+Grids must be one-band GeoTIFFs, not tiled: Float32, or Int32 for the DDM and
+FAM. They can be stored as one image plane or as separate planes
+(PlanarConfiguration 1 or 2). Earlier versions of EF5 could not read grids
+stored as separate planes: every cell read as nodata, without a message, and
+most parameters fell back to fixed values (e.g. `wm` 100, `b` 1). Results of
+runs that used such grids change now that the grids are read.
 
 ## Contributors
 

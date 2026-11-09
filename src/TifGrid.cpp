@@ -148,11 +148,13 @@ FloatGrid *ReadFloatTifGrid(const char *file, FloatGrid *incGrid) {
   GTIFKeyGet(gtif, GeogGeodeticDatumGeoKey, &grid->geodeticDatum, 0, 1);
   grid->geoSet = true;
 
+  // Sample (plane) 0: the only plane of a one-band grid. libtiff ignores it for
+  // contiguous TIFFs and needs it for separate planes (PlanarConfiguration=2).
   // libtiff errors are switched off (TIFFExtenderInit), so count the rows
   // that fail and say so: they are silently set to nodata otherwise
   long failedRows = 0;
   for (long i = 0; i < grid->numRows; i++) {
-    if (TIFFReadScanline(tif, grid->data[i], (unsigned int)i, 1) == -1) {
+    if (TIFFReadScanline(tif, grid->data[i], (unsigned int)i, 0) == -1) {
       failedRows++;
       for (long j = 0; j < grid->numCols; j++) {
         grid->data[i][j] = grid->noData;
@@ -161,9 +163,7 @@ FloatGrid *ReadFloatTifGrid(const char *file, FloatGrid *incGrid) {
   }
   if (failedRows) {
     WARNING_LOGF("Could not read %li of %li rows of %s; they are set to nodata "
-                 "(%g). A TIFF stored as separate planes (PlanarConfiguration=2) "
-                 "cannot be read; rewrite it with gdal_translate -co "
-                 "INTERLEAVE=PIXEL",
+                 "(%g). The file may be damaged; check it with gdalinfo -checksum",
                  failedRows, grid->numRows, file, grid->noData);
   }
 
@@ -314,14 +314,14 @@ LongGrid *ReadLongTifGrid(const char *file) {
   long failedRows = 0;
   for (long i = 0; i < grid->numRows; i++) {
     grid->data[i] = new long[grid->numCols];
-    if (TIFFReadScanline(tif, grid->data[i], (unsigned int)i, 1) == -1) {
+    // Sample (plane) 0, as in ReadFloatTifGrid
+    if (TIFFReadScanline(tif, grid->data[i], (unsigned int)i, 0) == -1) {
       failedRows++;
     }
   }
   if (failedRows) {
-    WARNING_LOGF("Could not read %li of %li rows of %s. A TIFF stored as "
-                 "separate planes (PlanarConfiguration=2) cannot be read; "
-                 "rewrite it with gdal_translate -co INTERLEAVE=PIXEL",
+    WARNING_LOGF("Could not read %li of %li rows of %s. The file may be "
+                 "damaged; check it with gdalinfo -checksum",
                  failedRows, grid->numRows, file);
   }
 
