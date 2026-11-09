@@ -855,6 +855,90 @@ static void OrderGauges(std::vector<GaugeConfigSection *> *gauges,
   }
 }
 
+// Sets up the cell of a basin outlet gauge. Its slope is to the next cell
+// downstream (outside the basin) if there is one, otherwise 1 m over one cell.
+// Returns false if the cell is nodata.
+static bool InitOutletNode(GridNode *node, GaugeConfigSection *gauge)
+{
+  node->x = gauge->GetGridLoc()->x;
+  node->y = gauge->GetGridLoc()->y;
+  g_DEM->GetRefLoc(node->x, node->y, &node->refLoc);
+  if (g_DEM->data[node->y][node->x] == g_DEM->noData ||
+      g_FAM->data[node->y][node->x] == g_FAM->noData ||
+      g_FAM->data[node->y][node->x] < 0)
+  {
+    ERROR_LOGF("Gauge \"%s\" is located in a no data grid cell!",
+               gauge->GetName());
+    return false;
+  }
+  node->downStreamNode = INVALID_DOWNSTREAM_NODE;
+  long outsideHeight = 0;
+  if (GetDownstreamHeight(node->x, node->y, &outsideHeight))
+  {
+    node->horLen = g_Projection->GetLen(node->refLoc.x, node->refLoc.y,
+                                        (FLOW_DIR)g_DDM->data[node->y][node->x]);
+    float DEMDiff = g_DEM->data[node->y][node->x] - outsideHeight;
+    node->slope = ((DEMDiff < 1.0) ? 1.0 : DEMDiff) / node->horLen;
+  }
+  else
+  {
+    // Nothing is known downstream: assume one cell length and 1 m of drop
+    node->horLen =
+        g_Projection->GetLen(node->refLoc.x, node->refLoc.y, FLOW_NORTH);
+    node->slope = 1.0 / node->horLen;
+  }
+  node->area = g_Projection->GetArea(node->refLoc.x, node->refLoc.y);
+  node->contribArea = node->area;
+  node->relief = g_DEM->data[node->y][node->x];
+  node->riverLen = node->horLen;
+  node->fac = g_FAM->data[node->y][node->x];
+  return true;
+}
+
+// Sets up a cell at loc that flows into downstream in direction dir. The
+// slope is its elevation minus the downstream one (both truncated to whole
+// metres), at least 1 m, over the distance between the cells.
+static void InitUpstreamNode(GridNode *node, GridNode *downstream, GridLoc loc,
+                             FLOW_DIR dir)
+{
+  node->x = loc.x;
+  node->y = loc.y;
+  node->downStreamNode = downstream->index;
+  node->gauge = downstream->gauge;
+  node->fac = g_FAM->data[node->y][node->x];
+
+  long downstreamDEM = g_DEM->data[downstream->y][downstream->x];
+  long nodeDEM = g_DEM->data[node->y][node->x];
+  float DEMDiff = (float)(nodeDEM - downstreamDEM);
+  g_DEM->GetRefLoc(node->x, node->y, &node->refLoc);
+  node->horLen = g_Projection->GetLen(node->refLoc.x, node->refLoc.y, dir);
+  node->slope = ((DEMDiff < 1.0) ? 1.0 : DEMDiff) / node->horLen;
+  node->area = g_Projection->GetArea(node->refLoc.x, node->refLoc.y);
+  node->contribArea = node->area;
+  node->relief = g_DEM->data[node->y][node->x];
+  node->riverLen = node->horLen;
+}
+
+// Adds each cell's contributing area and river length to the cell downstream,
+// and carries the highest relief down. Nodes are in walk order (downstream
+// before upstream), so going backwards visits upstream cells first.
+static void AccumulateDownstream(std::vector<GridNode> *nodes)
+{
+  for (long i = nodes->size() - 1; i >= 0; i--)
+  {
+    GridNode *node = &nodes->at(i);
+    if (node->downStreamNode != INVALID_DOWNSTREAM_NODE)
+    {
+      nodes->at(node->downStreamNode).contribArea += node->contribArea;
+      nodes->at(node->downStreamNode).riverLen += node->riverLen;
+      if (nodes->at(node->downStreamNode).relief < node->relief)
+      {
+        nodes->at(node->downStreamNode).relief = node->relief;
+      }
+    }
+  }
+}
+
 typedef std::map<GaugeConfigSection *, float *> GaugeParamMap;
 
 // Parameters of a gauge at a basin outlet: its own set, or the default set.
@@ -975,43 +1059,10 @@ void CarveBasin(
     // Setup the initial node for initiating the search for upstream nodes
     currentN->index = currentNode;
     currentNode++;
-    currentN->x = currentGauge->GetGridLoc()->x;
-    currentN->y = currentGauge->GetGridLoc()->y;
-    g_DEM->GetRefLoc(currentN->x, currentN->y, &currentN->refLoc);
-    if (g_DEM->data[currentN->y][currentN->x] == g_DEM->noData ||
-        g_FAM->data[currentN->y][currentN->x] == g_FAM->noData ||
-        g_FAM->data[currentN->y][currentN->x] < 0)
+    if (!InitOutletNode(currentN, currentGauge))
     {
-      ERROR_LOGF("Gauge \"%s\" is located in a no data grid cell!",
-                 currentGauge->GetName());
       return;
     }
-    currentN->downStreamNode = INVALID_DOWNSTREAM_NODE;
-    long outsideHeight = 0;
-    if (GetDownstreamHeight(currentN->x, currentN->y, &outsideHeight))
-    {
-      currentN->horLen =
-          g_Projection->GetLen(currentN->refLoc.x, currentN->refLoc.y,
-                               (FLOW_DIR)g_DDM->data[currentN->y][currentN->x]);
-      float DEMDiff = g_DEM->data[currentN->y][currentN->x] - outsideHeight;
-      currentN->slope = ((DEMDiff < 1.0) ? 1.0 : DEMDiff) / currentN->horLen;
-    }
-    else
-    {
-      currentN->horLen =
-          g_Projection->GetLen(currentN->refLoc.x, currentN->refLoc.y,
-                               FLOW_NORTH);     // We assume a horizontal length
-                                                // because we know nothing further
-      currentN->slope = 1.0 / currentN->horLen; // We assume a difference in
-                                                // height of 1 meter because we
-                                                // know nothing else
-    }
-    currentN->area =
-        g_Projection->GetArea(currentN->refLoc.x, currentN->refLoc.y);
-    currentN->contribArea = currentN->area;
-    currentN->relief = g_DEM->data[currentN->y][currentN->x]; // relief Fix
-    currentN->riverLen = currentN->horLen;
-    currentN->fac = g_FAM->data[currentN->y][currentN->x];
     walkNodes.push(currentN);
 
     while (!walkNodes.empty())
@@ -1050,10 +1101,7 @@ void CarveBasin(
                            outInundationParamSettings, nodeGauge, prevGauge);
       }
 
-      long currentNDEM = g_DEM->data[currentN->y][currentN->x];
-
-      // Lets figure out what flows into this node
-      // We compute slope here too!
+      // Add the cells that flow into this one
       if (keepGoing)
       {
         for (int i = 1; i < FLOW_QTY; i++)
@@ -1063,27 +1111,7 @@ void CarveBasin(
             GridNode *nextN = &(*nodes)[currentNode];
             nextN->index = currentNode;
             currentNode++;
-            nextN->x = nextNode.x;
-            nextN->y = nextNode.y;
-            nextN->downStreamNode = currentN->index;
-            nextN->gauge = currentN->gauge;
-            nextN->fac = g_FAM->data[nextN->y][nextN->x];
-
-            // Calculate slope!
-            long nextNDEM = g_DEM->data[nextN->y][nextN->x];
-            float DEMDiff =
-                (float)(nextNDEM - currentNDEM); // Upstream (higher elevation)
-                                                 // minus downstream (lower
-                                                 // elevation)
-            g_DEM->GetRefLoc(nextN->x, nextN->y, &nextN->refLoc);
-            nextN->horLen = g_Projection->GetLen(nextN->refLoc.x,
-                                                 nextN->refLoc.y, (FLOW_DIR)i);
-            nextN->slope = ((DEMDiff < 1.0) ? 1.0 : DEMDiff) / nextN->horLen;
-            nextN->area =
-                g_Projection->GetArea(nextN->refLoc.x, nextN->refLoc.y);
-            nextN->contribArea = nextN->area;
-            nextN->relief = g_DEM->data[nextN->y][nextN->x];
-            nextN->riverLen = nextN->horLen;
+            InitUpstreamNode(nextN, currentN, nextNode, (FLOW_DIR)i);
             walkNodes.push(nextN);
           }
         }
@@ -1096,21 +1124,7 @@ void CarveBasin(
   }
 
   nodes->resize(currentNode);
-
-  for (long i = nodes->size() - 1; i >= 0; i--)
-  {
-    GridNode *node = &nodes->at(i);
-    if (node->downStreamNode != INVALID_DOWNSTREAM_NODE)
-    {
-      nodes->at(node->downStreamNode).contribArea += node->contribArea;
-      nodes->at(node->downStreamNode).riverLen += node->riverLen;
-      if (nodes->at(node->downStreamNode).relief < node->relief)
-      { // relief fix
-        nodes->at(node->downStreamNode).relief = node->relief;
-      }
-    }
-  }
-
+  AccumulateDownstream(nodes);
 }
 
 bool GetDownstreamHeight(long x, long y, long *outsideHeight)
