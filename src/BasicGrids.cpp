@@ -714,6 +714,60 @@ void FixFlowDir(BasinConfigSection *basin, std::vector<GridNode> *nodes)
   }
 }
 
+typedef std::map<GaugeConfigSection *, float *> GaugeParamMap;
+
+// Parameters of a gauge at a basin outlet: its own set, or the default set.
+// A NULL in means the task does not use this kind of model. Returns false if
+// the gauge has no set and there is no default.
+static bool AssignOutletParams(GaugeParamMap *in, GaugeParamMap *out,
+                               float *defaultParams, GaugeConfigSection *gauge,
+                               const char *kind)
+{
+  if (!in)
+  {
+    return true;
+  }
+  GaugeParamMap::iterator pitr = in->find(gauge);
+  if (pitr == in->end() && !defaultParams)
+  {
+    ERROR_LOGF("Independent basin \"%s\" lacks a %s parameter set!",
+               gauge->GetName(), kind);
+    return false;
+  }
+  if (pitr == in->end())
+  {
+    out->insert(std::make_pair(gauge, defaultParams));
+  }
+  else
+  {
+    out->insert(std::make_pair(pitr->first, pitr->second));
+  }
+  return true;
+}
+
+// Parameters of a gauge upstream of another: its own set, or the set of the
+// gauge downstream (already in out). A NULL in means the task does not use
+// this kind of model.
+static void InheritGaugeParams(GaugeParamMap *in, GaugeParamMap *out,
+                               GaugeConfigSection *gauge,
+                               GaugeConfigSection *downstreamGauge)
+{
+  if (!in)
+  {
+    return;
+  }
+  GaugeParamMap::iterator pitr = in->find(gauge);
+  if (pitr == in->end())
+  {
+    pitr = out->find(downstreamGauge);
+    out->insert(std::make_pair(gauge, pitr->second));
+  }
+  else
+  {
+    out->insert(std::make_pair(pitr->first, pitr->second));
+  }
+}
+
 void CarveBasin(
     BasinConfigSection *basin, std::vector<GridNode> *nodes,
     std::map<GaugeConfigSection *, float *> *inParamSettings,
@@ -960,94 +1014,18 @@ void CarveBasin(
        currentGauge = NextUnusedGauge(gauges))
   {
 
-    std::map<GaugeConfigSection *, float *>::iterator pitr =
-        inParamSettings->find(currentGauge);
-    if (pitr == inParamSettings->end() && !defaultParams)
+    if (!AssignOutletParams(inParamSettings, outParamSettings, defaultParams,
+                            currentGauge, "water balance") ||
+        !AssignOutletParams(inRouteParamSettings, outRouteParamSettings,
+                            defaultRouteParams, currentGauge, "routing") ||
+        !AssignOutletParams(inSnowParamSettings, outSnowParamSettings,
+                            defaultSnowParams, currentGauge, "snow") ||
+        !AssignOutletParams(inInundationParamSettings,
+                            outInundationParamSettings,
+                            defaultInundationParams, currentGauge,
+                            "inundation"))
     {
-      ERROR_LOGF(
-          "Independent basin \"%s\" lacks a water balance parameter set!",
-          currentGauge->GetName());
       return;
-    }
-
-    if (pitr == inParamSettings->end())
-    {
-      outParamSettings->insert(std::pair<GaugeConfigSection *, float *>(
-          currentGauge, defaultParams));
-    }
-    else
-    {
-      outParamSettings->insert(
-          std::pair<GaugeConfigSection *, float *>(pitr->first, pitr->second));
-    }
-
-    if (inRouteParamSettings)
-    {
-      pitr = inRouteParamSettings->find(currentGauge);
-      if (pitr == inRouteParamSettings->end() && !defaultRouteParams)
-      {
-        ERROR_LOGF("Independent basin \"%s\" lacks a routing parameter set!",
-                   currentGauge->GetName());
-        return;
-      }
-
-      if (pitr == inRouteParamSettings->end())
-      {
-        outRouteParamSettings->insert(std::pair<GaugeConfigSection *, float *>(
-            currentGauge, defaultRouteParams));
-      }
-      else
-      {
-        outRouteParamSettings->insert(std::pair<GaugeConfigSection *, float *>(
-            pitr->first, pitr->second));
-      }
-    }
-
-    if (inSnowParamSettings)
-    {
-      pitr = inSnowParamSettings->find(currentGauge);
-      if (pitr == inSnowParamSettings->end() && !defaultSnowParams)
-      {
-        ERROR_LOGF("Independent basin \"%s\" lacks a snow parameter set!",
-                   currentGauge->GetName());
-        return;
-      }
-
-      if (pitr == inSnowParamSettings->end())
-      {
-        outSnowParamSettings->insert(std::pair<GaugeConfigSection *, float *>(
-            currentGauge, defaultSnowParams));
-      }
-      else
-      {
-        outSnowParamSettings->insert(std::pair<GaugeConfigSection *, float *>(
-            pitr->first, pitr->second));
-      }
-    }
-
-    if (inInundationParamSettings)
-    {
-      pitr = inInundationParamSettings->find(currentGauge);
-      if (pitr == inInundationParamSettings->end() &&
-          !defaultInundationParams)
-      {
-        ERROR_LOGF("Independent basin \"%s\" lacks a inundation parameter set!",
-                   currentGauge->GetName());
-        return;
-      }
-
-      if (pitr == inInundationParamSettings->end())
-      {
-        outInundationParamSettings->insert(
-            std::pair<GaugeConfigSection *, float *>(currentGauge,
-                                                     defaultInundationParams));
-      }
-      else
-      {
-        outInundationParamSettings->insert(
-            std::pair<GaugeConfigSection *, float *>(pitr->first,
-                                                     pitr->second));
-      }
     }
 
     if (g_basicConfig->IsSelfFAM())
@@ -1127,75 +1105,16 @@ void CarveBasin(
         // gauges & contributions
         gaugeMap->AddUpstreamGauge(prevGauge, nodeGauge);
 
-        // We fill in outParamSettings for the new gauge here
-        // Since it is not required that inParamSettings contain parameters for
-        // every gauge in the basin we will in parameters from downstream gauges
-        // upstream
-        pitr = inParamSettings->find(nodeGauge);
-        if (pitr == inParamSettings->end())
-        {
-          pitr = outParamSettings->find(prevGauge);
-          outParamSettings->insert(std::pair<GaugeConfigSection *, float *>(
-              nodeGauge, pitr->second));
-        }
-        else
-        {
-          outParamSettings->insert(std::pair<GaugeConfigSection *, float *>(
-              pitr->first, pitr->second));
-        }
-        if (inRouteParamSettings)
-        {
-          pitr = inRouteParamSettings->find(nodeGauge);
-          if (pitr == inRouteParamSettings->end())
-          {
-            pitr = outRouteParamSettings->find(prevGauge);
-            outRouteParamSettings->insert(
-                std::pair<GaugeConfigSection *, float *>(nodeGauge,
-                                                         pitr->second));
-          }
-          else
-          {
-            outRouteParamSettings->insert(
-                std::pair<GaugeConfigSection *, float *>(pitr->first,
-                                                         pitr->second));
-          }
-        }
-
-        if (inSnowParamSettings)
-        {
-          pitr = inSnowParamSettings->find(nodeGauge);
-          if (pitr == inSnowParamSettings->end())
-          {
-            pitr = outSnowParamSettings->find(prevGauge);
-            outSnowParamSettings->insert(
-                std::pair<GaugeConfigSection *, float *>(nodeGauge,
-                                                         pitr->second));
-          }
-          else
-          {
-            outSnowParamSettings->insert(
-                std::pair<GaugeConfigSection *, float *>(pitr->first,
-                                                         pitr->second));
-          }
-        }
-
-        if (inInundationParamSettings)
-        {
-          pitr = inInundationParamSettings->find(nodeGauge);
-          if (pitr == inInundationParamSettings->end())
-          {
-            pitr = outInundationParamSettings->find(prevGauge);
-            outInundationParamSettings->insert(
-                std::pair<GaugeConfigSection *, float *>(nodeGauge,
-                                                         pitr->second));
-          }
-          else
-          {
-            outInundationParamSettings->insert(
-                std::pair<GaugeConfigSection *, float *>(pitr->first,
-                                                         pitr->second));
-          }
-        }
+        // Gauges without their own parameter sets inherit them from the
+        // gauge downstream
+        InheritGaugeParams(inParamSettings, outParamSettings, nodeGauge,
+                           prevGauge);
+        InheritGaugeParams(inRouteParamSettings, outRouteParamSettings,
+                           nodeGauge, prevGauge);
+        InheritGaugeParams(inSnowParamSettings, outSnowParamSettings,
+                           nodeGauge, prevGauge);
+        InheritGaugeParams(inInundationParamSettings,
+                           outInundationParamSettings, nodeGauge, prevGauge);
       }
 
       long currentNDEM = g_DEM->data[currentN->y][currentN->x];
