@@ -498,6 +498,7 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
     currentQ.resize(nodes.size());
     currentSWE.resize(nodes.size());
     currentDepth.resize(nodes.size());
+    outputScratch.resize(nodes.size());
     computeVec.resize(nodes.size());
   }
   else
@@ -2265,10 +2266,10 @@ bool Simulator::WriteTimeStepOutputs()
     for (size_t i = 0; i < currentQ.size(); i++)
     {
       float val = floorf(currentQ[i] * 10.0f + 0.5f) / 10.0f;
-      currentDepth[i] = val;
+      outputScratch[i] = val;
     }
     if (!WriteTimeStepGrid("q", wbModel->GetName(), zarrTimeIndex,
-                           &currentDepth))
+                           &outputScratch))
     {
       return false;
     }
@@ -2323,7 +2324,7 @@ bool Simulator::WriteTimeStepOutputs()
   }
   if (iModel && (griddedOutputs & OG_DEPTH) == OG_DEPTH)
   {
-    iModel->Inundation(&currentQ, &currentDepth);
+    // outputScratch was computed for this step in SimulateDistributed
     if (!WriteTimeStepGrid("depth", iModel->GetName(), zarrTimeIndex,
                            &currentDepth))
     {
@@ -2363,12 +2364,12 @@ bool Simulator::WriteTimeStepOutputs()
   {
     for (size_t i = 0; i < currentQ.size(); i++)
     {
-      currentDepth[i] = currentQ[i] / nodes[i].contribArea;
-      float val = floorf(currentDepth[i] * 10.0f + 0.5f) / 10.0f;
-      currentDepth[i] = val;
+      outputScratch[i] = currentQ[i] / nodes[i].contribArea;
+      float val = floorf(outputScratch[i] * 10.0f + 0.5f) / 10.0f;
+      outputScratch[i] = val;
     }
     if (!WriteTimeStepGrid("unitq", wbModel->GetName(), zarrTimeIndex,
-                           &currentDepth))
+                           &outputScratch))
     {
       return false;
     }
@@ -2378,12 +2379,12 @@ bool Simulator::WriteTimeStepOutputs()
     const ThresholdGrids &t = thresholds;
     for (size_t i = 0; i < currentQ.size(); i++)
     {
-      currentDepth[i] = ComputeThresValue(currentQ[i], t.action[i],
+      outputScratch[i] = ComputeThresValue(currentQ[i], t.action[i],
                                           t.minor[i], t.moderate[i],
                                           t.major[i]);
     }
     if (!WriteTimeStepGrid("thres", wbModel->GetName(), zarrTimeIndex,
-                           &currentDepth))
+                           &outputScratch))
     {
       return false;
     }
@@ -2422,18 +2423,18 @@ bool Simulator::WriteEndOfRunOutputs()
     const ThresholdGrids &t = thresholds;
     for (size_t i = 0; i < currentQ.size(); i++)
     {
-      currentDepth[i] =
+      outputScratch[i] =
           floorf(ComputeThresValue(maxGrid[i], t.action[i], t.minor[i],
                                    t.moderate[i], t.major[i]) *
                      10.0f +
                  0.5f) /
           10.0f;
-      if (currentDepth[i] < 1.0)
+      if (outputScratch[i] < 1.0)
       {
-        currentDepth[i] = 0.0;
+        outputScratch[i] = 0.0;
       }
     }
-    if (!WriteEndOfRunGrid("", "maxthres", &currentDepth))
+    if (!WriteEndOfRunGrid("", "maxthres", &outputScratch))
     {
       return false;
     }
@@ -2444,7 +2445,7 @@ bool Simulator::WriteEndOfRunOutputs()
     const ThresholdGrids &t = thresholds;
     for (size_t i = 0; i < currentQ.size(); i++)
     {
-      currentDepth[i] =
+      outputScratch[i] =
           floorf(ComputeThresValueP(maxGrid[i], t.action[i], t.actionSD[i],
                                     t.minor[i], t.minorSD[i], t.moderate[i],
                                     t.moderateSD[i], t.major[i],
@@ -2453,7 +2454,7 @@ bool Simulator::WriteEndOfRunOutputs()
                  0.5f) /
           10.0f;
     }
-    if (!WriteEndOfRunGrid("", "maxthresp", &currentDepth))
+    if (!WriteEndOfRunGrid("", "maxthresp", &outputScratch))
     {
       return false;
     }
@@ -2518,9 +2519,9 @@ bool Simulator::OutputMaxFiles(const char* prefix)
     for (size_t i = 0; i < currentQ.size(); i++)
     {
       float val = floorf(maxGrid[i] * 10.0f + 0.5f) / 10.0f;
-      currentDepth[i] = val;
+      outputScratch[i] = val;
     }
-    if (!WriteEndOfRunGrid(prefix, "maxq", &currentDepth))
+    if (!WriteEndOfRunGrid(prefix, "maxq", &outputScratch))
     {
       return false;
     }
@@ -2538,11 +2539,11 @@ bool Simulator::OutputMaxFiles(const char* prefix)
   {
     for (size_t i = 0; i < currentQ.size(); i++)
     {
-      currentDepth[i] = maxGrid[i] / nodes[i].contribArea;
-      float val = floorf(currentDepth[i] * 10.0f + 0.5f) / 10.0f;
-      currentDepth[i] = val;
+      outputScratch[i] = maxGrid[i] / nodes[i].contribArea;
+      float val = floorf(outputScratch[i] * 10.0f + 0.5f) / 10.0f;
+      outputScratch[i] = val;
     }
-    if (!WriteEndOfRunGrid(prefix, "maxunitq", &currentDepth))
+    if (!WriteEndOfRunGrid(prefix, "maxunitq", &outputScratch))
     {
       return false;
     }

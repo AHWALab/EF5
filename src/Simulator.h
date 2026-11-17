@@ -113,6 +113,9 @@ private:
         currentTimeText, currentTimeTextOutput;
     std::vector<float> currentFF, currentSF, currentQ, avgPrecip, avgPET, avgSWE,
         currentSWE, avgT, avgSM, avgFF, avgSF, currentDepth, computeVec;
+  // Scratch space for output grids derived from other ones (rounded q, unit
+  // q, threshold classes), so that currentDepth keeps this step's depth
+  std::vector<float> outputScratch;
     std::vector<FloatGrid *> paramGrids, paramGridsRoute, paramGridsSnow,
         paramGridsInundation;
     bool hasQPF, hasTempF, wantsDA;
