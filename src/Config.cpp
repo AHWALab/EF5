@@ -16,6 +16,8 @@
 #include "TempConfigSection.h"
 #include <cstdio>
 #include <cstring>
+#include <string>
+#include <vector>
 
 Config *g_config = NULL;
 
@@ -41,334 +43,315 @@ Config::Config(const char *configName)
 
 Config::~Config() {}
 
-CONFIG_PARSE_RESULTS Config::ParseConfig()
+namespace
 {
 
-  FILE *configFile;
-  size_t fileLen;
-  char *buffer;
+// One piece of a control file: a section header, a key=value pair, or the
+// error that stopped the reading. line is the line used in messages.
+struct ConfigToken
+{
+  enum Kind
+  {
+    SECTION,
+    KEY_VALUE,
+    ERROR
+  } kind;
+  std::string name, value; // section kind and name, or key and value
+  bool hasValue;           // SECTION: written as [kind name], not [kind]
+  int line;
+  CONFIG_PARSE_RESULTS error; // ERROR: what ParseConfig returns
+  std::string message;        // ERROR: the message, without file and line
+};
 
-  configFile = fopen(name, "rb");
+void AddToken(std::vector<ConfigToken> *tokens, ConfigToken::Kind kind,
+              const std::string &name, const std::string &value, int line)
+{
+  ConfigToken t;
+  t.kind = kind;
+  t.name = name;
+  t.value = value;
+  t.hasValue = false;
+  t.line = line;
+  t.error = CONFIG_SUCCESS;
+  tokens->push_back(t);
+}
+
+void AddError(std::vector<ConfigToken> *tokens, CONFIG_PARSE_RESULTS error,
+              int line, const std::string &message)
+{
+  AddToken(tokens, ConfigToken::ERROR, "", "", line);
+  tokens->back().error = error;
+  tokens->back().message = message;
+}
+
+// Splits the text of a control file into tokens. Reading stops at the first
+// error, which becomes the last token. *lastLine is the line reached.
+//
+// The format: [kind] or [kind name] starts a section; key=value pairs follow,
+// separated by spaces or line ends (a value ends at a space, so a section can
+// be written on one line). Between them, //, # and /* */ start comments;
+// spaces, tabs and \r are skipped. A key runs up to '=' and may contain
+// spaces; a section name runs up to ']' and may contain spaces.
+void TokenizeConfig(const char *buffer, size_t fileLen,
+                    std::vector<ConfigToken> *tokens, int *lastLine)
+{
+  int line = 1;
+  std::string nameBuf, valBuf;
+  CONFIG_PARSE_STATE state = PARSE_NORMAL;
+  bool inSection = false;
+
+  // buffer has zeros after fileLen, so buffer[i + 1] is always readable
+  for (size_t i = 0; i < fileLen; i++)
+  {
+    const char c = buffer[i];
+    switch (state)
+    {
+    case PARSE_NORMAL:
+      if (c == '/' && buffer[i + 1] == '/')
+      {
+        state = PARSE_CPLUSPLUS_COMMENT;
+        i++;
+      }
+      else if (c == '/' && buffer[i + 1] == '*')
+      {
+        state = PARSE_C_COMMENT;
+        i++;
+      }
+      else if (c == '#')
+      {
+        state = PARSE_BASH_COMMENT;
+      }
+      else if (c == '\r' || c == '\t' || c == ' ')
+      {
+      }
+      else if (c == '\n')
+      {
+        line++;
+      }
+      else if (c == '[')
+      {
+        state = PARSE_SECTION_NAME;
+        nameBuf.clear();
+        valBuf.clear();
+      }
+      else if (!inSection)
+      {
+        AddError(tokens, CONFIG_INV_NAMEKEY, line,
+                 "Invalid key-value outside of section");
+        *lastLine = line;
+        return;
+      }
+      else
+      {
+        state = PARSE_NAME;
+        nameBuf.assign(1, c);
+        valBuf.clear();
+      }
+      break;
+
+    case PARSE_CPLUSPLUS_COMMENT:
+    case PARSE_BASH_COMMENT:
+      if (c == '\n')
+      {
+        line++;
+        state = PARSE_NORMAL;
+      }
+      break;
+
+    case PARSE_C_COMMENT:
+      if (c == '\n')
+      {
+        line++;
+      }
+      else if (c == '*' && buffer[i + 1] == '/')
+      {
+        i++;
+        state = PARSE_NORMAL;
+      }
+      break;
+
+    case PARSE_SECTION_NAME:
+    case PARSE_SECTION_VALUE:
+    {
+      const bool inValue = (state == PARSE_SECTION_VALUE);
+      if (c == ' ' && !inValue)
+      {
+        state = PARSE_SECTION_VALUE;
+      }
+      else if (c == ']')
+      {
+        state = PARSE_NORMAL;
+        AddToken(tokens, ConfigToken::SECTION, nameBuf, valBuf, line);
+        tokens->back().hasValue = inValue;
+        inSection = true;
+      }
+      else if (c == '\n')
+      {
+        AddError(tokens, CONFIG_INV_SECHEAD, line,
+                 "Invalid section header contains newline");
+        *lastLine = line;
+        return;
+      }
+      else if (c == '\r' && inValue)
+      {
+      }
+      else
+      {
+        std::string *buf = inValue ? &valBuf : &nameBuf;
+        buf->push_back(c);
+        if (buf->size() == CONFIG_MAX_LEN)
+        {
+          char msg[100];
+          snprintf(msg, sizeof(msg), "Section name exceeds max length of %i",
+                   CONFIG_MAX_LEN);
+          AddError(tokens, CONFIG_INV_SECHEAD, line, msg);
+          *lastLine = line;
+          return;
+        }
+      }
+      break;
+    }
+
+    case PARSE_NAME:
+      if (c == '=')
+      {
+        state = PARSE_VALUE;
+      }
+      else if (c == '\n')
+      {
+        AddError(tokens, CONFIG_INV_NAME, line,
+                 "Invalid key (" + nameBuf + ") contains newline");
+        *lastLine = line;
+        return;
+      }
+      else
+      {
+        nameBuf.push_back(c);
+        if (nameBuf.size() == CONFIG_MAX_LEN)
+        {
+          char msg[100];
+          snprintf(msg, sizeof(msg), "Key exceeds max length of %i",
+                   CONFIG_MAX_LEN);
+          AddError(tokens, CONFIG_INV_NAME, line, msg);
+          *lastLine = line;
+          return;
+        }
+      }
+      break;
+
+    case PARSE_VALUE:
+      if (c == ' ' || c == '\n' || c == '\r')
+      {
+        state = PARSE_NORMAL;
+        if (c == '\n')
+        {
+          line++;
+        }
+        AddToken(tokens, ConfigToken::KEY_VALUE, nameBuf, valBuf, line);
+      }
+      else
+      {
+        valBuf.push_back(c);
+        if (valBuf.size() == CONFIG_MAX_LEN)
+        {
+          char msg[100];
+          snprintf(msg, sizeof(msg), "Value exceeds max length of %i",
+                   CONFIG_MAX_LEN);
+          AddError(tokens, CONFIG_INV_NAMEKEY, line, msg);
+          *lastLine = line;
+          return;
+        }
+      }
+      break;
+    }
+  }
+
+  // A value at the very end of the file, without a line end
+  if (state == PARSE_VALUE)
+  {
+    AddToken(tokens, ConfigToken::KEY_VALUE, nameBuf, valBuf, line);
+  }
+  *lastLine = line;
+}
+
+} // namespace
+
+CONFIG_PARSE_RESULTS Config::ParseConfig()
+{
+  FILE *configFile = fopen(name, "rb");
   if (configFile == NULL)
   {
     ERROR_LOGF("Failed to open configuration file %s\n", name);
     return CONFIG_OPENFAILED;
   }
 
-  // Get file length
   fseek(configFile, 0, SEEK_END);
-  fileLen = ftell(configFile);
+  size_t fileLen = ftell(configFile);
   fseek(configFile, 0, SEEK_SET);
 
-  // Read the entire file into buffer, +4 to give us extra room to play with!
-  buffer = new char[fileLen + 4];
-  size_t readLen = fread(buffer, 1, fileLen, configFile);
+  // Read the whole file, with zeros after it so the reader can look one
+  // character ahead
+  std::vector<char> buffer(fileLen + 4, 0);
+  size_t readLen = fread(buffer.data(), 1, fileLen, configFile);
+  fclose(configFile);
   if (readLen != fileLen)
   {
     ERROR_LOGF("Failed to read configuration file %s\n", name);
-    delete[] buffer;
-    fclose(configFile);
     return CONFIG_READFAILED;
   }
 
-  // Fill the extra space with zeros
-  buffer[fileLen] = 0;
-  buffer[fileLen + 1] = 0;
-  buffer[fileLen + 2] = 0;
-  buffer[fileLen + 3] = 0;
+  std::vector<ConfigToken> tokens;
+  int lastLine = 1;
+  TokenizeConfig(buffer.data(), fileLen, &tokens, &lastLine);
 
-  // Close the file, we're done with it
-  fclose(configFile);
-
-  // Start the process of parsing all the information
-  int line = 1;
-  char nameBuf[CONFIG_MAX_LEN] = "";
-  char valBuf[CONFIG_MAX_LEN] = "";
-  size_t i = 0, nameIdx = 0, valIdx = 0;
-  CONFIG_PARSE_STATE state = PARSE_NORMAL;
+  // Give the pieces to the sections, in file order. Each section checks its
+  // settings when the next one starts, and the last one at the end.
   ConfigSection *currentSection = NULL;
-
-  // This is the meat of the parsing here
-  for (i = 0; i < fileLen; i++)
+  char nameBuf[CONFIG_MAX_LEN], valBuf[CONFIG_MAX_LEN];
+  for (size_t t = 0; t < tokens.size(); t++)
   {
-    switch (state)
+    const ConfigToken &tok = tokens[t];
+    if (tok.kind == ConfigToken::ERROR)
     {
-    case PARSE_NORMAL:
-    {
-      if (buffer[i] == '/' && buffer[i + 1] == '/')
-      {
-        state = PARSE_CPLUSPLUS_COMMENT;
-        i++;
-        continue;
-      }
-      else if (buffer[i] == '/' && buffer[i + 1] == '*')
-      {
-        state = PARSE_C_COMMENT;
-        i++;
-        continue;
-      }
-      else if (buffer[i] == '#')
-      {
-        state = PARSE_BASH_COMMENT;
-        continue;
-      }
-      else if (buffer[i] == '\r' || buffer[i] == '\t' || buffer[i] == ' ')
-      {
-        continue;
-      }
-      else if (buffer[i] == '\n')
-      {
-        line++;
-        continue;
-      }
-      else if (buffer[i] == '[')
-      {
-        state = PARSE_SECTION_NAME;
-        nameIdx = 0;
-        valIdx = 0;
-        continue;
-      }
-      else if (currentSection == NULL)
-      {
-        ERROR_LOGF("%s(%i): Invalid key-value outside of section", name, line);
-        delete[] buffer;
-        return CONFIG_INV_NAMEKEY;
-      }
-      else
-      {
-        state = PARSE_NAME;
-        nameBuf[0] = buffer[i];
-        nameIdx = 1;
-        valIdx = 0;
-        continue;
-      }
-      break;
+      ERROR_LOGF("%s(%i): %s", name, tok.line, tok.message.c_str());
+      return tok.error;
     }
-    case PARSE_CPLUSPLUS_COMMENT:
-    case PARSE_BASH_COMMENT:
+    strcpy(nameBuf, tok.name.c_str());
+    strcpy(valBuf, tok.value.c_str());
+    if (tok.kind == ConfigToken::SECTION)
     {
-      if (buffer[i] == '\n')
+      if (currentSection != NULL && currentSection->ValidateSection())
       {
-        line++;
-        state = PARSE_NORMAL;
-        continue;
+        ERROR_LOGF("%s(%i): Previous section not valid", name, tok.line);
+        return CONFIG_INV_SECTION;
       }
-      else
+      currentSection = GetConfigSection(nameBuf, valBuf);
+      if (currentSection == NULL)
       {
-        continue;
-      }
-      break;
-    }
-    case PARSE_C_COMMENT:
-    {
-      if (buffer[i] == '\n')
-      {
-        line++;
-        continue;
-      }
-      else if (buffer[i] == '*' && buffer[i + 1] == '/')
-      {
-        i++;
-        state = PARSE_NORMAL;
-        continue;
-      }
-      else
-      {
-        continue;
-      }
-      break;
-    }
-    case PARSE_SECTION_NAME:
-    {
-      if (buffer[i] == ' ')
-      {
-        state = PARSE_SECTION_VALUE;
-        nameBuf[nameIdx] = 0; // Add the null terminator to the name string
-        continue;
-      }
-      else if (buffer[i] == ']')
-      {
-        state = PARSE_NORMAL;
-        valBuf[0] = 0;
-        nameBuf[nameIdx] = 0;
-        // Allow old section to throw errors
-        if (currentSection != NULL && currentSection->ValidateSection())
+        if (tok.hasValue)
         {
-          ERROR_LOGF("%s(%i): Previous section not valid", name, line);
-          delete[] buffer;
-          return CONFIG_INV_SECTION;
+          ERROR_LOGF("%s(%i): Unknown or invalid section \"%s\"", name,
+                     tok.line, nameBuf);
         }
-        currentSection = GetConfigSection(nameBuf, valBuf);
-        if (currentSection == NULL)
+        else
         {
-          ERROR_LOGF("%s(%i): Unknown section \"%s\"", name, line, nameBuf);
-          delete[] buffer;
-          return CONFIG_INV_SECHEAD;
-        }
-        continue;
-      }
-      else if (buffer[i] == '\n')
-      {
-        // Invalid case!
-        ERROR_LOGF("%s(%i): Invalid section header contains newline", name,
-                   line);
-        delete[] buffer;
-        return CONFIG_INV_SECHEAD;
-      }
-      else
-      {
-        nameBuf[nameIdx] = buffer[i];
-        nameIdx++;
-        if (nameIdx == CONFIG_MAX_LEN)
-        {
-          ERROR_LOGF("%s(%i): Section name exceeds max length of %i", name,
-                     line, CONFIG_MAX_LEN);
-          delete[] buffer;
-          return CONFIG_INV_SECHEAD;
-        }
-        continue;
-      }
-      break;
-    }
-    case PARSE_SECTION_VALUE:
-    {
-      if (buffer[i] == ']')
-      {
-        state = PARSE_NORMAL;
-        valBuf[valIdx] = 0; // Add the null terminator
-        // Allow old section to throw errors
-        if (currentSection != NULL && currentSection->ValidateSection())
-        {
-          ERROR_LOGF("%s(%i): Previous section not valid", name, line);
-          delete[] buffer;
-          return CONFIG_INV_SECTION;
-        }
-        currentSection = GetConfigSection(nameBuf, valBuf);
-        if (currentSection == NULL)
-        {
-          ERROR_LOGF("%s(%i): Unknown or invalid section \"%s\"", name, line,
+          ERROR_LOGF("%s(%i): Unknown section \"%s\"", name, tok.line,
                      nameBuf);
-          delete[] buffer;
-          return CONFIG_INV_SECHEAD;
         }
-        continue;
-      }
-      else if (buffer[i] == '\n')
-      {
-        // Invalid case!
-        ERROR_LOGF("%s(%i): Invalid section header contains newline", name,
-                   line);
-        delete[] buffer;
         return CONFIG_INV_SECHEAD;
       }
-      else if (buffer[i] == '\r')
-      {
-        continue;
-      }
-      else
-      {
-        valBuf[valIdx] = buffer[i];
-        valIdx++;
-        if (valIdx == CONFIG_MAX_LEN)
-        {
-          ERROR_LOGF("%s(%i): Section name exceeds max length of %i", name,
-                     line, CONFIG_MAX_LEN);
-          delete[] buffer;
-          return CONFIG_INV_SECHEAD;
-        }
-        continue;
-      }
-      break;
     }
-    case PARSE_NAME:
-    {
-      if (buffer[i] == '=')
-      {
-        state = PARSE_VALUE;
-        nameBuf[nameIdx] = 0; // Add null terminator
-        continue;
-      }
-      else if (buffer[i] == '\n')
-      {
-        nameBuf[nameIdx] = 0; // Add null terminator
-        ERROR_LOGF("%s(%i): Invalid key (%s) contains newline", name, line,
-                   nameBuf);
-        delete[] buffer;
-        return CONFIG_INV_NAME;
-      }
-      else
-      {
-        nameBuf[nameIdx] = buffer[i];
-        nameIdx++;
-        if (nameIdx == CONFIG_MAX_LEN)
-        {
-          ERROR_LOGF("%s(%i): Key exceeds max length of %i", name, line,
-                     CONFIG_MAX_LEN);
-          delete[] buffer;
-          return CONFIG_INV_NAME;
-        }
-        continue;
-      }
-      break;
-    }
-    case PARSE_VALUE:
-    {
-      if (buffer[i] == ' ' || buffer[i] == '\n' || buffer[i] == '\r')
-      {
-        state = PARSE_NORMAL;
-        valBuf[valIdx] = 0; // Add null terminator
-        if (buffer[i] == '\n')
-        {
-          line++;
-        }
-        if (currentSection->ProcessKeyValue(nameBuf, valBuf))
-        {
-          // ProcessKeyValue is responsible for printing error messages
-          ERROR_LOGF("%s(%i): Invalid key-value pair!", name, line);
-          delete[] buffer;
-          return CONFIG_INV_NAMEKEY;
-        }
-        continue;
-      }
-      else
-      {
-        valBuf[valIdx] = buffer[i];
-        valIdx++;
-        if (valIdx == CONFIG_MAX_LEN)
-        {
-          ERROR_LOGF("%s(%i): Value exceeds max length of %i", name, line,
-                     CONFIG_MAX_LEN);
-          delete[] buffer;
-          return CONFIG_INV_NAMEKEY;
-        }
-        continue;
-      }
-      break;
-    }
-    default:
-      INFO_LOGF("Line(%i): First unprocessed line!", line);
-      return CONFIG_SUCCESS;
-    }
-  }
-
-  if (state == PARSE_VALUE)
-  {
-    state = PARSE_NORMAL;
-    valBuf[valIdx] = 0; // Add null terminator
-    if (currentSection->ProcessKeyValue(nameBuf, valBuf))
+    else if (currentSection->ProcessKeyValue(nameBuf, valBuf))
     {
       // ProcessKeyValue is responsible for printing error messages
-      ERROR_LOGF("%s(%i): Invalid key-value pair!", name, line);
-      delete[] buffer;
+      ERROR_LOGF("%s(%i): Invalid key-value pair!", name, tok.line);
       return CONFIG_INV_NAMEKEY;
     }
   }
 
-  delete[] buffer;
-
   if (currentSection != NULL && currentSection->ValidateSection())
   {
-    ERROR_LOGF("%s(%i): Previous section not valid", name, line);
+    ERROR_LOGF("%s(%i): Previous section not valid", name, lastLine);
     return CONFIG_INV_SECTION;
   }
 
