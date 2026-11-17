@@ -13,6 +13,7 @@ struct TSDataPoint {
 class TimeSeries {
 
 public:
+  TimeSeries() : lastIndex(0) {}
   void LoadTimeSeries(char *file);
   void PutValueAtTime(char *timeBuffer, float dataValue);
   float GetValueAtTime(TimeVar *wantTime);
