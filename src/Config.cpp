@@ -375,258 +375,154 @@ CONFIG_PARSE_RESULTS Config::ParseConfig()
   return CONFIG_SUCCESS;
 }
 
+// Creates a named section (e.g. [Gauge name]) and files it under its name,
+// unless a section of that kind already has the name.
+template <class T, class Make>
+static ConfigSection *AddNamedSection(std::map<std::string, T *> *sections,
+                                      bool duplicate, char *sectionVal,
+                                      const char *kind, Make make)
+{
+  if (duplicate)
+  {
+    ERROR_LOGF("Duplicate %s section \"%s\"!", kind, sectionVal);
+    return NULL;
+  }
+  T *sec = make();
+  sections->insert(std::pair<std::string, T *>(sectionVal, sec));
+  return sec;
+}
+
+// The parameter and calibration sections of one kind of model: for model i,
+// [<paramSetNames[i]> name] and [<caliNames[i]> name]. found is set when the
+// section name is one of them.
+template <class E, class PS, class CS>
+static ConfigSection *
+AddModelSection(char *sectionName, char *sectionVal, int qty,
+                const char **paramSetNames, const char **caliNames,
+                std::map<std::string, PS *> *paramSets,
+                std::map<std::string, CS *> *caliSets, const char *kind,
+                bool *found)
+{
+  for (int i = 0; i < qty; i++)
+  {
+    E model = (E)i;
+    if (strcasecmp(sectionName, paramSetNames[i]) == 0)
+    {
+      *found = true;
+      std::string label = std::string(kind) + "ParamSet";
+      return AddNamedSection(&paramSets[i],
+                             PS::IsDuplicate(sectionVal, model), sectionVal,
+                             label.c_str(),
+                             [&]() { return new PS(sectionVal, model); });
+    }
+    else if (strcasecmp(sectionName, caliNames[i]) == 0)
+    {
+      *found = true;
+      std::string label = std::string(kind) + "CaliParam";
+      return AddNamedSection(&caliSets[i], CS::IsDuplicate(sectionVal, model),
+                             sectionVal, label.c_str(),
+                             [&]() { return new CS(sectionVal, model); });
+    }
+  }
+  return NULL;
+}
+
 ConfigSection *Config::GetConfigSection(char *sectionName, char *sectionVal)
 {
-  ConfigSection *newSec = NULL;
-
   if (strcasecmp(sectionName, "basic") == 0)
   {
     g_basicConfig = new BasicConfigSection();
-    newSec = g_basicConfig;
+    return g_basicConfig;
   }
-  else if (strcasecmp(sectionName, "precipforcing") == 0)
-  {
-    TOLOWER(sectionVal);
-    if (PrecipConfigSection::IsDuplicate(sectionVal))
-    {
-      ERROR_LOGF("Duplicate Precip section \"%s\"!", sectionVal);
-      return newSec;
-    }
-    PrecipConfigSection *preSec = new PrecipConfigSection();
-    g_precipConfigs.insert(
-        std::pair<std::string, PrecipConfigSection *>(sectionVal, preSec));
-    newSec = preSec;
-  }
-  else if (strcasecmp(sectionName, "petforcing") == 0)
-  {
-    TOLOWER(sectionVal);
-    if (PETConfigSection::IsDuplicate(sectionVal))
-    {
-      ERROR_LOGF("Duplicate PET section \"%s\"!", sectionVal);
-      return newSec;
-    }
-    PETConfigSection *petSec = new PETConfigSection();
-    g_petConfigs.insert(
-        std::pair<std::string, PETConfigSection *>(sectionVal, petSec));
-    newSec = petSec;
-  }
-  else if (strcasecmp(sectionName, "tempforcing") == 0)
-  {
-    TOLOWER(sectionVal);
-    if (TempConfigSection::IsDuplicate(sectionVal))
-    {
-      ERROR_LOGF("Duplicate Temp section \"%s\"!", sectionVal);
-      return newSec;
-    }
-    TempConfigSection *tempSec = new TempConfigSection();
-    g_tempConfigs.insert(
-        std::pair<std::string, TempConfigSection *>(sectionVal, tempSec));
-    newSec = tempSec;
-  }
-  else if (strcasecmp(sectionName, "gauge") == 0)
-  {
-    TOLOWER(sectionVal);
-    if (GaugeConfigSection::IsDuplicate(sectionVal))
-    {
-      ERROR_LOGF("Duplicate Gauge section \"%s\"!", sectionVal);
-      return newSec;
-    }
-    GaugeConfigSection *gaugeSec = new GaugeConfigSection(sectionVal);
-    g_gaugeConfigs.insert(
-        std::pair<std::string, GaugeConfigSection *>(sectionVal, gaugeSec));
-    newSec = gaugeSec;
-  }
-  else if (strcasecmp(sectionName, "basin") == 0)
-  {
-    TOLOWER(sectionVal);
-    if (BasinConfigSection::IsDuplicate(sectionVal))
-    {
-      ERROR_LOGF("Duplicate Basin section \"%s\"!", sectionVal);
-      return newSec;
-    }
-    BasinConfigSection *basinSec = new BasinConfigSection(sectionVal);
-    g_basinConfigs.insert(
-        std::pair<std::string, BasinConfigSection *>(sectionVal, basinSec));
-    newSec = basinSec;
-  }
-  else if (strcasecmp(sectionName, "task") == 0)
-  {
-    TOLOWER(sectionVal);
-    if (TaskConfigSection::IsDuplicate(sectionVal))
-    {
-      ERROR_LOGF("Duplicate Task section \"%s\"!", sectionVal);
-      return newSec;
-    }
-    TaskConfigSection *taskSec = new TaskConfigSection(sectionVal);
-    g_taskConfigs.insert(
-        std::pair<std::string, TaskConfigSection *>(sectionVal, taskSec));
-    newSec = taskSec;
-  }
-  else if (strcasecmp(sectionName, "ensembletask") == 0)
-  {
-    TOLOWER(sectionVal);
-    if (EnsTaskConfigSection::IsDuplicate(sectionVal))
-    {
-      ERROR_LOGF("Duplicate Ensemble Task section \"%s\"!", sectionVal);
-      return newSec;
-    }
-    EnsTaskConfigSection *taskSec = new EnsTaskConfigSection(sectionVal);
-    g_ensTaskConfigs.insert(
-        std::pair<std::string, EnsTaskConfigSection *>(sectionVal, taskSec));
-    newSec = taskSec;
-  }
-  else if (strcasecmp(sectionName, "execute") == 0)
+  if (strcasecmp(sectionName, "execute") == 0)
   {
     g_executeConfig = new ExecuteConfigSection();
-    newSec = g_executeConfig;
+    return g_executeConfig;
   }
-  else
+
+  // Every other section has a name, which is not case sensitive
+  TOLOWER(sectionVal);
+  if (strcasecmp(sectionName, "precipforcing") == 0)
   {
-    TOLOWER(sectionVal);
-
-    // Lets see if this belongs to a water balance model parameter set
-    for (int i = 0; i < MODEL_QTY; i++)
-    {
-      if (strcasecmp(sectionName, modelParamSetStrings[i]) == 0)
-      {
-        if (ParamSetConfigSection::IsDuplicate(sectionVal, (MODELS)i))
-        {
-          ERROR_LOGF("Duplicate ParamSet section \"%s\"!", sectionVal);
-          return newSec;
-        }
-        ParamSetConfigSection *psSec =
-            new ParamSetConfigSection(sectionVal, (MODELS)i);
-        g_paramSetConfigs[i].insert(
-            std::pair<std::string, ParamSetConfigSection *>(sectionVal, psSec));
-        newSec = psSec;
-        break;
-      }
-      else if (strcasecmp(sectionName, modelCaliParamStrings[i]) == 0)
-      {
-        if (CaliParamConfigSection::IsDuplicate(sectionVal, (MODELS)i))
-        {
-          ERROR_LOGF("Duplicate CaliParam section \"%s\"!", sectionVal);
-          return newSec;
-        }
-        CaliParamConfigSection *cpSec =
-            new CaliParamConfigSection(sectionVal, (MODELS)i);
-        g_caliParamConfigs[i].insert(
-            std::pair<std::string, CaliParamConfigSection *>(sectionVal,
-                                                             cpSec));
-        newSec = cpSec;
-        break;
-      }
-    }
-
-    // Or maybe a routing parameter set
-    for (int i = 0; i < ROUTE_QTY; i++)
-    {
-      if (strcasecmp(sectionName, routeParamSetStrings[i]) == 0)
-      {
-        if (RoutingParamSetConfigSection::IsDuplicate(sectionVal, (ROUTES)i))
-        {
-          ERROR_LOGF("Duplicate Routing ParamSet section \"%s\"!", sectionVal);
-          return newSec;
-        }
-        RoutingParamSetConfigSection *psSec =
-            new RoutingParamSetConfigSection(sectionVal, (ROUTES)i);
-        g_routingParamSetConfigs[i].insert(
-            std::pair<std::string, RoutingParamSetConfigSection *>(sectionVal,
-                                                                   psSec));
-        newSec = psSec;
-        break;
-      }
-      else if (strcasecmp(sectionName, routeCaliParamStrings[i]) == 0)
-      {
-        if (RoutingCaliParamConfigSection::IsDuplicate(sectionVal, (ROUTES)i))
-        {
-          ERROR_LOGF("Duplicate Routing CaliParam section \"%s\"!", sectionVal);
-          return newSec;
-        }
-        RoutingCaliParamConfigSection *cpSec =
-            new RoutingCaliParamConfigSection(sectionVal, (ROUTES)i);
-        g_routingCaliParamConfigs[i].insert(
-            std::pair<std::string, RoutingCaliParamConfigSection *>(sectionVal,
-                                                                    cpSec));
-        newSec = cpSec;
-        break;
-      }
-    }
-
-    // Or maybe a snow parameter set
-    for (int i = 0; i < SNOW_QTY; i++)
-    {
-      if (strcasecmp(sectionName, snowParamSetStrings[i]) == 0)
-      {
-        if (SnowParamSetConfigSection::IsDuplicate(sectionVal, (SNOWS)i))
-        {
-          ERROR_LOGF("Duplicate Snow ParamSet section \"%s\"!", sectionVal);
-          return newSec;
-        }
-        SnowParamSetConfigSection *psSec =
-            new SnowParamSetConfigSection(sectionVal, (SNOWS)i);
-        g_snowParamSetConfigs[i].insert(
-            std::pair<std::string, SnowParamSetConfigSection *>(sectionVal,
-                                                                psSec));
-        newSec = psSec;
-        break;
-      }
-      else if (strcasecmp(sectionName, snowCaliParamStrings[i]) == 0)
-      {
-        if (SnowCaliParamConfigSection::IsDuplicate(sectionVal, (SNOWS)i))
-        {
-          ERROR_LOGF("Duplicate Snow CaliParam section \"%s\"!", sectionVal);
-          return newSec;
-        }
-        SnowCaliParamConfigSection *cpSec =
-            new SnowCaliParamConfigSection(sectionVal, (SNOWS)i);
-        g_snowCaliParamConfigs[i].insert(
-            std::pair<std::string, SnowCaliParamConfigSection *>(sectionVal,
-                                                                 cpSec));
-        newSec = cpSec;
-        break;
-      }
-    }
-
-    // Or maybe a inundation parameter set
-    for (int i = 0; i < INUNDATION_QTY; i++)
-    {
-      if (strcasecmp(sectionName, inundationParamSetStrings[i]) == 0)
-      {
-        if (InundationParamSetConfigSection::IsDuplicate(sectionVal,
-                                                         (INUNDATIONS)i))
-        {
-          ERROR_LOGF("Duplicate Inundation ParamSet section \"%s\"!",
-                     sectionVal);
-          return newSec;
-        }
-        InundationParamSetConfigSection *psSec =
-            new InundationParamSetConfigSection(sectionVal, (INUNDATIONS)i);
-        g_inundationParamSetConfigs[i].insert(
-            std::pair<std::string, InundationParamSetConfigSection *>(
-                sectionVal, psSec));
-        newSec = psSec;
-        break;
-      }
-      else if (strcasecmp(sectionName, inundationCaliParamStrings[i]) == 0)
-      {
-        if (InundationCaliParamConfigSection::IsDuplicate(sectionVal,
-                                                          (INUNDATIONS)i))
-        {
-          ERROR_LOGF("Duplicate Inundation CaliParam section \"%s\"!",
-                     sectionVal);
-          return newSec;
-        }
-        InundationCaliParamConfigSection *cpSec =
-            new InundationCaliParamConfigSection(sectionVal, (INUNDATIONS)i);
-        g_inundationCaliParamConfigs[i].insert(
-            std::pair<std::string, InundationCaliParamConfigSection *>(
-                sectionVal, cpSec));
-        newSec = cpSec;
-        break;
-      }
-    }
+    return AddNamedSection(&g_precipConfigs,
+                           PrecipConfigSection::IsDuplicate(sectionVal),
+                           sectionVal, "Precip",
+                           []() { return new PrecipConfigSection(); });
+  }
+  if (strcasecmp(sectionName, "petforcing") == 0)
+  {
+    return AddNamedSection(&g_petConfigs,
+                           PETConfigSection::IsDuplicate(sectionVal),
+                           sectionVal, "PET",
+                           []() { return new PETConfigSection(); });
+  }
+  if (strcasecmp(sectionName, "tempforcing") == 0)
+  {
+    return AddNamedSection(&g_tempConfigs,
+                           TempConfigSection::IsDuplicate(sectionVal),
+                           sectionVal, "Temp",
+                           []() { return new TempConfigSection(); });
+  }
+  if (strcasecmp(sectionName, "gauge") == 0)
+  {
+    return AddNamedSection(&g_gaugeConfigs,
+                           GaugeConfigSection::IsDuplicate(sectionVal),
+                           sectionVal, "Gauge",
+                           [&]() { return new GaugeConfigSection(sectionVal); });
+  }
+  if (strcasecmp(sectionName, "basin") == 0)
+  {
+    return AddNamedSection(&g_basinConfigs,
+                           BasinConfigSection::IsDuplicate(sectionVal),
+                           sectionVal, "Basin",
+                           [&]() { return new BasinConfigSection(sectionVal); });
+  }
+  if (strcasecmp(sectionName, "task") == 0)
+  {
+    return AddNamedSection(&g_taskConfigs,
+                           TaskConfigSection::IsDuplicate(sectionVal),
+                           sectionVal, "Task",
+                           [&]() { return new TaskConfigSection(sectionVal); });
+  }
+  if (strcasecmp(sectionName, "ensembletask") == 0)
+  {
+    return AddNamedSection(
+        &g_ensTaskConfigs, EnsTaskConfigSection::IsDuplicate(sectionVal),
+        sectionVal, "Ensemble Task",
+        [&]() { return new EnsTaskConfigSection(sectionVal); });
   }
 
-  return newSec;
+  // Parameter and calibration sets: [crestparamset name], [kwcaliparams
+  // name], ...
+  bool found = false;
+  ConfigSection *sec =
+      AddModelSection<MODELS, ParamSetConfigSection, CaliParamConfigSection>(
+          sectionName, sectionVal, MODEL_QTY, modelParamSetStrings,
+          modelCaliParamStrings, g_paramSetConfigs, g_caliParamConfigs, "",
+          &found);
+  if (!found)
+  {
+    sec = AddModelSection<ROUTES, RoutingParamSetConfigSection,
+                          RoutingCaliParamConfigSection>(
+        sectionName, sectionVal, ROUTE_QTY, routeParamSetStrings,
+        routeCaliParamStrings, g_routingParamSetConfigs,
+        g_routingCaliParamConfigs, "Routing ", &found);
+  }
+  if (!found)
+  {
+    sec = AddModelSection<SNOWS, SnowParamSetConfigSection,
+                          SnowCaliParamConfigSection>(
+        sectionName, sectionVal, SNOW_QTY, snowParamSetStrings,
+        snowCaliParamStrings, g_snowParamSetConfigs, g_snowCaliParamConfigs,
+        "Snow ", &found);
+  }
+  if (!found)
+  {
+    sec = AddModelSection<INUNDATIONS, InundationParamSetConfigSection,
+                          InundationCaliParamConfigSection>(
+        sectionName, sectionVal, INUNDATION_QTY, inundationParamSetStrings,
+        inundationCaliParamStrings, g_inundationParamSetConfigs,
+        g_inundationCaliParamConfigs, "Inundation ", &found);
+  }
+  return sec;
 }
