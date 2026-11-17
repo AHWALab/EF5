@@ -41,6 +41,16 @@ Clone the source code from GitHub.
 3. make   
    This compiles the EF5 application!
 
+## Order of sections in the control file
+
+Sections can be in any order. EF5 reads the whole file first and then sets
+up the sections in this order, keeping the file order among sections of the
+same kind: `[Basic]`, the forcings, `[Gauge]`, `[Basin]`, the parameter and
+calibration sets, `[Task]`, `[EnsembleTask]`, `[Execute]`. So a long block of
+gauges and basins can go at the end of the file, after `[Execute]`. Files
+written in the old order (everything defined before it is used) work as
+before.
+
 ## Checking parameters and river channels
 
 ```

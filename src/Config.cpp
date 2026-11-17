@@ -14,6 +14,7 @@
 #include "PrecipConfigSection.h"
 #include "TaskConfigSection.h"
 #include "TempConfigSection.h"
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -59,6 +60,7 @@ struct ConfigToken
   std::string name, value; // section kind and name, or key and value
   bool hasValue;           // SECTION: written as [kind name], not [kind]
   int line;
+  int endLine; // SECTION: line where the section ends (next header or EOF)
   CONFIG_PARSE_RESULTS error; // ERROR: what ParseConfig returns
   std::string message;        // ERROR: the message, without file and line
 };
@@ -72,6 +74,7 @@ void AddToken(std::vector<ConfigToken> *tokens, ConfigToken::Kind kind,
   t.value = value;
   t.hasValue = false;
   t.line = line;
+  t.endLine = line;
   t.error = CONFIG_SUCCESS;
   tokens->push_back(t);
 }
@@ -274,6 +277,102 @@ void TokenizeConfig(const char *buffer, size_t fileLen,
   *lastLine = line;
 }
 
+// Where a kind of section goes when sections are put in dependency order:
+// each kind refers only to kinds before it (a basin to gauges, a parameter set
+// to gauges, a task to all of them, [Execute] to tasks). -1 for a kind that is
+// not known here.
+int SectionRank(const std::string &kind)
+{
+  const char *k = kind.c_str();
+  if (!strcasecmp(k, "basic"))
+    return 0;
+  if (!strcasecmp(k, "precipforcing") || !strcasecmp(k, "petforcing") ||
+      !strcasecmp(k, "tempforcing"))
+    return 1;
+  if (!strcasecmp(k, "gauge"))
+    return 2;
+  if (!strcasecmp(k, "basin"))
+    return 3;
+  if (!strcasecmp(k, "task"))
+    return 5;
+  if (!strcasecmp(k, "ensembletask"))
+    return 6;
+  if (!strcasecmp(k, "execute"))
+    return 7;
+  for (int i = 0; i < MODEL_QTY; i++)
+    if (!strcasecmp(k, modelParamSetStrings[i]) ||
+        !strcasecmp(k, modelCaliParamStrings[i]))
+      return 4;
+  for (int i = 0; i < ROUTE_QTY; i++)
+    if (!strcasecmp(k, routeParamSetStrings[i]) ||
+        !strcasecmp(k, routeCaliParamStrings[i]))
+      return 4;
+  for (int i = 0; i < SNOW_QTY; i++)
+    if (!strcasecmp(k, snowParamSetStrings[i]) ||
+        !strcasecmp(k, snowCaliParamStrings[i]))
+      return 4;
+  for (int i = 0; i < INUNDATION_QTY; i++)
+    if (!strcasecmp(k, inundationParamSetStrings[i]) ||
+        !strcasecmp(k, inundationCaliParamStrings[i]))
+      return 4;
+  return -1;
+}
+
+// Puts the sections in dependency order (SectionRank), keeping the file order
+// among sections of the same kind, so that e.g. the gauges and basins can come
+// after [Execute]. A file that is already in this order is not changed. A file
+// with a reading error is left in file order, so its errors are reported
+// where they are. Also sets each section header's endLine.
+void OrderSections(std::vector<ConfigToken> *tokens, int lastLine)
+{
+  // Split into sections: a header and its key=value pairs
+  std::vector<std::vector<ConfigToken> > sections;
+  for (size_t t = 0; t < tokens->size(); t++)
+  {
+    const ConfigToken &tok = (*tokens)[t];
+    if (tok.kind == ConfigToken::ERROR)
+    {
+      return;
+    }
+    if (tok.kind == ConfigToken::SECTION)
+    {
+      if (!sections.empty())
+      {
+        sections.back()[0].endLine = tok.line;
+      }
+      sections.push_back(std::vector<ConfigToken>());
+    }
+    sections.back().push_back(tok);
+  }
+  if (sections.empty())
+  {
+    return;
+  }
+  sections.back()[0].endLine = lastLine;
+
+  // An unknown kind keeps the place of the section before it, so that its
+  // error is reported where it is
+  std::vector<std::pair<int, size_t> > order;
+  int rank = 0;
+  for (size_t i = 0; i < sections.size(); i++)
+  {
+    int r = SectionRank(sections[i][0].name);
+    if (r >= 0)
+    {
+      rank = r;
+    }
+    order.push_back(std::make_pair(rank, i));
+  }
+  std::stable_sort(order.begin(), order.end());
+
+  tokens->clear();
+  for (size_t i = 0; i < order.size(); i++)
+  {
+    const std::vector<ConfigToken> &sec = sections[order[i].second];
+    tokens->insert(tokens->end(), sec.begin(), sec.end());
+  }
+}
+
 } // namespace
 
 CONFIG_PARSE_RESULTS Config::ParseConfig()
@@ -303,10 +402,13 @@ CONFIG_PARSE_RESULTS Config::ParseConfig()
   std::vector<ConfigToken> tokens;
   int lastLine = 1;
   TokenizeConfig(buffer.data(), fileLen, &tokens, &lastLine);
+  OrderSections(&tokens, lastLine);
 
-  // Give the pieces to the sections, in file order. Each section checks its
-  // settings when the next one starts, and the last one at the end.
+  // Give the pieces to the sections. Each section checks its settings when
+  // the next one starts, and the last one at the end; a problem is reported
+  // at the line where the section ends.
   ConfigSection *currentSection = NULL;
+  int currentEndLine = lastLine;
   char nameBuf[CONFIG_MAX_LEN], valBuf[CONFIG_MAX_LEN];
   for (size_t t = 0; t < tokens.size(); t++)
   {
@@ -322,10 +424,11 @@ CONFIG_PARSE_RESULTS Config::ParseConfig()
     {
       if (currentSection != NULL && currentSection->ValidateSection())
       {
-        ERROR_LOGF("%s(%i): Previous section not valid", name, tok.line);
+        ERROR_LOGF("%s(%i): Previous section not valid", name, currentEndLine);
         return CONFIG_INV_SECTION;
       }
       currentSection = GetConfigSection(nameBuf, valBuf);
+      currentEndLine = tok.endLine;
       if (currentSection == NULL)
       {
         if (tok.hasValue)
@@ -351,7 +454,7 @@ CONFIG_PARSE_RESULTS Config::ParseConfig()
 
   if (currentSection != NULL && currentSection->ValidateSection())
   {
-    ERROR_LOGF("%s(%i): Previous section not valid", name, lastLine);
+    ERROR_LOGF("%s(%i): Previous section not valid", name, currentEndLine);
     return CONFIG_INV_SECTION;
   }
 
