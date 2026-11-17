@@ -33,8 +33,7 @@ int main(int argc, char *argv[])
     {
       return 1;
     }
-    ExecuteChecks();
-    return ERROR_SUCCESS;
+    return ExecuteChecks() ? ERROR_SUCCESS : 1;
   }
 
   if (argc <= 2)
@@ -46,7 +45,10 @@ int main(int argc, char *argv[])
       return 1;
     }
 
-    ExecuteTasks();
+    if (!ExecuteTasks())
+    {
+      return 1;
+    }
   }
   else
   {

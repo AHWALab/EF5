@@ -87,11 +87,23 @@ parameter or grid (without the locations), and EF5 warns when it cannot read
 rows of a TIFF file. Such rows are set to nodata.
 
 Grids must be one-band GeoTIFFs, not tiled: Float32, or Int32 for the DDM and
-FAM. They can be stored as one image plane or as separate planes
-(PlanarConfiguration 1 or 2). Earlier versions of EF5 could not read grids
-stored as separate planes: every cell read as nodata, without a message, and
-most parameters fell back to fixed values (e.g. `wm` 100, `b` 1). Results of
-runs that used such grids change now that the grids are read.
+FAM.
+
+**Parameter grids must be stored as one image plane** (PlanarConfiguration=1,
+what `gdal_translate -co INTERLEAVE=PIXEL` writes). EF5 stops the task with an
+error that names every parameter grid stored as separate planes, and exits
+with status 1. Rewrite such a grid with:
+
+```
+gdal_translate -co INTERLEAVE=PIXEL -co COMPRESS=DEFLATE in.tif out.tif
+```
+
+`tiffinfo grid.tif | grep -i planar` shows the layout (`gdalinfo` does not
+tell the two apart for one-band files). Earlier versions of EF5 read every cell
+of such a grid as nodata, without a message, and most parameters fell back to
+fixed values (e.g. `wm` 100, `b` 1).
+
+EF5 exits with status 1 whenever a task cannot run.
 
 ## Contributors
 

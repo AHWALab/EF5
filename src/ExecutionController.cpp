@@ -20,15 +20,15 @@
 #include <unistd.h>
 
 static void LoadProjection();
-static void ExecuteSimulation(TaskConfigSection *task);
-static void ExecuteSimulationRP(TaskConfigSection *task);
-static void ExecuteCalibrationARS(TaskConfigSection *task);
-static void ExecuteCalibrationDREAM(TaskConfigSection *task);
-static void ExecuteCalibrationDREAMEns(EnsTaskConfigSection *task);
+static bool ExecuteSimulation(TaskConfigSection *task);
+static bool ExecuteSimulationRP(TaskConfigSection *task);
+static bool ExecuteCalibrationARS(TaskConfigSection *task);
+static bool ExecuteCalibrationDREAM(TaskConfigSection *task);
+static bool ExecuteCalibrationDREAMEns(EnsTaskConfigSection *task);
 static void ExecuteClipBasin(TaskConfigSection *task);
 static void ExecuteClipGauge(TaskConfigSection *task);
 static void ExecuteMakeBasic(TaskConfigSection *task);
-static void ExecuteMakeBasinAvg(TaskConfigSection *task);
+static bool ExecuteMakeBasinAvg(TaskConfigSection *task);
 
 // Helper function to check if a directory exists and is writable
 static bool IsDirWritable(const char* path) {
@@ -40,11 +40,13 @@ static bool IsDirWritable(const char* path) {
     return (access(path, W_OK) == 0);
 }
 
-void ExecuteTasks() {
+bool ExecuteTasks() {
+
+  bool ok = true;
 
   if (!g_executeConfig) {
     ERROR_LOGF("%s", "No execute section specified!");
-    return;
+    return false;
   }
 
   std::vector<TaskConfigSection *> *tasks = g_executeConfig->GetTasks();
@@ -55,7 +57,7 @@ void ExecuteTasks() {
   std::vector<EnsTaskConfigSection *>::iterator ensTaskItr;
 
   if (!LoadBasicGrids()) {
-    return;
+    return false;
   }
   LoadProjection();
 
@@ -67,11 +69,12 @@ void ExecuteTasks() {
 
     switch (ensTask->GetRunStyle()) {
     case STYLE_CALI_DREAM:
-      ExecuteCalibrationDREAMEns(ensTask);
+      ok = ExecuteCalibrationDREAMEns(ensTask) && ok;
       break;
     default:
       ERROR_LOGF("Unsupport ensemble task run style \"%u\"",
                  ensTask->GetRunStyle());
+      ok = false;
       break;
     }
   }
@@ -82,22 +85,23 @@ void ExecuteTasks() {
     const char* outDir = task->GetOutput();
     if (!IsDirWritable(outDir)) {
       ERROR_LOGF("Output directory '%s' does not exist or is not writable. Aborting task %s.", outDir, task->GetName());
+      ok = false;
       continue;
     }
     INFO_LOGF("Executing task %s", task->GetName());
 
     switch (task->GetRunStyle()) {
     case STYLE_SIMU:
-      ExecuteSimulation(task);
+      ok = ExecuteSimulation(task) && ok;
       break;
     case STYLE_SIMU_RP:
-      ExecuteSimulationRP(task);
+      ok = ExecuteSimulationRP(task) && ok;
       break;
     case STYLE_CALI_ARS:
-      ExecuteCalibrationARS(task);
+      ok = ExecuteCalibrationARS(task) && ok;
       break;
     case STYLE_CALI_DREAM:
-      ExecuteCalibrationDREAM(task);
+      ok = ExecuteCalibrationDREAM(task) && ok;
       break;
     case STYLE_CLIP_BASIN:
       ExecuteClipBasin(task);
@@ -109,29 +113,36 @@ void ExecuteTasks() {
       ExecuteMakeBasic(task);
       break;
     case STYLE_BASIN_AVG:
-      ExecuteMakeBasinAvg(task);
+      ok = ExecuteMakeBasinAvg(task) && ok;
       break;
     default:
       ERROR_LOGF("Unimplemented simulation run style \"%u\"",
                  task->GetRunStyle());
+      ok = false;
       break;
     }
   }
 
+  if (!ok) {
+    ERROR_LOG("At least one task did not run; see the errors above.");
+  }
   FreeBasicGridsData();
+  return ok;
 }
 
 // ef5 --check: run the channel check (Simulator::CheckChannels) for each
 // simulation task in the execute section, instead of running it
-void ExecuteChecks() {
+bool ExecuteChecks() {
+
+  bool ok = true;
 
   if (!g_executeConfig) {
     ERROR_LOGF("%s", "No execute section specified!");
-    return;
+    return false;
   }
 
   if (!LoadBasicGrids()) {
-    return;
+    return false;
   }
   LoadProjection();
 
@@ -153,10 +164,13 @@ void ExecuteChecks() {
     }
     INFO_LOGF("Checking task %s", task->GetName());
     Simulator sim;
-    sim.CheckChannels(task);
+    if (!sim.CheckChannels(task)) {
+      ok = false;
+    }
   }
 
   FreeBasicGridsData();
+  return ok;
 }
 
 void LoadProjection() {
@@ -186,31 +200,40 @@ void LoadProjection() {
   }
 }
 
-void ExecuteSimulation(TaskConfigSection *task) {
+// Each Execute* function returns false if its task could not run (a problem
+// has been reported).
+bool ExecuteSimulation(TaskConfigSection *task) {
 
   Simulator sim;
 
-  if (sim.Initialize(task)) {
-    sim.Simulate();
-    sim.CleanUp();
+  if (!sim.Initialize(task)) {
+    return false;
   }
+  sim.Simulate();
+  sim.CleanUp();
+  return true;
 }
 
-void ExecuteSimulationRP(TaskConfigSection *task) {
+bool ExecuteSimulationRP(TaskConfigSection *task) {
 
   Simulator sim;
 
-  sim.Initialize(task);
+  if (!sim.Initialize(task)) {
+    return false;
+  }
   sim.Simulate(true);
   sim.CleanUp();
+  return true;
 }
 
-void ExecuteCalibrationARS(TaskConfigSection *task) {
+bool ExecuteCalibrationARS(TaskConfigSection *task) {
 
   Simulator sim;
   char buffer[CONFIG_MAX_LEN * 2];
 
-  sim.Initialize(task);
+  if (!sim.Initialize(task)) {
+    return false;
+  }
   sprintf(buffer, "%s/%s", task->GetOutput(), "califorcings.bin");
   sim.PreloadForcings(buffer, true);
 
@@ -226,14 +249,17 @@ void ExecuteCalibrationARS(TaskConfigSection *task) {
           task->GetCaliParamSec()->GetGauge()->GetName(),
           modelStrings[task->GetModel()]);
   ars.WriteOutput(buffer, task->GetModel(), task->GetRouting());
+  return true;
 }
 
-void ExecuteCalibrationDREAM(TaskConfigSection *task) {
+bool ExecuteCalibrationDREAM(TaskConfigSection *task) {
 
   Simulator sim;
   char buffer[CONFIG_MAX_LEN * 2];
 
-  sim.Initialize(task);
+  if (!sim.Initialize(task)) {
+    return false;
+  }
   sprintf(buffer, "%s/%s", task->GetOutput(), "califorcings.bin");
   sim.PreloadForcings(buffer, true);
 
@@ -255,9 +281,10 @@ void ExecuteCalibrationDREAM(TaskConfigSection *task) {
           modelStrings[task->GetModel()]);
   dream.WriteOutput(buffer, task->GetModel(), task->GetRouting(),
                     task->GetSnow());
+  return true;
 }
 
-void ExecuteCalibrationDREAMEns(EnsTaskConfigSection *task) {
+bool ExecuteCalibrationDREAMEns(EnsTaskConfigSection *task) {
 
   char buffer[CONFIG_MAX_LEN * 2];
   std::vector<TaskConfigSection *> *tasks = task->GetTasks();
@@ -272,7 +299,9 @@ void ExecuteCalibrationDREAMEns(EnsTaskConfigSection *task) {
   for (int i = 0; i < numMembers; i++) {
     Simulator *sim = &(sims[i]);
     TaskConfigSection *thisTask = tasks->at(i);
-    sim->Initialize(thisTask);
+    if (!sim->Initialize(thisTask)) {
+      return false;
+    }
     sprintf(buffer, "%s/%s", thisTask->GetOutput(), "califorcings.bin");
     sim->PreloadForcings(buffer, true);
     numParams += numModelParams[thisTask->GetModel()];
@@ -306,6 +335,7 @@ void ExecuteCalibrationDREAMEns(EnsTaskConfigSection *task) {
           tasks->at(0)->GetCaliParamSec()->GetGauge()->GetName(), "ensemble");
   dream.WriteOutput(buffer, tasks->at(0)->GetModel(),
                     tasks->at(0)->GetRouting(), tasks->at(0)->GetSnow());
+  return true;
 }
 
 void ExecuteClipBasin(TaskConfigSection *task) {
@@ -370,15 +400,17 @@ void ExecuteClipGauge(TaskConfigSection *task) {
 
 void ExecuteMakeBasic(TaskConfigSection *task) { MakeBasic(); }
 
-void ExecuteMakeBasinAvg(TaskConfigSection *task) {
+bool ExecuteMakeBasinAvg(TaskConfigSection *task) {
   Simulator sim;
 
-  if (sim.Initialize(task)) {
-    const char* inputDir = task->GetBasinAvgInput();
-    if (!inputDir || inputDir[0] == '\0') {
-      inputDir = task->GetOutput();
-    }
-    sim.BasinAvg(inputDir);
-    sim.CleanUp();
+  if (!sim.Initialize(task)) {
+    return false;
   }
+  const char* inputDir = task->GetBasinAvgInput();
+  if (!inputDir || inputDir[0] == '\0') {
+    inputDir = task->GetOutput();
+  }
+  sim.BasinAvg(inputDir);
+  sim.CleanUp();
+  return true;
 }

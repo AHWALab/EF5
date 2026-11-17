@@ -49,6 +49,18 @@ static void TIFFDefaultDirectory(TIFF *tif) {
   }
 }
 
+bool IsTifSeparatePlanes(const char *file) {
+  TIFFExtenderInit();
+  TIFF *tif = XTIFFOpen(file, "r");
+  if (!tif) {
+    return false;
+  }
+  unsigned short planar = PLANARCONFIG_CONTIG;
+  TIFFGetFieldDefaulted(tif, TIFFTAG_PLANARCONFIG, &planar);
+  XTIFFClose(tif);
+  return planar == PLANARCONFIG_SEPARATE;
+}
+
 FloatGrid *ReadFloatTifGrid(const char *file) {
   return ReadFloatTifGrid(file, NULL);
 }

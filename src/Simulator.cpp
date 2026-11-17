@@ -3177,116 +3177,73 @@ float *Simulator::GetObsTS()
   return obsData;
 }
 
-bool Simulator::InitializeGridParams(TaskConfigSection *task)
+// Reads the parameter grids named in a parameter set (an empty name means no
+// grid for that parameter). A parameter grid must be stored as one image
+// plane: a grid stored as separate planes stops the task, so that it is not
+// used by mistake (EF5 used to read such grids as nodata, without a message).
+// Every such grid is reported before returning false.
+static bool LoadParamGrids(std::vector<std::string> *files, int numParams,
+                           std::vector<FloatGrid *> *grids, const char *kind)
 {
-  int numParams = numModelParams[task->GetModel()];
-  std::vector<std::string> *vecGrids = task->GetParamsSec()->GetParamGrids();
-
-  paramGrids.resize(numParams);
-
+  bool separatePlanes = false;
+  grids->resize(numParams);
   for (int i = 0; i < numParams; i++)
   {
-    std::string *file = &(vecGrids->at(i));
-    if (file->length() == 0)
+    const char *file = files->at(i).c_str();
+    (*grids)[i] = NULL;
+    if (!file[0])
     {
-      paramGrids[i] = NULL;
+      continue;
     }
-    else
+    if (IsTifSeparatePlanes(file))
     {
-      paramGrids[i] = ReadFloatTifGrid(file->c_str());
-      if (!paramGrids[i])
-      {
-        ERROR_LOGF("Failed to load water balance parameter grid %s\n",
-                   file->c_str());
-        return false;
-      }
+      ERROR_LOGF("The %s parameter grid %s is stored as separate image planes "
+                 "(PlanarConfiguration=2). Parameter grids must be stored as "
+                 "one image plane; rewrite it with: gdal_translate -co "
+                 "INTERLEAVE=PIXEL %s <new file>",
+                 kind, file, file);
+      separatePlanes = true;
+      continue;
+    }
+    (*grids)[i] = ReadFloatTifGrid(file);
+    if (!(*grids)[i])
+    {
+      ERROR_LOGF("Failed to load %s parameter grid %s\n", kind, file);
+      return false;
     }
   }
+  return !separatePlanes;
+}
 
+bool Simulator::InitializeGridParams(TaskConfigSection *task)
+{
+  // Load every kind before giving up, so that all grids stored as separate
+  // planes are reported at once
+  bool ok = LoadParamGrids(task->GetParamsSec()->GetParamGrids(),
+                           numModelParams[task->GetModel()], &paramGrids,
+                           "water balance");
   if (task->GetRouting() != ROUTE_QTY)
   {
-    int numRParams = numRouteParams[task->GetRouting()];
-    std::vector<std::string> *vecRouteGrids =
-        task->GetRoutingParamsSec()->GetParamGrids();
-
-    paramGridsRoute.resize(numRParams);
-
-    for (int i = 0; i < numRParams; i++)
-    {
-      std::string *file = &(vecRouteGrids->at(i));
-      if (file->length() == 0)
-      {
-        paramGridsRoute[i] = NULL;
-      }
-      else
-      {
-        paramGridsRoute[i] = ReadFloatTifGrid(file->c_str());
-        if (!paramGridsRoute[i])
-        {
-          ERROR_LOGF("Failed to load routing parameter grid %s\n",
-                     file->c_str());
-          return false;
-        }
-      }
-    }
+    ok = LoadParamGrids(task->GetRoutingParamsSec()->GetParamGrids(),
+                        numRouteParams[task->GetRouting()], &paramGridsRoute,
+                        "routing") &&
+         ok;
   }
-
   if (task->GetSnow() != SNOW_QTY)
   {
-    int numSParams = numSnowParams[task->GetSnow()];
-    std::vector<std::string> *vecSnowGrids =
-        task->GetSnowParamsSec()->GetParamGrids();
-
-    paramGridsSnow.resize(numSParams);
-
-    for (int i = 0; i < numSParams; i++)
-    {
-      std::string *file = &(vecSnowGrids->at(i));
-      if (file->length() == 0)
-      {
-        paramGridsSnow[i] = NULL;
-      }
-      else
-      {
-        paramGridsSnow[i] = ReadFloatTifGrid(file->c_str());
-        if (!paramGridsSnow[i])
-        {
-          ERROR_LOGF("Failed to load snow parameter grid %s\n", file->c_str());
-          return false;
-        }
-      }
-    }
+    ok = LoadParamGrids(task->GetSnowParamsSec()->GetParamGrids(),
+                        numSnowParams[task->GetSnow()], &paramGridsSnow,
+                        "snow") &&
+         ok;
   }
-
   if (task->GetInundation() != INUNDATION_QTY)
   {
-    int numIParams = numInundationParams[task->GetInundation()];
-    std::vector<std::string> *vecInundationGrids =
-        task->GetInundationParamsSec()->GetParamGrids();
-
-    paramGridsInundation.resize(numIParams);
-
-    for (int i = 0; i < numIParams; i++)
-    {
-      std::string *file = &(vecInundationGrids->at(i));
-      if (file->length() == 0)
-      {
-        paramGridsInundation[i] = NULL;
-      }
-      else
-      {
-        paramGridsInundation[i] = ReadFloatTifGrid(file->c_str());
-        if (!paramGridsInundation[i])
-        {
-          ERROR_LOGF("Failed to load inundation parameter grid %s\n",
-                     file->c_str());
-          return false;
-        }
-      }
-    }
+    ok = LoadParamGrids(task->GetInundationParamsSec()->GetParamGrids(),
+                        numInundationParams[task->GetInundation()],
+                        &paramGridsInundation, "inundation") &&
+         ok;
   }
-
-  return true;
+  return ok;
 }
 
 // Simple function to fix NaN values in observed discharge data
