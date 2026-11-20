@@ -1,19 +1,19 @@
 Ensemble Framework For Flash Flood Forecasting (EF5)
 ===
-![version](https://img.shields.io/badge/version-1.3.0-teal.svg?style=flat) ![Linux Build Status](https://img.shields.io/github/actions/workflow/status/AHWALab/EF5/build.yml?label=Linux%20Build%20Status&branch=master&style=flat&logo=linux) ![Windows Build Status](https://img.shields.io/github/actions/workflow/status/AHWALab/EF5/build.yml?label=Windows%20Build%20Status&branch=master&style=flat&logo=windows)
+![version](https://img.shields.io/badge/version-1.3.1-teal.svg?style=flat) ![Linux Build Status](https://img.shields.io/github/actions/workflow/status/AHWALab/EF5/build.yml?label=Linux%20Build%20Status&branch=master&style=flat&logo=linux) ![Windows Build Status](https://img.shields.io/github/actions/workflow/status/AHWALab/EF5/build.yml?label=Windows%20Build%20Status&branch=master&style=flat&logo=windows)
 
 EF5 was created by the Hydrometeorology and Remote Sensing Laboratory at the University of Oklahoma.
 The goal of EF5 is to have a framework for distributed hydrologic modeling that is user friendly, adaptable, expandable, all while being suitable for large scale (e.g. continental scale) modeling of flash floods with rapid forecast updates. Currently EF5 incorporates 3 water balance models including the Sacramento Soil Moisture Accouning Model (SAC-SMA), Coupled Routing and Excess Storage (CREST), and hydrophobic (HP). These water balance models can be coupled with linear reservoir or kinematic wave routing; the kinematic wave can also run on several CPU cores (`ROUTING=KW_PARALLEL`).
 
 ## What's new in 1.3
 
-- `ROUTING=KW_PARALLEL`: the kinematic wave router on several CPU cores (OpenMP; set `OMP_NUM_THREADS`). It uses the `KW` parameter sets and state files.
+- `ROUTING=KW_PARALLEL`: the kinematic wave router on several CPU cores (OpenMP; see [Using several cores](#using-several-cores)). It uses the `KW` parameter sets and state files.
 - `OUTPUT_TYPE=ZARR`: all gridded outputs of a run in one Zarr v3 store instead of one GeoTIFF per grid and step (see [Zarr output](#zarr-output)).
 - `runoff` and `subrunoff` output grids: surface and subsurface runoff from the water balance, in mm/h.
 - With a forecast period (`TIME_BEGIN_LR`), maximum grids for the observed period (`qpe_max*`) and for the whole run (`qpf_max*`).
 - DREAM output has a column for every objective function (`nsce`, `cc`, `sse`, `mkge`).
 - Parameter grids must be stored as one image plane: a grid stored as separate planes stops the task, with the command that fixes it. EF5 exits with status 1 when a task did not run.
-- Docker and Apptainer images: `ghcr.io/ahwalab/ef5:1.3.0`, or build them from `docker/` (see [Getting EF5](#getting-ef5)).
+- Docker and Apptainer images: `ghcr.io/ahwalab/ef5:1.3.1`, or build them from `docker/` (see [Getting EF5](#getting-ef5)).
 
 See [CHANGELOG.md](CHANGELOG.md) for details and upgrade notes.
 
@@ -30,15 +30,15 @@ Pick whichever suits your machine:
 | option | for | how |
 |---|---|---|
 | Prebuilt binaries | quick start on Ubuntu 26.04 or Windows | download from the [Releases page](https://github.com/AHWALab/EF5/releases): `ef5_linux.tar.gz` (built on Ubuntu 26.04, needs its libraries), `ef5_win64.zip`, `ef5_win32.zip` (no Zarr output) |
-| Docker image | any machine with Docker; Docker Compose setups | `docker pull ghcr.io/ahwalab/ef5:1.3.0` (see [docker/README.md](docker/README.md)) |
-| Apptainer image | HPC clusters without Docker | `apptainer pull ef5.sif docker://ghcr.io/ahwalab/ef5:1.3.0` (see [docker/README.md](docker/README.md)) |
+| Docker image | any machine with Docker; Docker Compose setups | `docker pull ghcr.io/ahwalab/ef5:1.3.1` (see [docker/README.md](docker/README.md)) |
+| Apptainer image | HPC clusters without Docker | `apptainer pull ef5.sif docker://ghcr.io/ahwalab/ef5:1.3.1` (see [docker/README.md](docker/README.md)) |
 | Compile from source | any Linux, including HPC clusters without containers or root | [Compiling](#compiling) below |
 
 The Docker image can also be built from this repository (`docker/build.sh docker`), or used from your own Docker Compose file: copy the `ef5` service in [docker/compose.yaml](docker/compose.yaml).
 
 Quick start with Docker, from the folder that holds your control file:
 
-    docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" ghcr.io/ahwalab/ef5:1.3.0 control.txt
+    docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" ghcr.io/ahwalab/ef5:1.3.1 control.txt
 
 ## Compiling
 
@@ -46,7 +46,7 @@ Quick start with Docker, from the folder that holds your control file:
 
 - A C++ compiler, autoconf, automake and pkg-config
 - libtiff, libgeotiff and zlib (development files)
-- OpenMP (comes with GCC), for `ROUTING=KW_PARALLEL` and parallel water balance
+- OpenMP (comes with GCC), for `ROUTING=KW_PARALLEL` and the other parallel parts (see [Using several cores](#using-several-cores))
 - Optional, for Zarr output: GDAL 3.11 or newer (development files)
 
 On Ubuntu 26.04 or newer:
@@ -115,6 +115,35 @@ import xarray as xr
 ds = xr.open_zarr("outputs/20230610_0000.zarr")
 ds["q"].sel(time="2023-06-05T12:00").plot()
 ```
+
+## Using several cores
+
+EF5 uses OpenMP to run on several CPU cores. The parts that run in parallel are `ROUTING=KW_PARALLEL`, reading precipitation grids onto the model cells, and DREAM calibration; the water balance and `ROUTING=KW` or `LR` run on one core. The number of threads comes from `OMP_NUM_THREADS`; when it is not set, EF5 uses every core it can see (the Docker and Apptainer images use 4). Each simulation and calibration task logs the number at start-up:
+
+```
+INFO: Using 16 OpenMP threads (set OMP_NUM_THREADS to change)
+```
+
+**On HPC clusters, set it in the job script.** Many clusters set `OMP_NUM_THREADS=1` in jobs and on login nodes, and EF5 then runs on one core; with `ROUTING=KW_PARALLEL` it warns about this. Ask the scheduler for cores and give the same number to EF5:
+
+```
+# SGE (for example Argon)
+#$ -pe smp 16
+export OMP_NUM_THREADS=$NSLOTS
+./ef5 control.txt
+
+# Slurm
+#SBATCH --cpus-per-task=16
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+./ef5 control.txt
+
+# Apptainer (the variable passes into the container)
+OMP_NUM_THREADS=16 apptainer run ef5.sif control.txt
+```
+
+- Use `ROUTING=KW_PARALLEL` to route in parallel: `KW` runs on one core whatever `OMP_NUM_THREADS` is. `KW_PARALLEL` gives the same results with any number of threads.
+- Don't use more threads than the cores the job has: extra threads share the same cores and make the run slower.
+- Small domains are often fastest with a few threads: a 1 km national domain took 9.2 s with 4 threads and 11.8 s with 16. Try a few values on your domain.
 
 ## Parameter grids
 
