@@ -55,8 +55,10 @@ Read these before replacing an older EF5 in an operational setup:
   - Coordinates: `time` (seconds since 1970-01-01 00:00:00 UTC), `y` and `x`
     (cell centres from the DEM), and `forcing_phase` along `time`
     (0 = QPE step, 1 = QPF/long-range step).
-  - Arrays are float32 with nodata -9999 and the DEM's coordinate reference
-    system. They are compressed with Blosc/LZ4 when the GDAL build supports it,
+  - Arrays are float32 with nodata -9999 (the Zarr `fill_value`, and the CF
+    attribute `missing_value`, so that xarray reads nodata cells as NaN) and
+    the DEM's coordinate reference system. `forcing_phase` is int16 with fill
+    value -1 (a step not written). They are compressed with Blosc/LZ4 when the GDAL build supports it,
     otherwise ZSTD, otherwise GZIP.
   - `OUTPUT_TYPE=GEOTIFF` (the default) writes GeoTIFF as before.
 - **`runoff` and `subrunoff` output grids** (`OUTPUT_GRIDS=...|RUNOFF|SUBRUNOFF`):
