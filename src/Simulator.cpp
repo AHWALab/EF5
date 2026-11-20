@@ -1633,6 +1633,15 @@ void Simulator::SimulateDistributed(bool trackPeaks)
   char buffer[CONFIG_MAX_LEN * 2];
   size_t tsIndex = 0;
   size_t zarrTimeIndex = 0;
+  std::vector<float> runoffGrid, subrunoffGrid;
+  if ((griddedOutputs & OG_RUNOFF) == OG_RUNOFF)
+  {
+    runoffGrid.resize(nodes.size());
+  }
+  if ((griddedOutputs & OG_SUBSURF) == OG_SUBSURF)
+  {
+    subrunoffGrid.resize(nodes.size());
+  }
   bool outputZarr = (task->GetOutputType() == OUTPUT_TYPE_ZARR);
   bool zarrHandcatchmentWritten = false;
   bool outputTS = IsOutputTS();
@@ -1873,32 +1882,21 @@ void Simulator::SimulateDistributed(bool trackPeaks)
                             &SM);
     }
 
-    if (griddedOutputs && ((griddedOutputs & OG_RUNOFF) == OG_RUNOFF))
+    // Keep this step's runoff (mm/h) for the runoff/subrunoff outputs: routing
+    // empties currentFF and currentSF in place
+    if ((griddedOutputs & OG_RUNOFF) == OG_RUNOFF)
     {
-      std::vector<float> _runoff;
-      _runoff.resize(currentFF.size());
       for (size_t i = 0; i < currentFF.size(); i++)
       {
-        _runoff[i] = currentFF[i] * 3600.0f;
+        runoffGrid[i] = currentFF[i] * 3600.0f;
       }
-      currentTimeTextOutput.UpdateName(currentTime.GetTM());
-      sprintf(buffer, "%s/runoff.%s.%s.tif", outputPath,
-              currentTimeTextOutput.GetName(), wbModel->GetName());
-      gridWriter.WriteGrid(&nodes, &_runoff, buffer, false);
     }
-
-    if (griddedOutputs && ((griddedOutputs & OG_SUBSURF) == OG_SUBSURF))
+    if ((griddedOutputs & OG_SUBSURF) == OG_SUBSURF)
     {
-      std::vector<float> _subsurface;
-      _subsurface.resize(currentSF.size());
       for (size_t i = 0; i < currentSF.size(); i++)
       {
-        _subsurface[i] = currentSF[i] * 3600.0f;
+        subrunoffGrid[i] = currentSF[i] * 3600.0f;
       }
-      currentTimeTextOutput.UpdateName(currentTime.GetTM());
-      sprintf(buffer, "%s/subrunoff.%s.%s.tif", outputPath,
-              currentTimeTextOutput.GetName(), wbModel->GetName());
-      gridWriter.WriteGrid(&nodes, &_subsurface, buffer, false);
     }
 
     if (outputTS)
@@ -2164,6 +2162,42 @@ void Simulator::SimulateDistributed(bool trackPeaks)
           sprintf(buffer, "%s/pet.%s.%s.tif", outputPath,
                   currentTimeTextOutput.GetName(), wbModel->GetName());
           gridWriter.WriteGrid(&nodes, &currentPETSimu, buffer, false);
+        }
+      }
+      if ((griddedOutputs & OG_RUNOFF) == OG_RUNOFF)
+      {
+        if (outputZarr)
+        {
+          if (!zarrGridWriter->WriteTimeGrid(
+                  "runoff", zarrTimeIndex, (int64_t)currentTime.currentTimeSec,
+                  inLR ? 1 : 0, &runoffGrid))
+          {
+            return;
+          }
+        }
+        else
+        {
+          sprintf(buffer, "%s/runoff.%s.%s.tif", outputPath,
+                  currentTimeTextOutput.GetName(), wbModel->GetName());
+          gridWriter.WriteGrid(&nodes, &runoffGrid, buffer, false);
+        }
+      }
+      if ((griddedOutputs & OG_SUBSURF) == OG_SUBSURF)
+      {
+        if (outputZarr)
+        {
+          if (!zarrGridWriter->WriteTimeGrid(
+                  "subrunoff", zarrTimeIndex, (int64_t)currentTime.currentTimeSec,
+                  inLR ? 1 : 0, &subrunoffGrid))
+          {
+            return;
+          }
+        }
+        else
+        {
+          sprintf(buffer, "%s/subrunoff.%s.%s.tif", outputPath,
+                  currentTimeTextOutput.GetName(), wbModel->GetName());
+          gridWriter.WriteGrid(&nodes, &subrunoffGrid, buffer, false);
         }
       }
       if (sModel && (griddedOutputs & OG_SWE) == OG_SWE)
