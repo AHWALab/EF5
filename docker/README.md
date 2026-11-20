@@ -7,7 +7,7 @@ your own machine, and the same image gives identical results on every system.
 There are three ways to get it:
 
 1. **Pull the prebuilt image** that each release publishes:
-   `ghcr.io/ahwalab/ef5:<version>` (for example `1.3.0`), or `latest` for the
+   `ghcr.io/ahwalab/ef5:<version>` (for example `1.3.1`), or `latest` for the
    newest release.
 2. **Build it yourself** from this repository with `docker/build.sh`.
 3. **Use Apptainer** on an HPC cluster without Docker: pull the prebuilt image
@@ -33,8 +33,8 @@ them too.
 ### Prebuilt image
 
 ```
-docker pull ghcr.io/ahwalab/ef5:1.3.0
-docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" ghcr.io/ahwalab/ef5:1.3.0 control.txt
+docker pull ghcr.io/ahwalab/ef5:1.3.1
+docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" ghcr.io/ahwalab/ef5:1.3.1 control.txt
 ```
 
 ### Build the image yourself
@@ -48,7 +48,7 @@ docker/build.sh docker            # image "ef5"
 or without cloning the repository:
 
 ```
-docker build -t ef5 -f docker/Dockerfile https://github.com/AHWALab/EF5.git#v1.3.0
+docker build -t ef5 -f docker/Dockerfile https://github.com/AHWALab/EF5.git#v1.3.1
 ```
 
 ### Running
@@ -60,7 +60,7 @@ the outputs belong to you:
 ```
 /path/to/EF5/docker/ef5-docker control.txt
 /path/to/EF5/docker/ef5-docker --check control.txt
-EF5_IMAGE=ghcr.io/ahwalab/ef5:1.3.0 /path/to/EF5/docker/ef5-docker control.txt
+EF5_IMAGE=ghcr.io/ahwalab/ef5:1.3.1 /path/to/EF5/docker/ef5-docker control.txt
 ```
 
 It uses the image `ef5` (built with `build.sh`) unless `EF5_IMAGE` names
@@ -88,7 +88,7 @@ control file in the command:
 ```yaml
 services:
   ef5:
-    image: ghcr.io/ahwalab/ef5:1.3.0
+    image: ghcr.io/ahwalab/ef5:1.3.1
     user: "1000:1000"
     working_dir: /data
     volumes:
@@ -105,7 +105,7 @@ Pull the prebuilt image into a single file you can copy anywhere (no root
 needed):
 
 ```
-apptainer pull ef5.sif docker://ghcr.io/ahwalab/ef5:1.3.0
+apptainer pull ef5.sif docker://ghcr.io/ahwalab/ef5:1.3.1
 ```
 
 or build it from this repository (needs root or `--fakeroot`, depending on how
