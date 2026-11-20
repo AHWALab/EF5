@@ -65,6 +65,16 @@ bool Simulator::Initialize(TaskConfigSection *taskN)
   task = taskN;
   zarrGridWriter = NULL;
 
+  if (task->GetOutputType() == OUTPUT_TYPE_ZARR && !ZarrGridWriter::Available())
+  {
+    ERROR_LOGF("Task %s asks for OUTPUT_TYPE=ZARR, but this EF5 was built "
+               "without Zarr output (it needs GDAL 3.11 or newer when it is "
+               "compiled). Use OUTPUT_TYPE=TIF, or rebuild EF5 with GDAL 3.11 "
+               "or newer.",
+               task->GetName());
+    return false;
+  }
+
   if (!InitializeBasic(task))
   {
     return false;

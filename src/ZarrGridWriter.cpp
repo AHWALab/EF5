@@ -1,5 +1,8 @@
 #include "ZarrGridWriter.h"
 #include "Messages.h"
+
+#ifdef EF5_ZARR
+
 #include "cpl_conv.h"
 #include "cpl_string.h"
 #include "cpl_vsi.h"
@@ -7,13 +10,38 @@
 #include "ogr_spatialref.h"
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
+
+// GDAL before 3.11 writes Zarr v3 stores that zarr-python and xarray cannot
+// read (an older draft of the format). configure checks this too.
+#if GDAL_VERSION_NUM < GDAL_COMPUTE_VERSION(3, 11, 0)
+#error "Zarr output needs GDAL 3.11 or newer; configure with --without-zarr"
+#endif
 
 extern LongGrid *g_DEM;
+
+// Compression for the data arrays: the first of these that this GDAL build
+// supports for Zarr. BLOSC (LZ4) is fast and was used by EF5 1.3's Zarr v2
+// stores; ZSTD and GZIP are core Zarr v3 codecs. NULL = uncompressed.
+static const char *ChooseCompression(GDALDriverH driver) {
+  const char *options = GDALGetMetadataItem(
+      driver, GDAL_DMD_MULTIDIM_ARRAY_CREATIONOPTIONLIST, NULL);
+  static const char *const preferred[] = {"BLOSC", "ZSTD", "GZIP"};
+  for (size_t i = 0; i < sizeof(preferred) / sizeof(preferred[0]); i++) {
+    char value[32];
+    snprintf(value, sizeof(value), "<Value>%s</Value>", preferred[i]);
+    if (options && strstr(options, value)) {
+      return preferred[i];
+    }
+  }
+  return NULL;
+}
 
 ZarrGridWriter::ZarrGridWriter()
     : initialized(false), nodes(NULL), dataset(NULL), rootGroup(NULL),
       timeDim(NULL), yDim(NULL), xDim(NULL), timeArray(NULL),
-      phaseArray(NULL), numRows(0), numCols(0), noData(-9999.0f) {}
+      phaseArray(NULL), numRows(0), numCols(0), noData(-9999.0f),
+      compression(NULL) {}
 
 ZarrGridWriter::~ZarrGridWriter() { Close(); }
 
@@ -33,6 +61,11 @@ bool ZarrGridWriter::Initialize(const char *outputPath, const char *storeName,
     ERROR_LOG("GDAL Zarr driver is not available.");
     return false;
   }
+  compression = ChooseCompression(driver);
+  if (!compression) {
+    WARNING_LOGF("%s", "This GDAL build has no BLOSC, ZSTD or GZIP support "
+                       "for Zarr; writing the Zarr arrays uncompressed.\n");
+  }
 
   char storePath[CONFIG_MAX_LEN * 2];
   snprintf(storePath, sizeof(storePath), "%s/%s.zarr", outputPath, storeName);
@@ -47,7 +80,7 @@ bool ZarrGridWriter::Initialize(const char *outputPath, const char *storeName,
   }
 
   char **datasetOptions = NULL;
-  datasetOptions = CSLSetNameValue(datasetOptions, "FORMAT", "ZARR_V2");
+  datasetOptions = CSLSetNameValue(datasetOptions, "FORMAT", "ZARR_V3");
   dataset = GDALCreateMultiDimensional(driver, storePath, NULL, datasetOptions);
   CSLDestroy(datasetOptions);
   if (!dataset) {
@@ -279,26 +312,27 @@ bool ZarrGridWriter::WritePhaseMetadata() {
   return true;
 }
 
-GDALMDArrayH ZarrGridWriter::GetOrCreateTimeArray(const char *name) {
-  std::map<std::string, GDALMDArrayH>::iterator itr = arrays.find(name);
-  if (itr != arrays.end()) {
-    return itr->second;
-  }
-
+// Creates a float32 data array with the store's compression, nodata value and
+// spatial reference
+GDALMDArrayH ZarrGridWriter::CreateDataArray(const char *name, size_t numDims,
+                                             GDALDimensionH *dims,
+                                             const char *blockSize) {
   char **options = NULL;
-  options = CSLSetNameValue(options, "COMPRESS", "BLOSC");
-  options = CSLSetNameValue(options, "BLOSC_CNAME", "lz4");
-  options = CSLSetNameValue(options, "BLOSC_CLEVEL", "5");
-  options = CSLSetNameValue(options, "BLOCKSIZE", "1,512,512");
-  GDALDimensionH dims[3] = {timeDim, yDim, xDim};
+  if (compression) {
+    options = CSLSetNameValue(options, "COMPRESS", compression);
+  }
+  if (compression && !strcmp(compression, "BLOSC")) {
+    options = CSLSetNameValue(options, "BLOSC_CNAME", "lz4");
+    options = CSLSetNameValue(options, "BLOSC_CLEVEL", "5");
+  }
+  options = CSLSetNameValue(options, "BLOCKSIZE", blockSize);
   GDALExtendedDataTypeH float32Type =
       GDALExtendedDataTypeCreate(GDT_Float32);
-  GDALMDArrayH array =
-      GDALGroupCreateMDArray(rootGroup, name, 3, dims, float32Type, options);
+  GDALMDArrayH array = GDALGroupCreateMDArray(rootGroup, name, numDims, dims,
+                                              float32Type, options);
   GDALExtendedDataTypeRelease(float32Type);
   CSLDestroy(options);
   if (!array) {
-    ERROR_LOGF("Failed to create Zarr timestep array \"%s\".", name);
     return array;
   }
   GDALMDArraySetNoDataValueAsDouble(array, (double)noData);
@@ -310,34 +344,29 @@ GDALMDArrayH ZarrGridWriter::GetOrCreateTimeArray(const char *name) {
   return array;
 }
 
+GDALMDArrayH ZarrGridWriter::GetOrCreateTimeArray(const char *name) {
+  std::map<std::string, GDALMDArrayH>::iterator itr = arrays.find(name);
+  if (itr != arrays.end()) {
+    return itr->second;
+  }
+  GDALDimensionH dims[3] = {timeDim, yDim, xDim};
+  GDALMDArrayH array = CreateDataArray(name, 3, dims, "1,512,512");
+  if (!array) {
+    ERROR_LOGF("Failed to create Zarr timestep array \"%s\".", name);
+  }
+  return array;
+}
+
 GDALMDArrayH ZarrGridWriter::GetOrCreateStaticArray(const char *name) {
   std::map<std::string, GDALMDArrayH>::iterator itr = arrays.find(name);
   if (itr != arrays.end()) {
     return itr->second;
   }
-
-  char **options = NULL;
-  options = CSLSetNameValue(options, "COMPRESS", "BLOSC");
-  options = CSLSetNameValue(options, "BLOSC_CNAME", "lz4");
-  options = CSLSetNameValue(options, "BLOSC_CLEVEL", "5");
-  options = CSLSetNameValue(options, "BLOCKSIZE", "512,512");
   GDALDimensionH dims[2] = {yDim, xDim};
-  GDALExtendedDataTypeH float32Type =
-      GDALExtendedDataTypeCreate(GDT_Float32);
-  GDALMDArrayH array =
-      GDALGroupCreateMDArray(rootGroup, name, 2, dims, float32Type, options);
-  GDALExtendedDataTypeRelease(float32Type);
-  CSLDestroy(options);
+  GDALMDArrayH array = CreateDataArray(name, 2, dims, "512,512");
   if (!array) {
     ERROR_LOGF("Failed to create Zarr static array \"%s\".", name);
-    return array;
   }
-  GDALMDArraySetNoDataValueAsDouble(array, (double)noData);
-  if (spatialRef) {
-    GDALMDArraySetSpatialRef(array,
-                             OGRSpatialReference::ToHandle(spatialRef.get()));
-  }
-  arrays[name] = array;
   return array;
 }
 
@@ -451,3 +480,34 @@ bool ZarrGridWriter::WriteStaticGrid(const char *name,
 
   return true;
 }
+
+#else // EF5 built without Zarr support
+
+ZarrGridWriter::ZarrGridWriter() : initialized(false) {}
+
+ZarrGridWriter::~ZarrGridWriter() {}
+
+bool ZarrGridWriter::Initialize(const char *, const char *,
+                                std::vector<GridNode> *, size_t) {
+  ERROR_LOG("This EF5 was built without Zarr output (it needs GDAL 3.11 or "
+            "newer when it is compiled). Use OUTPUT_TYPE=TIF, or rebuild EF5 "
+            "with GDAL 3.11 or newer.");
+  return false;
+}
+
+bool ZarrGridWriter::WriteTimeGrid(const char *, size_t, int64_t, int16_t,
+                                   std::vector<float> *) {
+  return false;
+}
+
+bool ZarrGridWriter::WriteTimeMetadata(size_t, int64_t, int16_t) {
+  return false;
+}
+
+bool ZarrGridWriter::WriteStaticGrid(const char *, std::vector<float> *) {
+  return false;
+}
+
+void ZarrGridWriter::Close() {}
+
+#endif
