@@ -3,12 +3,12 @@
 #   apptainer build ef5.sif docker/ef5.def     # from the top of the EF5 repository
 #   apptainer run ef5.sif control.txt
 #
-# The same build as docker/Dockerfile (Ubuntu 24.04, system GDAL/libtiff/
+# The same build as docker/Dockerfile (Ubuntu 26.04, system GDAL/libtiff/
 # libgeotiff). See docker/README.md.
 
 # ---- Build stage: compilers and development files ----
 Bootstrap: docker
-From: ubuntu:24.04
+From: ubuntu:26.04
 Stage: build
 
 %files
@@ -23,12 +23,12 @@ Stage: build
         libgdal-dev libgeotiff-dev libtiff-dev zlib1g-dev
     cd /src
     autoreconf --force --install
-    ./configure
+    ./configure --with-zarr
     make -j"$(nproc)"
 
 # ---- Final image: only ef5 and the libraries it needs ----
 Bootstrap: docker
-From: ubuntu:24.04
+From: ubuntu:26.04
 Stage: final
 
 %files from build
@@ -37,7 +37,7 @@ Stage: final
 %post
     apt-get update
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        libgdal34t64 libgeotiff5 libtiff6 zlib1g libgomp1
+        libgdal38 libgeotiff5 libtiff6 zlib1g libgomp1
     rm -rf /var/lib/apt/lists/*
 
 %environment

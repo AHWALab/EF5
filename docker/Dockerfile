@@ -7,7 +7,7 @@
 # it are relative to /data (the folder mounted with -v). See docker/README.md.
 
 # ---- Build stage: compilers and development files ----
-FROM ubuntu:24.04 AS build
+FROM ubuntu:26.04 AS build
 
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -19,15 +19,15 @@ WORKDIR /src
 COPY configure.ac Makefile.am ./
 COPY src ./src
 RUN autoreconf --force --install \
- && ./configure \
+ && ./configure --with-zarr \
  && make -j"$(nproc)"
 
 # ---- Runtime stage: only ef5 and the libraries it needs ----
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      libgdal34t64 libgeotiff5 libtiff6 zlib1g libgomp1 \
+      libgdal38 libgeotiff5 libtiff6 zlib1g libgomp1 \
  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /src/bin/ef5 /usr/local/bin/ef5

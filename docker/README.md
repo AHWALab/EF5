@@ -1,8 +1,9 @@
 # Building and running EF5 in a container
 
-The container builds EF5 on Ubuntu 24.04 with the system GDAL, libtiff and
-libgeotiff. You don't need compilers or libraries on your own machine. The
-same build gives identical results on every system.
+The container builds EF5 on Ubuntu 26.04 with the system GDAL (3.12, so the
+image has Zarr output), libtiff and libgeotiff. You don't need compilers or
+libraries on your own machine. The same build gives identical results on every
+system.
 
 | file | use |
 |---|---|
