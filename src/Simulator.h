@@ -116,6 +116,9 @@ private:
   // Scratch space for output grids derived from other ones (rounded q, unit
   // q, threshold classes), so that currentDepth keeps this step's depth
   std::vector<float> outputScratch;
+  // This step's water balance runoff (mm/h) for the runoff and subrunoff
+  // outputs; routing empties currentFF and currentSF in place
+  std::vector<float> runoffGrid, subrunoffGrid;
     std::vector<FloatGrid *> paramGrids, paramGridsRoute, paramGridsSnow,
         paramGridsInundation;
     bool hasQPF, hasTempF, wantsDA;

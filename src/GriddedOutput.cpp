@@ -25,6 +25,8 @@ const char *GriddedOutputText[] = {
     "precipaccum",
     "maxinundation",
     "handcatchment",
+    "runoff",
+    "subrunoff",
 };
 
 const int GriddedOutputFlags[] = {
@@ -49,4 +51,6 @@ const int GriddedOutputFlags[] = {
     OG_PRECIPACCUM,
     OG_MAXDEPTH,
     OG_HANDCATCHMENT,
+    OG_RUNOFF,
+    OG_SUBSURF,
 };

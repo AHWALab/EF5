@@ -1821,6 +1821,14 @@ bool Simulator::PrepareDistributedRun(bool trackPeaks, TempReader *tempReader)
     qpeAccum.assign(nodes.size(), 0.0f);
     qpfAccum.assign(nodes.size(), 0.0f);
   }
+  if ((griddedOutputs & OG_RUNOFF) == OG_RUNOFF)
+  {
+    runoffGrid.assign(nodes.size(), 0.0f);
+  }
+  if ((griddedOutputs & OG_SUBSURF) == OG_SUBSURF)
+  {
+    subrunoffGrid.assign(nodes.size(), 0.0f);
+  }
 
   // Initialize our models
   wbModel->InitializeModel(&nodes, &fullParamSettings, &paramGrids);
@@ -2098,6 +2106,22 @@ std::vector<float> *Simulator::RunModelsForStep(float stepHoursReal,
                           &(currentPETCali[tsIndex]), &currentFF, &currentSF,
                           &SM);
   }
+  // Keep this step's runoff (mm/h) for the runoff/subrunoff outputs: routing
+  // empties currentFF and currentSF in place
+  if ((griddedOutputs & OG_RUNOFF) == OG_RUNOFF)
+  {
+    for (size_t i = 0; i < currentFF.size(); i++)
+    {
+      runoffGrid[i] = currentFF[i] * 3600.0f;
+    }
+  }
+  if ((griddedOutputs & OG_SUBSURF) == OG_SUBSURF)
+  {
+    for (size_t i = 0; i < currentSF.size(); i++)
+    {
+      subrunoffGrid[i] = currentSF[i] * 3600.0f;
+    }
+  }
   if (outputTS)
   {
     gaugeMap.GaugeAverage(&nodes, &currentFF, &avgFF);
@@ -2302,6 +2326,22 @@ bool Simulator::WriteTimeStepOutputs()
   {
     if (!WriteTimeStepGrid("pet", wbModel->GetName(), zarrTimeIndex,
                            &currentPETSimu))
+    {
+      return false;
+    }
+  }
+  if ((griddedOutputs & OG_RUNOFF) == OG_RUNOFF)
+  {
+    if (!WriteTimeStepGrid("runoff", wbModel->GetName(), zarrTimeIndex,
+                           &runoffGrid))
+    {
+      return false;
+    }
+  }
+  if ((griddedOutputs & OG_SUBSURF) == OG_SUBSURF)
+  {
+    if (!WriteTimeStepGrid("subrunoff", wbModel->GetName(), zarrTimeIndex,
+                           &subrunoffGrid))
     {
       return false;
     }
