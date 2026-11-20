@@ -14,17 +14,23 @@ permissions:
 jobs:
   build-linux:
     runs-on: ubuntu-latest
+    # Ubuntu 26.04 has GDAL 3.12; Zarr output needs GDAL 3.11 or newer
+    container: ubuntu:26.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y libgeotiff-dev build-essential autoconf automake libtool
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential autoconf automake libtool pkg-config \
+            libgeotiff-dev libtiff-dev zlib1g-dev libgdal-dev
 
       - name: Build
         run: |
           autoreconf --force --install
-          ./configure
+          ./configure --with-zarr
           make
 
       - name: Archive Linux build
@@ -54,9 +60,9 @@ jobs:
         run: |
           sudo apt-get update
           if [ "${{ matrix.cross }}" = "mingw64" ]; then
-            sudo apt-get install -y gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 binutils-mingw-w64-x86-64 mingw-w64-x86-64-dev zlib1g-dev autoconf automake libtool wget
+            sudo apt-get install -y gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 binutils-mingw-w64-x86-64 mingw-w64-x86-64-dev zlib1g-dev autoconf automake libtool pkg-config wget
           else
-            sudo apt-get install -y gcc-mingw-w64-i686 g++-mingw-w64-i686 binutils-mingw-w64-i686 mingw-w64-i686-dev zlib1g-dev autoconf automake libtool wget
+            sudo apt-get install -y gcc-mingw-w64-i686 g++-mingw-w64-i686 binutils-mingw-w64-i686 mingw-w64-i686-dev zlib1g-dev autoconf automake libtool pkg-config wget
           fi
 
       - name: Build and install dependencies (zlib, libtiff, libgeotiff)
