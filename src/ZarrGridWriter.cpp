@@ -207,6 +207,9 @@ bool ZarrGridWriter::CreateCoordinateArrays(size_t timeSteps) {
     GDALExtendedDataTypeRelease(float64Type);
     return false;
   }
+  // -1 marks a step not written yet. Zarr v3 needs a fill value for every
+  // array, and zarr-python cannot open an integer array without one.
+  GDALMDArraySetNoDataValueAsDouble(phaseArray, -1.0);
 
   GDALExtendedDataTypeH stringType = GDALExtendedDataTypeCreateString(0);
   GDALAttributeH timeUnits =
@@ -330,12 +333,22 @@ GDALMDArrayH ZarrGridWriter::CreateDataArray(const char *name, size_t numDims,
       GDALExtendedDataTypeCreate(GDT_Float32);
   GDALMDArrayH array = GDALGroupCreateMDArray(rootGroup, name, numDims, dims,
                                               float32Type, options);
-  GDALExtendedDataTypeRelease(float32Type);
   CSLDestroy(options);
   if (!array) {
+    GDALExtendedDataTypeRelease(float32Type);
     return array;
   }
   GDALMDArraySetNoDataValueAsDouble(array, (double)noData);
+  // The nodata value is the array's Zarr fill_value. xarray does not use the
+  // fill_value of a Zarr v3 array to mask missing data (it did for Zarr v2),
+  // so also give it as the CF attribute missing_value
+  GDALAttributeH missingValue = GDALMDArrayCreateAttribute(
+      array, "missing_value", 0, NULL, float32Type, NULL);
+  if (missingValue) {
+    GDALAttributeWriteDouble(missingValue, (double)noData);
+    GDALAttributeRelease(missingValue);
+  }
+  GDALExtendedDataTypeRelease(float32Type);
   if (spatialRef) {
     GDALMDArraySetSpatialRef(array,
                              OGRSpatialReference::ToHandle(spatialRef.get()));
