@@ -1,5 +1,26 @@
 # Changelog
 
+## EF5 Version [1.3.1]
+
+Version 1.3.1 tells you how many CPU cores EF5 runs on. Outputs are the same
+as 1.3.0.
+
+### Added
+
+- Each simulation and calibration task logs the number of OpenMP threads it
+  uses: `Using 16 OpenMP threads (set OMP_NUM_THREADS to change)`.
+- With `ROUTING=KW_PARALLEL` on one thread, EF5 prints a warning. HPC job
+  environments often set `OMP_NUM_THREADS=1`, and `KW_PARALLEL` then runs on
+  one core without saying so.
+- README section "Using several cores": how to set `OMP_NUM_THREADS` in SGE
+  and Slurm job scripts and with Apptainer.
+
+### Changed
+
+- Version 1.3.1; container image `ghcr.io/ahwalab/ef5:1.3.1`.
+- The README no longer says the water balance runs in parallel: only
+  `KW_PARALLEL` routing, reading precipitation grids and DREAM calibration do.
+
 ## EF5 Version [1.3.0]
 
 Version 1.3.0 adds a parallel kinematic wave router, Zarr output, runoff output

@@ -18,8 +18,12 @@
 #include <cstring>
 #include <sys/stat.h>
 #include <unistd.h>
+#if _OPENMP
+#include <omp.h>
+#endif
 
 static void LoadProjection();
+static void LogThreads(TaskConfigSection *task);
 static bool ExecuteSimulation(TaskConfigSection *task);
 static bool ExecuteSimulationRP(TaskConfigSection *task);
 static bool ExecuteCalibrationARS(TaskConfigSection *task);
@@ -89,6 +93,17 @@ bool ExecuteTasks() {
       continue;
     }
     INFO_LOGF("Executing task %s", task->GetName());
+
+    switch (task->GetRunStyle()) {
+    case STYLE_SIMU:
+    case STYLE_SIMU_RP:
+    case STYLE_CALI_ARS:
+    case STYLE_CALI_DREAM:
+      LogThreads(task);
+      break;
+    default:
+      break;
+    }
 
     switch (task->GetRunStyle()) {
     case STYLE_SIMU:
@@ -370,4 +385,26 @@ bool ExecuteMakeBasinAvg(TaskConfigSection *task) {
   sim.BasinAvg(inputDir);
   sim.CleanUp();
   return true;
+}
+
+// Say how many OpenMP threads a model task runs on. HPC job environments
+// often set OMP_NUM_THREADS=1, and KW_PARALLEL then runs on one core.
+void LogThreads(TaskConfigSection *task) {
+  bool kwParallel = (task->GetRouting() == ROUTE_KINEMATIC_PARALLEL);
+#if _OPENMP
+  int threads = omp_get_max_threads();
+  INFO_LOGF("Using %i OpenMP thread%s (set OMP_NUM_THREADS to change)",
+            threads, (threads == 1) ? "" : "s");
+  if (kwParallel && threads == 1) {
+    WARNING_LOGF("%s", "ROUTING=KW_PARALLEL is running on 1 thread; set "
+                       "OMP_NUM_THREADS to the number of cores (see "
+                       "\"Using several cores\" in the README)");
+  }
+#else
+  INFO_LOGF("%s", "This EF5 was built without OpenMP: running on 1 thread");
+  if (kwParallel) {
+    WARNING_LOGF("%s", "ROUTING=KW_PARALLEL is running on 1 thread because "
+                       "this EF5 was built without OpenMP");
+  }
+#endif
 }

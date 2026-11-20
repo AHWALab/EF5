@@ -8,10 +8,10 @@
 services:
   ef5:
     # Prebuilt image, published with each EF5 release
-    image: ghcr.io/ahwalab/ef5:1.3.0
+    image: ghcr.io/ahwalab/ef5:1.3.1
     # To build the image from the EF5 source instead of pulling it, uncomment:
     # build:
-    #   context: https://github.com/AHWALab/EF5.git#v1.3.0
+    #   context: https://github.com/AHWALab/EF5.git#v1.3.1
     #   dockerfile: docker/Dockerfile
     user: "${EF5_USER:-1000:1000}"
     working_dir: /data
