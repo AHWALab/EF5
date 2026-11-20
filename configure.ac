@@ -1,4 +1,4 @@
-AC_INIT([Ensemble Framework For Flash Flood Forecasting], [0.1], [zac.flamig@noaa.gov],
+AC_INIT([Ensemble Framework For Flash Flood Forecasting], [1.3.0], [zac.flamig@noaa.gov],
              [ef5], [http://hydro.ou.edu/])
 AC_PREREQ([2.62])
 AC_PROG_CXX

@@ -490,7 +490,7 @@ ZarrGridWriter::~ZarrGridWriter() {}
 bool ZarrGridWriter::Initialize(const char *, const char *,
                                 std::vector<GridNode> *, size_t) {
   ERROR_LOG("This EF5 was built without Zarr output (it needs GDAL 3.11 or "
-            "newer when it is compiled). Use OUTPUT_TYPE=TIF, or rebuild EF5 "
+            "newer when it is compiled). Use OUTPUT_TYPE=GEOTIFF, or rebuild EF5 "
             "with GDAL 3.11 or newer.");
   return false;
 }

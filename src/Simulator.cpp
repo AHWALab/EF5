@@ -69,7 +69,7 @@ bool Simulator::Initialize(TaskConfigSection *taskN)
   {
     ERROR_LOGF("Task %s asks for OUTPUT_TYPE=ZARR, but this EF5 was built "
                "without Zarr output (it needs GDAL 3.11 or newer when it is "
-               "compiled). Use OUTPUT_TYPE=TIF, or rebuild EF5 with GDAL 3.11 "
+               "compiled). Use OUTPUT_TYPE=GEOTIFF, or rebuild EF5 with GDAL 3.11 "
                "or newer.",
                task->GetName());
     return false;
