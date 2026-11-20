@@ -1,6 +1,7 @@
 #include "KinematicRoute.h"
 #include "AscGrid.h"
 #include "DatedName.h"
+#include "GridWriterFull.h"
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -11,7 +12,7 @@ static const char *stateStrings[] = {
     "IR",
 };
 
-KWRoute::KWRoute() {}
+KWRoute::KWRoute() : nodes(NULL), maxSpeed(1.0f), initialized(false) {}
 
 KWRoute::~KWRoute() {}
 
@@ -465,7 +466,6 @@ void KWRoute::InitializeParameters(
 {
   // This pass distributes parameters
   size_t numNodes = nodes->size();
-  size_t unused = 0;
 
   // if (paramGrids->at(PARAM_KINEMATIC_ALPHA) && g_DEM->IsSpatialMatch(paramGrids->at(PARAM_KINEMATIC_ALPHA)))
   // {
@@ -483,7 +483,6 @@ void KWRoute::InitializeParameters(
       KWGridNode *cNode = &(kwNodes[i]);
       if (!node->gauge)
       {
-          unused++;
           continue;
       }
       // Copy all of the parameters over

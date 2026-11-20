@@ -122,13 +122,19 @@ check_dependencies() {
         print_success "Found: pkg-config" >&2
     fi
     
-    # Check for libgeotiff
+    # Check for libgeotiff and GDAL
     if command_exists pkg-config; then
         if ! pkg-config --exists libgeotiff 2>/dev/null; then
             missing_deps+=("libgeotiff")
             print_warning "Missing: libgeotiff development libraries" >&2
         else
             print_success "Found: libgeotiff" >&2
+        fi
+        if ! pkg-config --exists gdal 2>/dev/null; then
+            missing_deps+=("gdal")
+            print_warning "Missing: GDAL development libraries" >&2
+        else
+            print_success "Found: GDAL" >&2
         fi
     fi
     
@@ -147,52 +153,52 @@ install_dependencies() {
         ubuntu|debian)
             if check_root; then
                 apt-get update
-                apt-get install -y git autoconf automake build-essential libgeotiff-dev pkg-config zlib1g-dev
+                apt-get install -y git autoconf automake build-essential libgeotiff-dev libgdal-dev pkg-config zlib1g-dev
             else
                 sudo apt-get update
-                sudo apt-get install -y git autoconf automake build-essential libgeotiff-dev pkg-config zlib1g-dev
+                sudo apt-get install -y git autoconf automake build-essential libgeotiff-dev libgdal-dev pkg-config zlib1g-dev
             fi
             ;;
             
         fedora|rhel|centos|rocky|almalinux)
             if check_root; then
                 if command_exists dnf; then
-                    dnf install -y git autoconf automake gcc-c++ make libgeotiff-devel pkgconfig zlib-devel
+                    dnf install -y git autoconf automake gcc-c++ make libgeotiff-devel gdal-devel pkgconfig zlib-devel
                 else
-                    yum install -y git autoconf automake gcc-c++ make libgeotiff-devel pkgconfig zlib-devel
+                    yum install -y git autoconf automake gcc-c++ make libgeotiff-devel gdal-devel pkgconfig zlib-devel
                 fi
             else
                 if command_exists dnf; then
-                    sudo dnf install -y git autoconf automake gcc-c++ make libgeotiff-devel pkgconfig zlib-devel
+                    sudo dnf install -y git autoconf automake gcc-c++ make libgeotiff-devel gdal-devel pkgconfig zlib-devel
                 else
-                    sudo yum install -y git autoconf automake gcc-c++ make libgeotiff-devel pkgconfig zlib-devel
+                    sudo yum install -y git autoconf automake gcc-c++ make libgeotiff-devel gdal-devel pkgconfig zlib-devel
                 fi
             fi
             ;;
             
         arch|manjaro|cachyos|endeavouros|garuda)
             if check_root; then
-                pacman -Sy --noconfirm git autoconf automake gcc make libgeotiff pkgconf zlib
+                pacman -Sy --noconfirm git autoconf automake gcc make libgeotiff gdal pkgconf zlib
             else
-                sudo pacman -Sy --noconfirm git autoconf automake gcc make libgeotiff pkgconf zlib
+                sudo pacman -Sy --noconfirm git autoconf automake gcc make libgeotiff gdal pkgconf zlib
             fi
             ;;
             
         alpine)
             if check_root; then
                 apk update
-                apk add git autoconf automake build-base libgeotiff-dev pkgconfig zlib-dev
+                apk add git autoconf automake build-base libgeotiff-dev gdal-dev pkgconfig zlib-dev
             else
                 sudo apk update
-                sudo apk add git autoconf automake build-base libgeotiff-dev pkgconfig zlib-dev
+                sudo apk add git autoconf automake build-base libgeotiff-dev gdal-dev pkgconfig zlib-dev
             fi
             ;;
             
         opensuse*|sles)
             if check_root; then
-                zypper install -y git autoconf automake gcc-c++ make libgeotiff-devel pkg-config zlib-devel
+                zypper install -y git autoconf automake gcc-c++ make libgeotiff-devel gdal-devel pkg-config zlib-devel
             else
-                sudo zypper install -y git autoconf automake gcc-c++ make libgeotiff-devel pkg-config zlib-devel
+                sudo zypper install -y git autoconf automake gcc-c++ make libgeotiff-devel gdal-devel pkg-config zlib-devel
             fi
             ;;
             
@@ -205,6 +211,7 @@ install_dependencies() {
             print_info "  - g++ (C++ compiler)"
             print_info "  - make"
             print_info "  - libgeotiff development libraries"
+            print_info "  - GDAL development libraries"
             print_info "  - pkg-config"
             print_info "  - zlib development libraries"
             return 1

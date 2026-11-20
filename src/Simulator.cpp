@@ -12,6 +12,8 @@
 #include "HPModel.h"
 #include "HyMOD.h"
 #include "KinematicRoute.h"
+#include "KinematicRouteParallel.h"
+#include "KinematicRouteWavefront.h"
 #include "LinearRoute.h"
 #include "Messages.h"
 #include "PETConfigSection.h"
@@ -28,6 +30,24 @@
 #include <algorithm>
 #include <iostream>
 #include <memory>
+
+static void BuildZarrStaticName(const char *prefix, const char *baseName,
+                                char *buffer, size_t bufferSize)
+{
+  if (prefix && prefix[0])
+  {
+    size_t prefixLen = strlen(prefix);
+    if (prefixLen > 0 && prefix[prefixLen - 1] == '_')
+    {
+      prefixLen--;
+    }
+    snprintf(buffer, bufferSize, "%.*s_%s", (int)prefixLen, prefix, baseName);
+  }
+  else
+  {
+    snprintf(buffer, bufferSize, "%s", baseName);
+  }
+}
 #include <ostream>
 #include <sstream>
 #include <string>
@@ -43,6 +63,17 @@ bool Simulator::Initialize(TaskConfigSection *taskN)
 {
 
   task = taskN;
+  zarrGridWriter = NULL;
+
+  if (task->GetOutputType() == OUTPUT_TYPE_ZARR && !ZarrGridWriter::Available())
+  {
+    ERROR_LOGF("Task %s asks for OUTPUT_TYPE=ZARR, but this EF5 was built "
+               "without Zarr output (it needs GDAL 3.11 or newer when it is "
+               "compiled). Use OUTPUT_TYPE=GEOTIFF, or rebuild EF5 with GDAL 3.11 "
+               "or newer.",
+               task->GetName());
+    return false;
+  }
 
   if (!InitializeBasic(task))
   {
@@ -327,6 +358,9 @@ bool Simulator::InitializeBasic(TaskConfigSection *task)
     case ROUTE_KINEMATIC:
       rModel = new KWRoute();
       break;
+    case ROUTE_KINEMATIC_PARALLEL:
+      rModel = new KWRouteWavefront();
+      break;
     case ROUTE_QTY:
       rModel = NULL;
       break;
@@ -489,21 +523,30 @@ bool Simulator::InitializeSimu(TaskConfigSection *task)
     stateTime = *(task->GetTimeState());
   }
 
-  if ((task->GetPreloadForcings())[0])
+  totalTimeSteps = 0;
+  totalTimeStepsOutsideWarm = 0;
   {
-    totalTimeSteps = 0;
-    for (currentTime.Increment(timeStep); currentTime <= endTime;
-         currentTime.Increment(timeStep))
+    TimeVar countTime = beginTime;
+    TimeUnit *countTimeStep = timeStepSR;
+    bool countInLR = false;
+    for (countTime.Increment(countTimeStep); countTime <= endTime;
+         countTime.Increment(countTimeStep))
     {
-      if (timeStepLR && !inLR && beginLRTime <= currentTime)
+      if (timeStepLR && !countInLR && beginLRTime <= countTime)
       {
-        inLR = true;
-        timeStep = timeStepLR;
+        countInLR = true;
+        countTimeStep = timeStepLR;
       }
       totalTimeSteps++;
+      if (warmEndTime <= countTime)
+      {
+        totalTimeStepsOutsideWarm++;
+      }
     }
-    inLR = false;
-    timeStep = timeStepSR;
+  }
+
+  if ((task->GetPreloadForcings())[0])
+  {
     currentPrecipCali.resize(totalTimeSteps);
     currentPETCali.resize(totalTimeSteps);
     currentTempCali.resize(totalTimeSteps);
@@ -688,6 +731,9 @@ bool Simulator::InitializeCali(TaskConfigSection *task)
     case ROUTE_KINEMATIC:
       caliRModels[i] = new KWRoute();
       break;
+    case ROUTE_KINEMATIC_PARALLEL:
+      caliRModels[i] = new KWRouteWavefront();
+      break;
     case ROUTE_QTY:
       caliRModels[i] = NULL;
       break;
@@ -770,6 +816,12 @@ bool Simulator::InitializeCali(TaskConfigSection *task)
 
 void Simulator::CleanUp()
 {
+  if (zarrGridWriter)
+  {
+    delete zarrGridWriter;
+    zarrGridWriter = NULL;
+  }
+
   // Close output gauge files
   for (size_t i = 0; i < gaugeOutputs.size(); i++)
   {
@@ -1590,6 +1642,18 @@ void Simulator::SimulateDistributed(bool trackPeaks)
   std::vector<float> *currentPrecip = &currentPrecipSimu;
   char buffer[CONFIG_MAX_LEN * 2];
   size_t tsIndex = 0;
+  size_t zarrTimeIndex = 0;
+  std::vector<float> runoffGrid, subrunoffGrid;
+  if ((griddedOutputs & OG_RUNOFF) == OG_RUNOFF)
+  {
+    runoffGrid.resize(nodes.size());
+  }
+  if ((griddedOutputs & OG_SUBSURF) == OG_SUBSURF)
+  {
+    subrunoffGrid.resize(nodes.size());
+  }
+  bool outputZarr = (task->GetOutputType() == OUTPUT_TYPE_ZARR);
+  bool zarrHandcatchmentWritten = false;
   bool outputTS = IsOutputTS();
   // NORMAL_LOGF("%s\n", "Got here!3");
   // Peak tracking variables
@@ -1681,9 +1745,32 @@ void Simulator::SimulateDistributed(bool trackPeaks)
     iModel->InitializeModel(&nodes, &fullParamSettingsInundation,
                             &paramGridsInundation);
   }
-  if (griddedOutputs != OG_NONE || trackPeaks || outputRP || saveStates)
+  if ((!outputZarr && griddedOutputs != OG_NONE) || trackPeaks || outputRP ||
+      saveStates)
   {
     gridWriter.Initialize();
+  }
+  if (outputZarr && griddedOutputs != OG_NONE)
+  {
+    DatedName zarrStoreName;
+    zarrStoreName.SetNameStr("YYYYMMDD_HHUU");
+    zarrStoreName.ProcessNameLoose(NULL);
+    if (timeStepLR)
+    {
+      zarrStoreName.UpdateName(beginLRTime.GetTM());
+    }
+    else
+    {
+      zarrStoreName.UpdateName(endTime.GetTM());
+    }
+    zarrGridWriter = new ZarrGridWriter();
+    if (!zarrGridWriter->Initialize(outputPath, zarrStoreName.GetName(), &nodes,
+                                    totalTimeStepsOutsideWarm))
+    {
+      delete zarrGridWriter;
+      zarrGridWriter = NULL;
+      return;
+    }
   }
   if (useStates)
   {
@@ -1722,8 +1809,7 @@ void Simulator::SimulateDistributed(bool trackPeaks)
   }
 
   // Hard coded RP counting
-  std::vector<float> count2, rpGrid, rpMaxGrid, maxGrid, maxDepthGrid;
-  std::vector<float> SM;
+  std::vector<float> count2, rpGrid;
   std::vector<float> dailyMaxQ, dailyMinSM, dailyMaxQHour;
   count2.resize(currentFF.size());
   rpGrid.resize(currentFF.size());
@@ -1805,6 +1891,24 @@ void Simulator::SimulateDistributed(bool trackPeaks)
                             &(currentPETCali[tsIndex]), &currentFF, &currentSF,
                             &SM);
     }
+
+    // Keep this step's runoff (mm/h) for the runoff/subrunoff outputs: routing
+    // empties currentFF and currentSF in place
+    if ((griddedOutputs & OG_RUNOFF) == OG_RUNOFF)
+    {
+      for (size_t i = 0; i < currentFF.size(); i++)
+      {
+        runoffGrid[i] = currentFF[i] * 3600.0f;
+      }
+    }
+    if ((griddedOutputs & OG_SUBSURF) == OG_SUBSURF)
+    {
+      for (size_t i = 0; i < currentSF.size(); i++)
+      {
+        subrunoffGrid[i] = currentSF[i] * 3600.0f;
+      }
+    }
+
     if (outputTS)
     {
       gaugeMap.GaugeAverage(&nodes, &currentFF, &avgFF);
@@ -1962,63 +2066,207 @@ void Simulator::SimulateDistributed(bool trackPeaks)
       if (griddedOutputs != OG_NONE)
       {
         currentTimeTextOutput.UpdateName(currentTime.GetTM());
+        if (outputZarr)
+        {
+          int16_t forcingPhase = inLR ? 1 : 0;
+          if (!zarrGridWriter->WriteTimeMetadata(
+                  zarrTimeIndex, (int64_t)currentTime.currentTimeSec,
+                  forcingPhase))
+          {
+            return;
+          }
+        }
       }
 
       if ((griddedOutputs & OG_Q) == OG_Q)
       {
-        sprintf(buffer, "%s/q.%s.%s.tif", outputPath,
-                currentTimeTextOutput.GetName(), wbModel->GetName());
         for (size_t i = 0; i < currentQ.size(); i++)
         {
           float val = floorf(currentQ[i] * 10.0f + 0.5f) / 10.0f;
           currentDepth[i] = val;
         }
-        gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
+        if (outputZarr)
+        {
+          if (!zarrGridWriter->WriteTimeGrid(
+                  "q", zarrTimeIndex, (int64_t)currentTime.currentTimeSec,
+                  inLR ? 1 : 0, &currentDepth))
+          {
+            return;
+          }
+        }
+        else
+        {
+          sprintf(buffer, "%s/q.%s.%s.tif", outputPath,
+                  currentTimeTextOutput.GetName(), wbModel->GetName());
+          gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
+        }
       }
       if ((griddedOutputs & OG_SM) == OG_SM)
       {
-        sprintf(buffer, "%s/sm.%s.%s.tif", outputPath,
-                currentTimeTextOutput.GetName(), wbModel->GetName());
-        gridWriter.WriteGrid(&nodes, &SM, buffer, false);
+        if (outputZarr)
+        {
+          if (!zarrGridWriter->WriteTimeGrid(
+                  "sm", zarrTimeIndex, (int64_t)currentTime.currentTimeSec,
+                  inLR ? 1 : 0, &SM))
+          {
+            return;
+          }
+        }
+        else
+        {
+          sprintf(buffer, "%s/sm.%s.%s.tif", outputPath,
+                  currentTimeTextOutput.GetName(), wbModel->GetName());
+          gridWriter.WriteGrid(&nodes, &SM, buffer, false);
+        }
       }
       if (outputRP && ((griddedOutputs & OG_QRP) == OG_QRP))
       {
-        sprintf(buffer, "%s/rp.%s.%s.tif", outputPath,
-                currentTimeTextOutput.GetName(), wbModel->GetName());
-        gridWriter.WriteGrid(&nodes, &rpGrid, buffer, false);
+        if (outputZarr)
+        {
+          if (!zarrGridWriter->WriteTimeGrid(
+                  "rp", zarrTimeIndex, (int64_t)currentTime.currentTimeSec,
+                  inLR ? 1 : 0, &rpGrid))
+          {
+            return;
+          }
+        }
+        else
+        {
+          sprintf(buffer, "%s/rp.%s.%s.tif", outputPath,
+                  currentTimeTextOutput.GetName(), wbModel->GetName());
+          gridWriter.WriteGrid(&nodes, &rpGrid, buffer, false);
+        }
       }
       if ((griddedOutputs & OG_PRECIP) == OG_PRECIP)
       {
-        sprintf(buffer, "%s/precip.%s.%s.tif", outputPath,
-                currentTimeTextOutput.GetName(), wbModel->GetName());
-        gridWriter.WriteGrid(&nodes, &currentPrecipSimu, buffer, false);
+        if (outputZarr)
+        {
+          if (!zarrGridWriter->WriteTimeGrid(
+                  "precip", zarrTimeIndex,
+                  (int64_t)currentTime.currentTimeSec, inLR ? 1 : 0,
+                  &currentPrecipSimu))
+          {
+            return;
+          }
+        }
+        else
+        {
+          sprintf(buffer, "%s/precip.%s.%s.tif", outputPath,
+                  currentTimeTextOutput.GetName(), wbModel->GetName());
+          gridWriter.WriteGrid(&nodes, &currentPrecipSimu, buffer, false);
+        }
       }
       if ((griddedOutputs & OG_PET) == OG_PET)
       {
-        sprintf(buffer, "%s/pet.%s.%s.tif", outputPath,
-                currentTimeTextOutput.GetName(), wbModel->GetName());
-        gridWriter.WriteGrid(&nodes, &currentPETSimu, buffer, false);
+        if (outputZarr)
+        {
+          if (!zarrGridWriter->WriteTimeGrid(
+                  "pet", zarrTimeIndex, (int64_t)currentTime.currentTimeSec,
+                  inLR ? 1 : 0, &currentPETSimu))
+          {
+            return;
+          }
+        }
+        else
+        {
+          sprintf(buffer, "%s/pet.%s.%s.tif", outputPath,
+                  currentTimeTextOutput.GetName(), wbModel->GetName());
+          gridWriter.WriteGrid(&nodes, &currentPETSimu, buffer, false);
+        }
+      }
+      if ((griddedOutputs & OG_RUNOFF) == OG_RUNOFF)
+      {
+        if (outputZarr)
+        {
+          if (!zarrGridWriter->WriteTimeGrid(
+                  "runoff", zarrTimeIndex, (int64_t)currentTime.currentTimeSec,
+                  inLR ? 1 : 0, &runoffGrid))
+          {
+            return;
+          }
+        }
+        else
+        {
+          sprintf(buffer, "%s/runoff.%s.%s.tif", outputPath,
+                  currentTimeTextOutput.GetName(), wbModel->GetName());
+          gridWriter.WriteGrid(&nodes, &runoffGrid, buffer, false);
+        }
+      }
+      if ((griddedOutputs & OG_SUBSURF) == OG_SUBSURF)
+      {
+        if (outputZarr)
+        {
+          if (!zarrGridWriter->WriteTimeGrid(
+                  "subrunoff", zarrTimeIndex, (int64_t)currentTime.currentTimeSec,
+                  inLR ? 1 : 0, &subrunoffGrid))
+          {
+            return;
+          }
+        }
+        else
+        {
+          sprintf(buffer, "%s/subrunoff.%s.%s.tif", outputPath,
+                  currentTimeTextOutput.GetName(), wbModel->GetName());
+          gridWriter.WriteGrid(&nodes, &subrunoffGrid, buffer, false);
+        }
       }
       if (sModel && (griddedOutputs & OG_SWE) == OG_SWE)
       {
-        sprintf(buffer, "%s/swe.%s.%s.tif", outputPath,
-                currentTimeTextOutput.GetName(), wbModel->GetName());
-        gridWriter.WriteGrid(&nodes, &currentSWE, buffer, false);
+        if (outputZarr)
+        {
+          if (!zarrGridWriter->WriteTimeGrid(
+                  "swe", zarrTimeIndex, (int64_t)currentTime.currentTimeSec,
+                  inLR ? 1 : 0, &currentSWE))
+          {
+            return;
+          }
+        }
+        else
+        {
+          sprintf(buffer, "%s/swe.%s.%s.tif", outputPath,
+                  currentTimeTextOutput.GetName(), wbModel->GetName());
+          gridWriter.WriteGrid(&nodes, &currentSWE, buffer, false);
+        }
       }
       if (sModel && (griddedOutputs & OG_TEMP) == OG_TEMP)
       {
-        sprintf(buffer, "%s/temp.%s.%s.tif", outputPath,
-                currentTimeTextOutput.GetName(), wbModel->GetName());
-        gridWriter.WriteGrid(&nodes, &currentTempSimu, buffer, false);
+        if (outputZarr)
+        {
+          if (!zarrGridWriter->WriteTimeGrid(
+                  "temp", zarrTimeIndex, (int64_t)currentTime.currentTimeSec,
+                  inLR ? 1 : 0, &currentTempSimu))
+          {
+            return;
+          }
+        }
+        else
+        {
+          sprintf(buffer, "%s/temp.%s.%s.tif", outputPath,
+                  currentTimeTextOutput.GetName(), wbModel->GetName());
+          gridWriter.WriteGrid(&nodes, &currentTempSimu, buffer, false);
+        }
       }
       if (iModel && (griddedOutputs & OG_DEPTH) == OG_DEPTH)
       {
         iModel->Inundation(&currentQ, &currentDepth);
-        sprintf(buffer, "%s/depth.%s.%s.tif", outputPath,
-                currentTimeTextOutput.GetName(), iModel->GetName());
-        gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
+        if (outputZarr)
+        {
+          if (!zarrGridWriter->WriteTimeGrid(
+                  "depth", zarrTimeIndex, (int64_t)currentTime.currentTimeSec,
+                  inLR ? 1 : 0, &currentDepth))
+          {
+            return;
+          }
+        }
+        else
+        {
+          sprintf(buffer, "%s/depth.%s.%s.tif", outputPath,
+                  currentTimeTextOutput.GetName(), iModel->GetName());
+          gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
+        }
       }
-      if (iModel && (griddedOutputs & OG_HANDCATCHMENT) == OG_HANDCATCHMENT)
+      if (iModel && (griddedOutputs & OG_HANDCATCHMENT) == OG_HANDCATCHMENT &&
+          (!outputZarr || !zarrHandcatchmentWritten))
       {
         // Cast iModel to SimpleInundation to access iNodes
         SimpleInundation *siModel = dynamic_cast<SimpleInundation *>(iModel);
@@ -2029,8 +2277,21 @@ void Simulator::SimulateDistributed(bool trackPeaks)
           {
             handcatchment[i] = static_cast<float>(siModel->GetChannelIndex(i));
           }
-          sprintf(buffer, "%s/handcatchment.%s.tif", outputPath, iModel->GetName());
-          gridWriter.WriteGrid(&nodes, &handcatchment, buffer, false);
+          if (outputZarr)
+          {
+            if (!zarrGridWriter->WriteStaticGrid("handcatchment",
+                                                &handcatchment))
+            {
+              return;
+            }
+            zarrHandcatchmentWritten = true;
+          }
+          else
+          {
+            sprintf(buffer, "%s/handcatchment.%s.tif", outputPath,
+                    iModel->GetName());
+            gridWriter.WriteGrid(&nodes, &handcatchment, buffer, false);
+          }
         }
       }
       if ((griddedOutputs & OG_UNITQ) == OG_UNITQ)
@@ -2041,9 +2302,21 @@ void Simulator::SimulateDistributed(bool trackPeaks)
           float val = floorf(currentDepth[i] * 10.0f + 0.5f) / 10.0f;
           currentDepth[i] = val;
         }
-        sprintf(buffer, "%s/unitq.%s.%s.tif", outputPath,
-                currentTimeTextOutput.GetName(), wbModel->GetName());
-        gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
+        if (outputZarr)
+        {
+          if (!zarrGridWriter->WriteTimeGrid(
+                  "unitq", zarrTimeIndex, (int64_t)currentTime.currentTimeSec,
+                  inLR ? 1 : 0, &currentDepth))
+          {
+            return;
+          }
+        }
+        else
+        {
+          sprintf(buffer, "%s/unitq.%s.%s.tif", outputPath,
+                  currentTimeTextOutput.GetName(), wbModel->GetName());
+          gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
+        }
       }
       if (outputThres && (griddedOutputs & OG_THRES) == OG_THRES)
       {
@@ -2054,8 +2327,25 @@ void Simulator::SimulateDistributed(bool trackPeaks)
                                 moderateVals[i], majorVals[i]);
           // computeVec[i] = ComputeThresValue(currentQ[i], actionVals[i], minorVals[i], moderateVals[i], majorVals[i]);
         }
-        sprintf(buffer, "%s/thres.%s.%s.tif", outputPath, currentTimeTextOutput.GetName(), wbModel->GetName());
-        gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
+        if (outputZarr)
+        {
+          if (!zarrGridWriter->WriteTimeGrid(
+                  "thres", zarrTimeIndex, (int64_t)currentTime.currentTimeSec,
+                  inLR ? 1 : 0, &currentDepth))
+          {
+            return;
+          }
+        }
+        else
+        {
+          sprintf(buffer, "%s/thres.%s.%s.tif", outputPath,
+                  currentTimeTextOutput.GetName(), wbModel->GetName());
+          gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
+        }
+      }
+      if (outputZarr && griddedOutputs != OG_NONE)
+      {
+        zarrTimeIndex++;
       }
     }
 
@@ -2077,6 +2367,11 @@ void Simulator::SimulateDistributed(bool trackPeaks)
 
     if (timeStepLR && !inLR && beginLRTime <= currentTime)
     {
+      // Output QPE-period max files before switching to forecast (QPF)
+      if (!OutputMaxFiles("qpe_"))
+      {
+        return;
+      }
       inLR = true;
       timeStep = timeStepLR;
       NORMAL_LOGF(" Switching to long range timestep %f hours",
@@ -2095,92 +2390,27 @@ void Simulator::SimulateDistributed(bool trackPeaks)
     SaveLP3Params();
   }
 
-  tm *ctWE = warmEndTime.GetTM();
-
-  // Hard coded event counting
-  if (outputRP && ((griddedOutputs & OG_MAXQRP) == OG_MAXQRP))
+  // Output max files: if in LR mode, qpf_ prefix (includes both QPE+QPF);
+  // if not in LR mode, no prefix (existing behavior).
+  // The qpe_ output is triggered at the LR switch point inside the main loop.
+  if (inLR)
   {
-
-    sprintf(buffer, "%s/maxrp.%04i%02i%02i.%02i%02i%02i.tif", outputPath,
-            ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
-            ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
-    for (size_t i = 0; i < currentQ.size(); i++)
+    if (!OutputMaxFiles("qpf_"))
     {
-      float val = floorf(rpMaxGrid[i] + 0.5f);
-      rpMaxGrid[i] = val;
+      return;
     }
-    gridWriter.WriteGrid(&nodes, &rpMaxGrid, buffer, false);
   }
-
-  if ((griddedOutputs & OG_MAXSM) == OG_MAXSM)
+  else
   {
-    sprintf(buffer, "%s/maxsm.%04i%02i%02i.%02i%02i%02i.tif", outputPath,
-            ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
-            ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
-    for (size_t i = 0; i < currentQ.size(); i++)
+    if (!OutputMaxFiles(""))
     {
-      float val = floorf(SM[i] + 0.5f);
-      SM[i] = val;
+      return;
     }
-    gridWriter.WriteGrid(&nodes, &SM, buffer, false);
-  }
-
-  if ((griddedOutputs & OG_MAXQ) == OG_MAXQ)
-  {
-    sprintf(buffer, "%s/maxq.%04i%02i%02i.%02i%02i%02i.tif", outputPath,
-            ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
-            ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
-    for (size_t i = 0; i < currentQ.size(); i++)
-    {
-      float val = floorf(maxGrid[i] * 10.0f + 0.5f) / 10.0f;
-      currentDepth[i] = val;
-    }
-    gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
-  }
-
-  if (sModel && (griddedOutputs & OG_MAXSWE) == OG_MAXSWE)
-  {
-    sprintf(buffer, "%s/maxswe.%04i%02i%02i.%02i%02i%02i.tif", outputPath,
-            ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
-            ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
-    gridWriter.WriteGrid(&nodes, &currentSWE, buffer, false);
-  }
-
-  if ((griddedOutputs & OG_MAXUNITQ) == OG_MAXUNITQ)
-  {
-    for (size_t i = 0; i < currentQ.size(); i++)
-    {
-      currentDepth[i] = maxGrid[i] / nodes[i].contribArea;
-      float val = floorf(currentDepth[i] * 10.0f + 0.5f) / 10.0f;
-      currentDepth[i] = val;
-    }
-    sprintf(buffer, "%s/maxunitq.%04i%02i%02i.%02i%02i%02i.tif", outputPath, ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday, ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
-    gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
-  }
-
-  // // Maximum inundation depth: added 01/18/2023 by HV
-  // if ((griddedOutputs & OG_MAXDEPTH) == OG_MAXDEPTH) {
-  //   // Compute inundation based on max Q
-  //   iModel->Inundation(&maxGrid, &currentDepth);
-  //   for (size_t i = 0; i < currentQ.size(); i++) {
-  //     // Rounding off: how many decimals?
-  //     float val = floorf(currentDepth[i] * 10.0f + 0.5f) / 10.0f;
-  //     currentDepth[i] = val;
-  //   }
-  //   sprintf(buffer, "%s/maxdepth.%04i%02i%02i.%02i%02i%02i.tif", outputPath,
-  //           ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
-  //           ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
-  //   gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
-  // }
-
-  if ((griddedOutputs & OG_MAXDEPTH) == OG_MAXDEPTH)
-  {
-    sprintf(buffer, "%s/maxdepth.%04i%02i%02i.%02i%02i%02i.tif", outputPath, ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday, ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
-    gridWriter.WriteGrid(&nodes, &maxDepthGrid, buffer, false);
   }
 
   if (outputThres && (griddedOutputs & OG_MAXTHRES) == OG_MAXTHRES)
   {
+    tm *ctWE = warmEndTime.GetTM();
     for (size_t i = 0; i < currentQ.size(); i++)
     {
       currentDepth[i] = floorf(ComputeThresValue(maxGrid[i], actionVals[i], minorVals[i], moderateVals[i], majorVals[i]) * 10.0f + 0.5f) / 10.0f;
@@ -2192,11 +2422,22 @@ void Simulator::SimulateDistributed(bool trackPeaks)
     sprintf(buffer, "%s/maxthres.%04i%02i%02i.%02i%02i%02i.tif", outputPath,
             ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
             ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
-    gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
+    if (outputZarr)
+    {
+      if (!zarrGridWriter->WriteStaticGrid("maxthres", &currentDepth))
+      {
+        return;
+      }
+    }
+    else
+    {
+      gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
+    }
   }
 
   if (outputThresP && (griddedOutputs & OG_MAXTHRESP) == OG_MAXTHRESP)
   {
+    tm *ctWE = warmEndTime.GetTM();
     for (size_t i = 0; i < currentQ.size(); i++)
     {
       currentDepth[i] =
@@ -2211,19 +2452,50 @@ void Simulator::SimulateDistributed(bool trackPeaks)
     sprintf(buffer, "%s/maxthresp.%04i%02i%02i.%02i%02i%02i.tif", outputPath,
             ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
             ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
-    gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
+    if (outputZarr)
+    {
+      if (!zarrGridWriter->WriteStaticGrid("maxthresp", &currentDepth))
+      {
+        return;
+      }
+    }
+    else
+    {
+      gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
+    }
   }
 
   if (savePrecip)
   {
+    tm *ctWE = warmEndTime.GetTM();
     sprintf(buffer, "%s/qpeaccum.%04i%02i%02i.%02i%02i%02i.tif", outputPath,
             ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
             ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
-    gridWriter.WriteGrid(&nodes, &qpeAccum, buffer, false);
+    if (outputZarr)
+    {
+      if (!zarrGridWriter->WriteStaticGrid("qpeaccum", &qpeAccum))
+      {
+        return;
+      }
+    }
+    else
+    {
+      gridWriter.WriteGrid(&nodes, &qpeAccum, buffer, false);
+    }
     sprintf(buffer, "%s/qpfaccum.%04i%02i%02i.%02i%02i%02i.tif", outputPath,
             ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
             ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
-    gridWriter.WriteGrid(&nodes, &qpfAccum, buffer, false);
+    if (outputZarr)
+    {
+      if (!zarrGridWriter->WriteStaticGrid("qpfaccum", &qpfAccum))
+      {
+        return;
+      }
+    }
+    else
+    {
+      gridWriter.WriteGrid(&nodes, &qpfAccum, buffer, false);
+    }
   }
 
 #if _OPENMP
@@ -2240,6 +2512,151 @@ void Simulator::SimulateDistributed(bool trackPeaks)
 #endif
   fprintf(fp, "\n%s", "}");
   fclose(fp);
+}
+
+bool Simulator::OutputMaxFiles(const char* prefix)
+{
+  char buffer[CONFIG_MAX_LEN * 2];
+  char zarrName[CONFIG_MAX_LEN];
+  bool outputZarr = (task->GetOutputType() == OUTPUT_TYPE_ZARR);
+  tm *ctWE = warmEndTime.GetTM();
+
+  if (outputRP && ((griddedOutputs & OG_MAXQRP) == OG_MAXQRP))
+  {
+    sprintf(buffer, "%s/%smaxrp.%04i%02i%02i.%02i%02i%02i.tif", outputPath, prefix,
+            ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
+            ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
+    for (size_t i = 0; i < currentQ.size(); i++)
+    {
+      float val = floorf(rpMaxGrid[i] + 0.5f);
+      rpMaxGrid[i] = val;
+    }
+    if (outputZarr)
+    {
+      BuildZarrStaticName(prefix, "maxrp", zarrName, sizeof(zarrName));
+      if (!zarrGridWriter->WriteStaticGrid(zarrName, &rpMaxGrid))
+      {
+        return false;
+      }
+    }
+    else
+    {
+      gridWriter.WriteGrid(&nodes, &rpMaxGrid, buffer, false);
+    }
+  }
+
+  if ((griddedOutputs & OG_MAXSM) == OG_MAXSM)
+  {
+    sprintf(buffer, "%s/%smaxsm.%04i%02i%02i.%02i%02i%02i.tif", outputPath, prefix,
+            ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
+            ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
+    for (size_t i = 0; i < currentQ.size(); i++)
+    {
+      float val = floorf(SM[i] + 0.5f);
+      SM[i] = val;
+    }
+    if (outputZarr)
+    {
+      BuildZarrStaticName(prefix, "maxsm", zarrName, sizeof(zarrName));
+      if (!zarrGridWriter->WriteStaticGrid(zarrName, &SM))
+      {
+        return false;
+      }
+    }
+    else
+    {
+      gridWriter.WriteGrid(&nodes, &SM, buffer, false);
+    }
+  }
+
+  if ((griddedOutputs & OG_MAXQ) == OG_MAXQ)
+  {
+    sprintf(buffer, "%s/%smaxq.%04i%02i%02i.%02i%02i%02i.tif", outputPath, prefix,
+            ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
+            ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
+    for (size_t i = 0; i < currentQ.size(); i++)
+    {
+      float val = floorf(maxGrid[i] * 10.0f + 0.5f) / 10.0f;
+      currentDepth[i] = val;
+    }
+    if (outputZarr)
+    {
+      BuildZarrStaticName(prefix, "maxq", zarrName, sizeof(zarrName));
+      if (!zarrGridWriter->WriteStaticGrid(zarrName, &currentDepth))
+      {
+        return false;
+      }
+    }
+    else
+    {
+      gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
+    }
+  }
+
+  if (sModel && (griddedOutputs & OG_MAXSWE) == OG_MAXSWE)
+  {
+    sprintf(buffer, "%s/%smaxswe.%04i%02i%02i.%02i%02i%02i.tif", outputPath, prefix,
+            ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
+            ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
+    if (outputZarr)
+    {
+      BuildZarrStaticName(prefix, "maxswe", zarrName, sizeof(zarrName));
+      if (!zarrGridWriter->WriteStaticGrid(zarrName, &currentSWE))
+      {
+        return false;
+      }
+    }
+    else
+    {
+      gridWriter.WriteGrid(&nodes, &currentSWE, buffer, false);
+    }
+  }
+
+  if ((griddedOutputs & OG_MAXUNITQ) == OG_MAXUNITQ)
+  {
+    for (size_t i = 0; i < currentQ.size(); i++)
+    {
+      currentDepth[i] = maxGrid[i] / nodes[i].contribArea;
+      float val = floorf(currentDepth[i] * 10.0f + 0.5f) / 10.0f;
+      currentDepth[i] = val;
+    }
+    sprintf(buffer, "%s/%smaxunitq.%04i%02i%02i.%02i%02i%02i.tif", outputPath, prefix,
+            ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
+            ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
+    if (outputZarr)
+    {
+      BuildZarrStaticName(prefix, "maxunitq", zarrName, sizeof(zarrName));
+      if (!zarrGridWriter->WriteStaticGrid(zarrName, &currentDepth))
+      {
+        return false;
+      }
+    }
+    else
+    {
+      gridWriter.WriteGrid(&nodes, &currentDepth, buffer, false);
+    }
+  }
+
+  if ((griddedOutputs & OG_MAXDEPTH) == OG_MAXDEPTH)
+  {
+    sprintf(buffer, "%s/%smaxdepth.%04i%02i%02i.%02i%02i%02i.tif", outputPath, prefix,
+            ctWE->tm_year + 1900, ctWE->tm_mon + 1, ctWE->tm_mday,
+            ctWE->tm_hour, ctWE->tm_min, ctWE->tm_sec);
+    if (outputZarr)
+    {
+      BuildZarrStaticName(prefix, "maxdepth", zarrName, sizeof(zarrName));
+      if (!zarrGridWriter->WriteStaticGrid(zarrName, &maxDepthGrid))
+      {
+        return false;
+      }
+    }
+    else
+    {
+      gridWriter.WriteGrid(&nodes, &maxDepthGrid, buffer, false);
+    }
+  }
+
+  return true;
 }
 
 void Simulator::SimulateLumped()
@@ -2779,6 +3196,7 @@ float Simulator::SimulateForCali(float *testParams)
     tsIndex++;
   }
   float skill = CalcObjFunc(&obsQ, &simQCali, objectiveFunc);
+  lastAllScores = CalcAllObjFunc(&obsQ, &simQCali);
 #if _OPENMP
   // printf("%i: %f %f\n", thread, skill, rP[0]);
   /*if (skill < -2000.0) {
@@ -2874,116 +3292,73 @@ float *Simulator::GetObsTS()
   return obsData;
 }
 
-bool Simulator::InitializeGridParams(TaskConfigSection *task)
+// Reads the parameter grids named in a parameter set (an empty name means no
+// grid for that parameter). A parameter grid must be stored as one image
+// plane: a grid stored as separate planes stops the task, so that it is not
+// used by mistake (EF5 used to read such grids as nodata, without a message).
+// Every such grid is reported before returning false.
+static bool LoadParamGrids(std::vector<std::string> *files, int numParams,
+                           std::vector<FloatGrid *> *grids, const char *kind)
 {
-  int numParams = numModelParams[task->GetModel()];
-  std::vector<std::string> *vecGrids = task->GetParamsSec()->GetParamGrids();
-
-  paramGrids.resize(numParams);
-
+  bool separatePlanes = false;
+  grids->resize(numParams);
   for (int i = 0; i < numParams; i++)
   {
-    std::string *file = &(vecGrids->at(i));
-    if (file->length() == 0)
+    const char *file = files->at(i).c_str();
+    (*grids)[i] = NULL;
+    if (!file[0])
     {
-      paramGrids[i] = NULL;
+      continue;
     }
-    else
+    if (IsTifSeparatePlanes(file))
     {
-      paramGrids[i] = ReadFloatTifGrid(file->c_str());
-      if (!paramGrids[i])
-      {
-        ERROR_LOGF("Failed to load water balance parameter grid %s\n",
-                   file->c_str());
-        return false;
-      }
+      ERROR_LOGF("The %s parameter grid %s is stored as separate image planes "
+                 "(PlanarConfiguration=2). Parameter grids must be stored as "
+                 "one image plane; rewrite it with: gdal_translate -co "
+                 "INTERLEAVE=PIXEL %s <new file>",
+                 kind, file, file);
+      separatePlanes = true;
+      continue;
+    }
+    (*grids)[i] = ReadFloatTifGrid(file);
+    if (!(*grids)[i])
+    {
+      ERROR_LOGF("Failed to load %s parameter grid %s\n", kind, file);
+      return false;
     }
   }
+  return !separatePlanes;
+}
 
+bool Simulator::InitializeGridParams(TaskConfigSection *task)
+{
+  // Load every kind before giving up, so that all grids stored as separate
+  // planes are reported at once
+  bool ok = LoadParamGrids(task->GetParamsSec()->GetParamGrids(),
+                           numModelParams[task->GetModel()], &paramGrids,
+                           "water balance");
   if (task->GetRouting() != ROUTE_QTY)
   {
-    int numRParams = numRouteParams[task->GetRouting()];
-    std::vector<std::string> *vecRouteGrids =
-        task->GetRoutingParamsSec()->GetParamGrids();
-
-    paramGridsRoute.resize(numRParams);
-
-    for (int i = 0; i < numRParams; i++)
-    {
-      std::string *file = &(vecRouteGrids->at(i));
-      if (file->length() == 0)
-      {
-        paramGridsRoute[i] = NULL;
-      }
-      else
-      {
-        paramGridsRoute[i] = ReadFloatTifGrid(file->c_str());
-        if (!paramGridsRoute[i])
-        {
-          ERROR_LOGF("Failed to load routing parameter grid %s\n",
-                     file->c_str());
-          return false;
-        }
-      }
-    }
+    ok = LoadParamGrids(task->GetRoutingParamsSec()->GetParamGrids(),
+                        numRouteParams[task->GetRouting()], &paramGridsRoute,
+                        "routing") &&
+         ok;
   }
-
   if (task->GetSnow() != SNOW_QTY)
   {
-    int numSParams = numSnowParams[task->GetSnow()];
-    std::vector<std::string> *vecSnowGrids =
-        task->GetSnowParamsSec()->GetParamGrids();
-
-    paramGridsSnow.resize(numSParams);
-
-    for (int i = 0; i < numSParams; i++)
-    {
-      std::string *file = &(vecSnowGrids->at(i));
-      if (file->length() == 0)
-      {
-        paramGridsSnow[i] = NULL;
-      }
-      else
-      {
-        paramGridsSnow[i] = ReadFloatTifGrid(file->c_str());
-        if (!paramGridsSnow[i])
-        {
-          ERROR_LOGF("Failed to load snow parameter grid %s\n", file->c_str());
-          return false;
-        }
-      }
-    }
+    ok = LoadParamGrids(task->GetSnowParamsSec()->GetParamGrids(),
+                        numSnowParams[task->GetSnow()], &paramGridsSnow,
+                        "snow") &&
+         ok;
   }
-
   if (task->GetInundation() != INUNDATION_QTY)
   {
-    int numIParams = numInundationParams[task->GetInundation()];
-    std::vector<std::string> *vecInundationGrids =
-        task->GetInundationParamsSec()->GetParamGrids();
-
-    paramGridsInundation.resize(numIParams);
-
-    for (int i = 0; i < numIParams; i++)
-    {
-      std::string *file = &(vecInundationGrids->at(i));
-      if (file->length() == 0)
-      {
-        paramGridsInundation[i] = NULL;
-      }
-      else
-      {
-        paramGridsInundation[i] = ReadFloatTifGrid(file->c_str());
-        if (!paramGridsInundation[i])
-        {
-          ERROR_LOGF("Failed to load inundation parameter grid %s\n",
-                     file->c_str());
-          return false;
-        }
-      }
-    }
+    ok = LoadParamGrids(task->GetInundationParamsSec()->GetParamGrids(),
+                        numInundationParams[task->GetInundation()],
+                        &paramGridsInundation, "inundation") &&
+         ok;
   }
-
-  return true;
+  return ok;
 }
 
 // Simple function to fix NaN values in observed discharge data

@@ -1,0 +1,21 @@
+# Run EF5 with Docker Compose. Copy this file into the folder you run EF5 from
+# (where control.txt is), or add the "ef5" service to your own compose file:
+#
+#   EF5_USER="$(id -u):$(id -g)" docker compose run --rm ef5 control.txt
+#
+# The folder is mounted at /data, so paths in the control file are relative to
+# it. EF5_USER makes the outputs belong to you (default 1000:1000).
+services:
+  ef5:
+    # Prebuilt image, published with each EF5 release
+    image: ghcr.io/ahwalab/ef5:1.3.0
+    # To build the image from the EF5 source instead of pulling it, uncomment:
+    # build:
+    #   context: https://github.com/AHWALab/EF5.git#v1.3.0
+    #   dockerfile: docker/Dockerfile
+    user: "${EF5_USER:-1000:1000}"
+    working_dir: /data
+    volumes:
+      - ./:/data
+    environment:
+      OMP_NUM_THREADS: "${OMP_NUM_THREADS:-4}"

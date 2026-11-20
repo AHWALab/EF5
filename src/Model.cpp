@@ -170,6 +170,7 @@ const char *KINEMATIC[] = {
 const char **routeParamStrings[] = {
     paramRouteStrings::LINEAR,
     paramRouteStrings::KINEMATIC,
+    paramRouteStrings::KINEMATIC,
 
 };
 
@@ -196,14 +197,13 @@ const char *KINEMATIC[] = {
 const char **routeParamGridStrings[] = {
     paramRouteGridStrings::LINEAR,
     paramRouteGridStrings::KINEMATIC,
+    paramRouteGridStrings::KINEMATIC,
 };
 
 const int numRouteParams[] = {
-#undef ADDROUTE
-#define ADDROUTE(a, b) PARAM_##b##_QTY,
-#include "Models.tbl"
-#undef ADDROUTE
-#define ADDROUTE(a, b)
+    PARAM_LINEAR_QTY,
+    PARAM_KINEMATIC_QTY,
+    PARAM_KINEMATIC_QTY,
 };
 
 const char *snowStrings[] = {

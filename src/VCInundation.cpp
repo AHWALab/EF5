@@ -158,12 +158,10 @@ void VCInundation::InitializeParameters(
 
   // This pass distributes parameters
   size_t numNodes = nodes->size();
-  size_t unused = 0;
   for (size_t i = 0; i < numNodes; i++) {
     GridNode *node = &nodes->at(i);
     VCInundationGridNode *cNode = &(iNodes[i]);
     if (!node->gauge) {
-      unused++;
       continue;
     }
     // Copy all of the parameters over
@@ -247,8 +245,7 @@ bool TestUpstream(long nextX, long nextY, FLOW_DIR dir, GridLoc *loc) {
 
   if (nextX >= 0 && nextY >= 0 && nextX < g_DDM->numCols &&
       nextY < g_DDM->numRows &&
-      g_DDM->data[nextY][nextX] ==
-          wantDir) { // && g_FAM->data[nextY][nextX] <= currentFAC) {
+      g_DDM->data[nextY][nextX] == (float)wantDir) { // && g_FAM->data[nextY][nextX] <= currentFAC) {
     loc->x = nextX;
     loc->y = nextY;
     return true;

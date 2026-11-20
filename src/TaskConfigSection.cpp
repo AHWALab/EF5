@@ -22,7 +22,7 @@ TaskConfigSection::TaskConfigSection(const char *nameVal)
       paramsSnow(nullptr), caliParamSnow(nullptr), paramsInundation(nullptr), caliParamInundation(nullptr),
       defaultGauge(nullptr),
       timeStep(), timeStepLR(), style(STYLE_QTY), timeBegin(), timeWarmEnd(), timeEnd(), timeState(), timeBeginLR(),
-      griddedOutputs(OG_NONE)
+      griddedOutputs(OG_NONE), outputType(OUTPUT_TYPE_GEOTIFF)
 {
   strcpy(name, nameVal);
   std::fill(output, output + CONFIG_MAX_LEN, 0);
@@ -222,7 +222,7 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char *name, char *value)
       }
     }
     ERROR_LOGF("Unknown routing option \"%s\"!", value);
-    INFO_LOGF("Valid routing options are \"%s\"", "LR, KW");
+    INFO_LOGF("Valid routing options are \"%s\"", "LR, KW, KW_PARALLEL");
     return INVALID_RESULT;
   }
   else if (!strcasecmp(name, "snow"))
@@ -375,9 +375,17 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char *name, char *value)
       return INVALID_RESULT;
     }
     TOLOWER(value);
+    std::map<std::string, RoutingParamSetConfigSection *> *routingParamSets =
+        &g_routingParamSetConfigs[routing];
     std::map<std::string, RoutingParamSetConfigSection *>::iterator itr =
-        g_routingParamSetConfigs[routing].find(value);
-    if (itr == g_routingParamSetConfigs[routing].end())
+        routingParamSets->find(value);
+    if (itr == routingParamSets->end() &&
+        routing == ROUTE_KINEMATIC_PARALLEL)
+    {
+      routingParamSets = &g_routingParamSetConfigs[ROUTE_KINEMATIC];
+      itr = routingParamSets->find(value);
+    }
+    if (itr == routingParamSets->end())
     {
       ERROR_LOGF("Unknown routing parameter set \"%s\"!", value);
       return INVALID_RESULT;
@@ -427,6 +435,22 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char *name, char *value)
   {
     strcpy(output, value);
     outputSet = true;
+  }
+  else if (!strcasecmp(name, "output_type"))
+  {
+    if (!strcasecmp(value, "geotiff"))
+    {
+      outputType = OUTPUT_TYPE_GEOTIFF;
+    }
+    else if (!strcasecmp(value, "zarr"))
+    {
+      outputType = OUTPUT_TYPE_ZARR;
+    }
+    else
+    {
+      ERROR_LOGF("Unknown output type \"%s\". Valid output types are GEOTIFF and ZARR.", value);
+      return INVALID_RESULT;
+    }
   }
   else if (!strcasecmp(name, "preload_file"))
   {
@@ -589,9 +613,17 @@ CONFIG_SEC_RET TaskConfigSection::ProcessKeyValue(char *name, char *value)
       return INVALID_RESULT;
     }
     TOLOWER(value);
+    std::map<std::string, RoutingCaliParamConfigSection *> *routingCaliParams =
+        &g_routingCaliParamConfigs[routing];
     std::map<std::string, RoutingCaliParamConfigSection *>::iterator itr =
-        g_routingCaliParamConfigs[routing].find(value);
-    if (itr == g_routingCaliParamConfigs[routing].end())
+        routingCaliParams->find(value);
+    if (itr == routingCaliParams->end() &&
+        routing == ROUTE_KINEMATIC_PARALLEL)
+    {
+      routingCaliParams = &g_routingCaliParamConfigs[ROUTE_KINEMATIC];
+      itr = routingCaliParams->find(value);
+    }
+    if (itr == routingCaliParams->end())
     {
       ERROR_LOGF("Unknown routing calibration parameter set \"%s\"!", value);
       return INVALID_RESULT;

@@ -14,10 +14,12 @@
 #include "TaskConfigSection.h"
 #include "TempConfigSection.h"
 #include "TempReader.h"
+#include "ZarrGridWriter.h"
 
 class Simulator
 {
 public:
+    Simulator() : zarrGridWriter(NULL) {}
     bool Initialize(TaskConfigSection *taskN);
     void PreloadForcings(char *file, bool cali);
     bool LoadSavedForcings(char *file, bool cali);
@@ -30,6 +32,7 @@ public:
     float SimulateForCali(float *testParams);
     float *SimulateForCaliTS(float *testParams);
     float *GetObsTS();
+    const std::vector<float>& GetAllScores() const { return lastAllScores; }
     size_t GetNumSteps() { return totalTimeStepsOutsideWarm; }
 
 private:
@@ -109,8 +112,11 @@ private:
     TimeVar stateTime;
     std::vector<std::vector<float>> peakVals;
     GridWriterFull gridWriter;
+    ZarrGridWriter *zarrGridWriter;
     float numYears;
     int missingQPE, missingQPF;
+    std::vector<float> maxGrid, rpMaxGrid, maxDepthGrid, SM;
+    bool OutputMaxFiles(const char* prefix);
 
     // This is for calibrations only
     std::vector<std::vector<float>> currentPrecipCali, currentPETCali,
@@ -124,6 +130,7 @@ private:
     float *caliWBParams;
     float *caliRParams;
     float *caliSParams;
+    std::vector<float> lastAllScores;   // stores all OBJECTIVE_QTY metric scores from last SimulateForCali call
     size_t totalTimeSteps, totalTimeStepsOutsideWarm;
     int numWBParams, numRParams, numSParams;
     int caliGaugeIndex;
