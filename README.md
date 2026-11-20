@@ -13,6 +13,7 @@ The goal of EF5 is to have a framework for distributed hydrologic modeling that 
 - With a forecast period (`TIME_BEGIN_LR`), maximum grids for the observed period (`qpe_max*`) and for the whole run (`qpf_max*`).
 - DREAM output has a column for every objective function (`nsce`, `cc`, `sse`, `mkge`).
 - Parameter grids must be stored as one image plane: a grid stored as separate planes stops the task, with the command that fixes it. EF5 exits with status 1 when a task did not run.
+- Docker and Apptainer images: `ghcr.io/ahwalab/ef5:1.3.0`, or build them from `docker/` (see [Getting EF5](#getting-ef5)).
 
 See [CHANGELOG.md](CHANGELOG.md) for details and upgrade notes.
 
@@ -21,6 +22,23 @@ See [CHANGELOG.md](CHANGELOG.md) for details and upgrade notes.
 General information about EF5 can be found at [AHWA Lab's Webpage](https://ahwa.lab.uiowa.edu/ensemble-framework-flash-flood-forecasting-ef5). YouTube videos with legacy basic training may be found at [EF5's YouTube Channel](https://www.youtube.com/channel/UCgoGJtdeqHgwoYIRhkgMwog). The source code for the original development transitioned to NWS operations can be found on HyDROSLab's GitHub at [https://github.com/HyDROSLab/EF5](https://github.com/HyDROSLab/EF5).
 
 See [EF5's Documentation](https://ef5docs.readthedocs.io/en/latest/) for the EF5 operating manual which describes configuration options.
+
+## Getting EF5
+
+Pick whichever suits your machine:
+
+| option | for | how |
+|---|---|---|
+| Prebuilt binaries | quick start on Ubuntu 26.04 or Windows | download from the [Releases page](https://github.com/AHWALab/EF5/releases): `ef5_linux.tar.gz` (built on Ubuntu 26.04, needs its libraries), `ef5_win64.zip`, `ef5_win32.zip` (no Zarr output) |
+| Docker image | any machine with Docker; Docker Compose setups | `docker pull ghcr.io/ahwalab/ef5:1.3.0` (see [docker/README.md](docker/README.md)) |
+| Apptainer image | HPC clusters without Docker | `apptainer pull ef5.sif docker://ghcr.io/ahwalab/ef5:1.3.0` (see [docker/README.md](docker/README.md)) |
+| Compile from source | any Linux, including HPC clusters without containers or root | [Compiling](#compiling) below |
+
+The Docker image can also be built from this repository (`docker/build.sh docker`), or used from your own Docker Compose file: copy the `ef5` service in [docker/compose.yaml](docker/compose.yaml).
+
+Quick start with Docker, from the folder that holds your control file:
+
+    docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" ghcr.io/ahwalab/ef5:1.3.0 control.txt
 
 ## Compiling
 
@@ -51,6 +69,20 @@ Clone the source code from GitHub.
 The last line printed by `./configure` says whether Zarr output is built (`Zarr output: yes`). It is built when GDAL 3.11 or newer is found. Use `./configure --with-zarr` to make a missing GDAL an error, or `./configure --without-zarr` to build without GDAL.
 
 The script `compile_ef5.sh` installs the dependencies with the system package manager and runs these steps.
+
+### Linux without root (HPC clusters)
+
+If you cannot install system packages, take the libraries from conda (or the cluster's modules, if they have GDAL 3.11 or newer). With conda-forge:
+
+    conda create -n ef5-build -c conda-forge "gdal>=3.11" geotiff libtiff zlib autoconf automake libtool pkg-config make cxx-compiler
+    conda activate ef5-build
+    autoreconf --force --install
+    ./configure --with-zarr CPPFLAGS="-I$CONDA_PREFIX/include" LDFLAGS="-L$CONDA_PREFIX/lib -Wl,-rpath,$CONDA_PREFIX/lib" ac_cv_header_geotiff_xtiffio_h=no ac_cv_header_libgeotiff_xtiffio_h=no
+    make
+
+The `-rpath` makes `bin/ef5` find the conda libraries without activating the environment, so it can be called from job scripts as is (keep the environment). The two `ac_cv_header_...=no` settings make EF5 use conda's libgeotiff headers even if the system has its own. On a cluster with modules, load the compiler, GDAL, libgeotiff and libtiff modules instead and run `autoreconf --force --install`, `./configure` and `make`.
+
+You can also skip compiling and run the [Apptainer image](docker/README.md#apptainer-hpc).
 
 ### OS X
 

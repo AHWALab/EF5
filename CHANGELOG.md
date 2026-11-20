@@ -105,6 +105,19 @@ Read these before replacing an older EF5 in an operational setup:
 - The GitHub Actions Linux build runs in an Ubuntu 26.04 container (GDAL 3.12),
   so the released Linux binary has Zarr output. The Windows builds are built
   without Zarr output.
+- **Container images.** `docker/` has a Dockerfile and an Apptainer recipe
+  (`ef5.def`), both building EF5 on Ubuntu 26.04 with Zarr output.
+  - `docker/build.sh` builds either image, and `docker/ef5-docker` runs the
+    Docker image like a normal `ef5` binary.
+  - `docker/compose.yaml` is a Docker Compose service to copy into your own
+    setup.
+  - Each release publishes the image as `ghcr.io/ahwalab/ef5:<version>` and
+    `:latest`. HPC users can run it with
+    `apptainer pull ef5.sif docker://ghcr.io/ahwalab/ef5:<version>`.
+  - See `docker/README.md`.
+- The README explains how to compile without root on HPC clusters (libraries
+  from conda-forge or modules).
+- GitHub releases take their notes from this changelog.
 
 ---
 
